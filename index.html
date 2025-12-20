@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Report Generator</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="top-bar">
+      <div class="brand">
+        <div class="brand-mark">RG</div>
+        <div>
+          <div class="brand-name">Report Generator</div>
+          <div class="brand-subtitle">Template-driven, evidence-aware</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <div class="user-pill">
+          <div class="pill-label">Signed in</div>
+          <div class="pill-value" id="userName"></div>
+          <div class="pill-role" id="userRole"></div>
+        </div>
+        <div class="workspace-switcher">
+          <label for="workspaceSelect">Workspace</label>
+          <select id="workspaceSelect"></select>
+          <div class="workspace-meta" id="workspaceMeta"></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="layout">
+      <nav class="side-nav" id="sideNav">
+        <button class="nav-item active" data-target="dashboard">Dashboard</button>
+        <button class="nav-item" data-target="templates">Templates</button>
+        <button class="nav-item" data-target="prompts">Prompts</button>
+        <button class="nav-item" data-target="connectors">Connectors</button>
+        <button class="nav-item" data-target="runs">Runs</button>
+      </nav>
+
+      <main class="content">
+        <section class="page" id="dashboardPage">
+          <div class="page-header">
+            <div>
+              <p class="eyebrow">Workspace overview</p>
+              <h1>Dashboard</h1>
+            </div>
+            <div class="context-chip" id="activeModeChip"></div>
+          </div>
+          <div class="grid two-column">
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow">Report runs</p>
+                  <h2>Recent health</h2>
+                </div>
+                <span class="badge success">Evidence-aware</span>
+              </div>
+              <div class="metric-row">
+                <div>
+                  <p class="metric-label">Defensible passes</p>
+                  <p class="metric-value" id="defensibleCount">0</p>
+                </div>
+                <div>
+                  <p class="metric-label">Fast drafts</p>
+                  <p class="metric-value" id="fastCount">0</p>
+                </div>
+                <div>
+                  <p class="metric-label">Pending retries</p>
+                  <p class="metric-value" id="retryCount">0</p>
+                </div>
+              </div>
+              <div id="runEventStream" class="event-stream"></div>
+            </div>
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow">Work in flight</p>
+                  <h2>Active blueprint</h2>
+                </div>
+                <span class="badge">Cross-section normalization</span>
+              </div>
+              <ul class="list" id="blueprintList"></ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="page hidden" id="templatesPage">
+          <div class="page-header">
+            <p class="eyebrow">Template Studio</p>
+            <h1>Templates</h1>
+          </div>
+          <div class="grid two-column" id="templateGrid"></div>
+        </section>
+
+        <section class="page hidden" id="promptsPage">
+          <div class="page-header">
+            <p class="eyebrow">Prompt Studio</p>
+            <h1>Prompts</h1>
+          </div>
+          <div class="grid two-column" id="promptGrid"></div>
+        </section>
+
+        <section class="page hidden" id="connectorsPage">
+          <div class="page-header">
+            <p class="eyebrow">Data plane</p>
+            <h1>Connectors</h1>
+          </div>
+          <div class="grid two-column" id="connectorGrid"></div>
+        </section>
+
+        <section class="page hidden" id="runsPage">
+          <div class="page-header">
+            <p class="eyebrow">Report Factory</p>
+            <h1>Runs</h1>
+          </div>
+
+          <div class="grid two-column">
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow">Run configuration</p>
+                  <h2>Fast vs Defensible</h2>
+                </div>
+                <span class="badge accent">Two-speed UX</span>
+              </div>
+              <div class="mode-options">
+                <label class="mode-card">
+                  <input type="radio" name="mode" value="fast" checked>
+                  <div>
+                    <p class="mode-label">Fast Draft</p>
+                    <p class="mode-copy">Speed-first planning and writing with lightweight verification and optimistic caching.</p>
+                  </div>
+                </label>
+                <label class="mode-card">
+                  <input type="radio" name="mode" value="defensible">
+                  <div>
+                    <p class="mode-label">Defensible</p>
+                    <p class="mode-copy">Strict evidence boundaries, verification + repair loops, reviewer simulation, and provenance enforcement.</p>
+                  </div>
+                </label>
+              </div>
+              <div class="provenance-note">
+                <p class="eyebrow">Provenance</p>
+                <p id="provenanceDescription"></p>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow">Blueprint & audit</p>
+                  <h2>Context</h2>
+                </div>
+                <span class="badge">Evidence policy</span>
+              </div>
+              <ul class="list" id="contextList"></ul>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">Execution</p>
+                <h2>Section status board</h2>
+              </div>
+              <span class="badge success">Live SSE updates</span>
+            </div>
+            <div class="status-board" id="statusBoard"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="artifactModal">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Artifact viewer</p>
+          <h3 id="artifactTitle"></h3>
+        </div>
+        <button class="icon-button" id="closeModal">✕</button>
+      </div>
+      <pre id="artifactBody"></pre>
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

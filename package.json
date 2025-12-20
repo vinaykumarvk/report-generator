@@ -1,0 +1,18 @@
+{
+  "name": "report-generator",
+  "version": "1.0.0",
+  "description": "Template-driven report generator prototype services",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "reports",
+    "pipeline",
+    "profiles"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

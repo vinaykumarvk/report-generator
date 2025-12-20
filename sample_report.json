@@ -1,0 +1,54 @@
+{
+  "id": "report-1",
+  "title": "Example Report Run",
+  "sections": [
+    {
+      "id": "sec-1",
+      "name": "Market Overview",
+      "requirements": ["market size", "growth rate", "region"],
+      "target_evidence": 3,
+      "evidence": [
+        {
+          "id": "ev-1",
+          "section_id": "sec-1",
+          "source_type": "web",
+          "uri": "https://example.com/market",
+          "added_at": "2025-01-01T00:00:00",
+          "content": "The market size is growing at 12% annually in the APAC region."
+        },
+        {
+          "id": "ev-2",
+          "section_id": "sec-1",
+          "source_type": "vector",
+          "uri": "vector://reports/market",
+          "added_at": "2025-02-12T00:00:00",
+          "content": "Analyst note shows strong growth rate and expanding market size."
+        }
+      ]
+    },
+    {
+      "id": "sec-2",
+      "name": "Product Fit",
+      "requirements": ["differentiation", "customer needs"],
+      "target_evidence": 2,
+      "evidence": [
+        {
+          "id": "ev-3",
+          "section_id": "sec-2",
+          "source_type": "interview",
+          "uri": null,
+          "added_at": "2025-02-10T00:00:00",
+          "content": "Customers highlighted differentiation through automation."
+        },
+        {
+          "id": "ev-4",
+          "section_id": "sec-2",
+          "source_type": "interview",
+          "uri": null,
+          "added_at": "2024-12-20T00:00:00",
+          "content": "Customers highlighted differentiation through automation."
+        }
+      ]
+    }
+  ]
+}

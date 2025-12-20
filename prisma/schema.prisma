@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+enum TemplateStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum EvidencePolicy {
+  EVIDENCE_REQUIRED
+  EVIDENCE_OPTIONAL
+  SYNTHESIS_ONLY
+}
+
+enum RetrievalMethod {
+  SYNTHESIS_ONLY
+  VECTOR_ONLY
+  WEB_ONLY
+  VECTOR_AND_WEB
+}
+
+model Template {
+  id          String            @id @default(cuid())
+  name        String
+  description String?
+  formats     String[]
+  status      TemplateStatus    @default(DRAFT)
+  version     Int               @default(1)
+  sections    TemplateSection[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  publishedAt DateTime?
+}
+
+model TemplateSection {
+  id             String          @id @default(cuid())
+  template       Template        @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  templateId     String
+  title          String
+  purpose        String?
+  order          Int
+  formats        String[]
+  evidencePolicy EvidencePolicy
+  retrievalMethod RetrievalMethod
+  status         TemplateStatus  @default(DRAFT)
+  prompt         String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([templateId, order])
+  @@index([templateId])
+}

@@ -20,4 +20,22 @@
     "ioredis": "^5.4.2",
     "uuid": "^9.0.1"
   }
+  "description": "Provider-agnostic LLM client with retries, rate limiting, cost tracking, and telemetry hooks.",
+  "main": "src/index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "node --test"
+  "description": "Lightweight report template service with validation and UI",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "build": "node scripts/smoke.js",
+    "test": "node scripts/smoke.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
 }

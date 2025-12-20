@@ -8,6 +8,12 @@
   },
   "scripts": {
     "test": "node --test"
+  "description": "Lightweight report template service with validation and UI",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "build": "node scripts/smoke.js",
+    "test": "node scripts/smoke.js"
   },
   "keywords": [],
   "author": "",

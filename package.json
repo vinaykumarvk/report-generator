@@ -1,0 +1,16 @@
+{
+  "name": "report-generator",
+  "version": "1.0.0",
+  "description": "Provider-agnostic LLM client with retries, rate limiting, cost tracking, and telemetry hooks.",
+  "main": "src/index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

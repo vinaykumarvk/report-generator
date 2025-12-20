@@ -1,0 +1,10 @@
+{
+  "name": "report-generator",
+  "version": "0.1.0",
+  "description": "Dependency tracking and change detection for report generator",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "devDependencies": {}
+}

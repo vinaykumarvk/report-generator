@@ -1,6 +1,4 @@
 node_modules
-data/*.db
-*.log
 npm-debug.log*
-dist
 .DS_Store
+artifacts/

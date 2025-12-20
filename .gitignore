@@ -4,3 +4,9 @@ __pycache__/
 *.pyc
 data/
 output/
+*.pyc
+.pytest_cache/
+node_modules
+npm-debug.log*
+.DS_Store
+artifacts/

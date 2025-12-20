@@ -1,0 +1,45 @@
+{
+  "templates": [
+    {
+      "id": "seed-template",
+      "name": "Sample BRD Template",
+      "description": "Starter template demonstrating evidence-aware sections and ordering.",
+      "formats": ["markdown", "docx"],
+      "status": "DRAFT",
+      "version": 1,
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "publishedAt": null
+    }
+  ],
+  "sections": [
+    {
+      "id": "seed-section-1",
+      "templateId": "seed-template",
+      "title": "Executive Summary",
+      "purpose": "Summarize the report goals and key recommendations.",
+      "order": 1,
+      "formats": ["markdown"],
+      "evidencePolicy": "SYNTHESIS_ONLY",
+      "retrievalMethod": "SYNTHESIS_ONLY",
+      "status": "DRAFT",
+      "prompt": "Draft a concise summary using only provided blueprint context. Do not add new facts.",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "seed-section-2",
+      "templateId": "seed-template",
+      "title": "Findings",
+      "purpose": "Detail the core findings with evidence-backed claims.",
+      "order": 2,
+      "formats": ["markdown"],
+      "evidencePolicy": "EVIDENCE_REQUIRED",
+      "retrievalMethod": "VECTOR_AND_WEB",
+      "status": "DRAFT",
+      "prompt": "Use the retrieval plan to ground claims and include inline citations.",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ]
+}

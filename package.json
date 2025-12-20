@@ -1,6 +1,13 @@
 {
   "name": "report-generator",
   "version": "1.0.0",
+  "description": "Provider-agnostic LLM client with retries, rate limiting, cost tracking, and telemetry hooks.",
+  "main": "src/index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "node --test"
   "description": "Lightweight report template service with validation and UI",
   "main": "src/server.js",
   "scripts": {

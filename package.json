@@ -1,17 +1,14 @@
 {
   "name": "report-generator",
   "version": "1.0.0",
-  "description": "Template-driven report generator prototype services",
+  "description": "Lightweight report template service with validation and UI",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "test": "node --test"
+    "build": "node scripts/smoke.js",
+    "test": "node scripts/smoke.js"
   },
-  "keywords": [
-    "reports",
-    "pipeline",
-    "profiles"
-  ],
+  "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs"

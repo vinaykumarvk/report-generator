@@ -1,2 +1,4 @@
 node_modules
-src/data/state.json
+npm-debug.log*
+.DS_Store
+artifacts/

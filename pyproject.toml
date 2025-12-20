@@ -1,6 +1,12 @@
 [project]
 name = "report-generator"
 version = "0.1.0"
+description = "Evidence-aware report scoring utilities"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+addopts = "-q"
 description = "Template-driven report export and storage utilities."
 readme = "BRD - Report Generator.md"
 requires-python = ">=3.12"

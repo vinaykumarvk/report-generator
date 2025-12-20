@@ -2,3 +2,17 @@ node_modules
 npm-debug.log*
 dist
 .vitest
+__pycache__/
+*.pyc
+
+.pytest_cache/
+.mypy_cache/
+*.pyc
+data/
+output/
+*.pyc
+.pytest_cache/
+node_modules
+npm-debug.log*
+.DS_Store
+artifacts/

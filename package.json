@@ -1,0 +1,12 @@
+{
+  "name": "report-generator",
+  "version": "0.1.0",
+  "description": "Prompt set manager with guardrails and UI",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "NODE_ENV=development node src/server.js",
+    "test": "node -e \"console.log('No automated tests configured yet.')\""
+  },
+  "dependencies": {}
+}

@@ -1,0 +1,48 @@
+{
+  "promptSets": [
+    {
+      "id": "75869e39-cd5c-4e65-925b-5a5f46f36aa7",
+      "name": "Demo",
+      "state": "draft",
+      "version": 1,
+      "publishedVersion": null,
+      "sections": [
+        {
+          "id": "sec1",
+          "name": "Intro",
+          "basePrompt": "Write intro",
+          "overrides": {},
+          "guardrails": [
+            "Stay factual"
+          ],
+          "evidencePolicy": "vector-only"
+        }
+      ],
+      "history": [
+        {
+          "version": 1,
+          "timestamp": "2025-12-20T14:41:57.827Z",
+          "action": "created",
+          "note": "Initial draft created",
+          "state": {
+            "name": "Demo",
+            "state": "draft",
+            "sections": [
+              {
+                "id": "sec1",
+                "name": "Intro",
+                "basePrompt": "Write intro",
+                "overrides": {},
+                "guardrails": [
+                  "Stay factual"
+                ],
+                "evidencePolicy": "vector-only"
+              }
+            ],
+            "publishedVersion": null
+          }
+        }
+      ]
+    }
+  ]
+}

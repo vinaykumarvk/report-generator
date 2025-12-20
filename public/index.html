@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prompt Set Studio</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Prompt Set Studio</h1>
+      <p class="subtitle">Draft, publish, and guardrail prompts per section.</p>
+    </div>
+    <button id="refresh">Refresh</button>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>Create prompt set</h2>
+      <div class="form-grid">
+        <label>Name
+          <input id="new-name" type="text" placeholder="Evidence-aware prompts" />
+        </label>
+        <label>Initial section name
+          <input id="new-section-name" type="text" placeholder="Executive Summary" />
+        </label>
+      </div>
+      <button id="create">Create draft</button>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Prompt sets</h2>
+        <span id="selection-state" class="pill muted">None selected</span>
+      </div>
+      <div id="prompt-set-list" class="list"></div>
+    </section>
+
+    <section id="details" class="panel hidden">
+      <div class="panel-header">
+        <div>
+          <h2 id="detail-title">Prompt set</h2>
+          <p id="detail-meta" class="muted"></p>
+        </div>
+        <div class="actions">
+          <button id="save-draft">Save draft</button>
+          <button id="publish">Publish</button>
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <label>Name
+          <input id="detail-name" type="text" />
+        </label>
+        <label>Version
+          <input id="detail-version" type="text" disabled />
+        </label>
+        <label>Status
+          <input id="detail-status" type="text" disabled />
+        </label>
+      </div>
+
+      <div id="sections"></div>
+      <button id="add-section" class="ghost">+ Add section</button>
+
+      <div class="panel" id="preview-panel">
+        <div class="panel-header">
+          <h3>Guardrail preview</h3>
+          <select id="preview-section"></select>
+          <button id="preview-btn">Preview</button>
+        </div>
+        <pre id="preview-output" class="code"></pre>
+      </div>
+
+      <div class="panel" id="diff-panel">
+        <div class="panel-header">
+          <h3>Diff vs last published</h3>
+          <small class="muted">Shows changes between current draft and latest published snapshot.</small>
+        </div>
+        <div id="diff-output" class="diff"></div>
+      </div>
+
+      <div class="panel" id="history-panel">
+        <div class="panel-header">
+          <h3>History</h3>
+          <div class="actions">
+            <select id="rollback-version"></select>
+            <button id="rollback-btn" class="danger">Rollback</button>
+          </div>
+        </div>
+        <div id="history"></div>
+      </div>
+    </section>
+  </main>
+
+  <template id="section-template">
+    <div class="section-card">
+      <div class="section-header">
+        <input type="text" class="section-name" />
+        <select class="evidence-policy">
+          <option value="vector-only">Vector only</option>
+          <option value="web-search">Web search</option>
+          <option value="hybrid">Hybrid</option>
+        </select>
+      </div>
+      <label>Base prompt
+        <textarea class="base-prompt" rows="4"></textarea>
+      </label>
+      <label>Section override (write stage)
+        <textarea class="override-write" rows="3" placeholder="Optional override for this section's writer"></textarea>
+      </label>
+      <label>Guardrail clauses (one per line)
+        <textarea class="guardrails" rows="3" placeholder="Non-removable clauses for this section"></textarea>
+      </label>
+    </div>
+  </template>
+
+  <script src="/app.js"></script>
+</body>
+</html>

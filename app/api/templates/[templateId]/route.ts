@@ -162,9 +162,9 @@ export async function PUT(
     }
   }
 
-  const workspaceId = template.workspace_id || (await getDefaultWorkspaceId());
+  const auditWorkspaceId = template.workspace_id || (await getDefaultWorkspaceId());
   const { error: auditError } = await supabase.from("audit_logs").insert({
-    workspace_id: workspaceId,
+    workspace_id: auditWorkspaceId,
     action_type: "TEMPLATE_UPDATED",
     target_type: "Template",
     target_id: params.templateId,
@@ -207,9 +207,9 @@ export async function DELETE(
   assertNoSupabaseError(deleteError, "Failed to delete template");
 
   // Log the deletion
-  const workspaceId = template.workspace_id || (await getDefaultWorkspaceId());
+  const auditWorkspaceId = template.workspace_id || (await getDefaultWorkspaceId());
   const { error: auditError } = await supabase.from("audit_logs").insert({
-    workspace_id: workspaceId,
+    workspace_id: auditWorkspaceId,
     action_type: "TEMPLATE_DELETED",
     target_type: "Template",
     target_id: params.templateId,

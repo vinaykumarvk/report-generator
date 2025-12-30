@@ -26,6 +26,7 @@ __pycache__/
 .mypy_cache/
 *.pyc
 data/
+!data/writing-styles.json
 output/
 *.pyc
 .pytest_cache/

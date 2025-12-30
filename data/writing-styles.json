@@ -1,0 +1,134 @@
+{
+  "version": "1.1",
+  "notes": "Writing styles are applied at section-level. Use global rules for all outputs, then add style rules for the selected style. Recommended style set updated to 9 styles (adds Operational Reporting, renames Narrative Insight -> Strategic Narrative, broadens Technical Architecture -> Technical & Systems Design).",
+  "global_enforced_rules": [
+    "Do not hallucinate facts, data, metrics, regulatory positions, dates, or sources.",
+    "If information is missing or uncertain, clearly state assumptions and label uncertainty explicitly.",
+    "Maintain internal consistency across sections (numbers, dates, entities, conclusions).",
+    "Avoid contradictory statements. If trade-offs exist, articulate them explicitly.",
+    "Use professional, business-appropriate language. Avoid slang, memes, and overly casual phrasing.",
+    "Do not fabricate legal, compliance, financial, or contractual claims.",
+    "Do not include confidential data unless it is explicitly provided in the input context."
+  ],
+  "writing_styles": [
+    {
+      "id": "executive_briefing",
+      "name": "Executive Briefing",
+      "description": "Concise, decision-oriented summary for senior stakeholders; emphasizes key findings, implications, and actions.",
+      "llm_instruction": "Write in an executive briefing style. Be concise, outcome-focused, and insight-driven. Use short paragraphs and bullet points. Prioritize key findings, implications, and decisions over background detail. Assume a time-constrained senior audience.",
+      "enforced_rules": [
+        "Start with key outcomes and decision-relevant highlights.",
+        "Use bullets wherever possible; keep paragraphs short (2–4 lines).",
+        "Explicitly state implications and recommended next actions.",
+        "Avoid deep technical methodology unless it materially changes decisions.",
+        "Prefer concrete numbers and dates; if unavailable, state what is missing."
+      ]
+    },
+    {
+      "id": "analytical_research",
+      "name": "Analytical Research",
+      "description": "Objective, evidence-based analysis with logical structure, comparisons, assumptions, and limitations.",
+      "llm_instruction": "Write in an analytical research style. Structure the response logically with clear sections, use evidence-based reasoning, compare alternatives where relevant, highlight assumptions and limitations, and maintain an objective, data-driven tone. Prefer structured analysis over narrative prose.",
+      "enforced_rules": [
+        "Separate facts from interpretations; label opinions as hypotheses.",
+        "Support major claims with reasoning or data; state gaps explicitly.",
+        "Include assumptions and limitations in each relevant section.",
+        "Use comparative analysis (peers, benchmarks, trends) when relevant.",
+        "Avoid persuasive/marketing language; keep tone neutral."
+      ]
+    },
+    {
+      "id": "strategic_narrative",
+      "name": "Strategic Narrative",
+      "description": "Context-first strategic explanation connecting drivers, positioning, and future outlook in a coherent storyline.",
+      "llm_instruction": "Write in a strategic narrative style. Provide clear context, explain the 'why' behind events and trends, connect sections into a coherent strategic story, and end with implications for direction and priorities. Keep it professional and executive-appropriate, not blog-like.",
+      "enforced_rules": [
+        "Open with context and strategic drivers before details.",
+        "Connect cause → effect → implication explicitly.",
+        "Avoid casual storytelling; keep a professional, business tone.",
+        "Do not introduce unsupported claims; ground narrative in stated facts.",
+        "End with strategic implications, priorities, or options."
+      ]
+    },
+    {
+      "id": "structured_specification",
+      "name": "Structured Specification",
+      "description": "Precise, unambiguous, implementation-ready requirements and statements; best for BRDs and test artifacts.",
+      "llm_instruction": "Write in a structured specification style. Use precise, unambiguous language. Organize content into clearly numbered sections, subsections, and bullet points. Avoid narrative or marketing language. Every requirement should be atomic, testable, and implementation-ready.",
+      "enforced_rules": [
+        "Use numbered sections/subsections; keep hierarchy consistent.",
+        "Each requirement must be atomic, testable, and uniquely identifiable (e.g., FR-001).",
+        "Use SHALL / SHOULD / MAY consistently to indicate obligation level.",
+        "Avoid subjective language (e.g., 'easy', 'robust') without measurable criteria.",
+        "Include validations, error handling, and edge cases where relevant."
+      ]
+    },
+    {
+      "id": "solution_proposal",
+      "name": "Solution Proposal",
+      "description": "Customer-centric proposal mapping requirements to capabilities; balances clarity with persuasive value framing.",
+      "llm_instruction": "Write in a solution proposal style. Address the customer's needs directly, map requirements to proposed capabilities, explain how the solution works, and highlight value, differentiation, and feasibility. Balance clarity with persuasive framing.",
+      "enforced_rules": [
+        "Map requirements to capabilities explicitly (e.g., requirement → approach → outcome).",
+        "Clearly distinguish current capabilities vs roadmap items.",
+        "State assumptions, dependencies, and customer responsibilities explicitly.",
+        "Avoid unsubstantiated promises; qualify where necessary.",
+        "Include delivery approach (timeline, milestones) when relevant."
+      ]
+    },
+    {
+      "id": "technical_systems_design",
+      "name": "Technical & Systems Design",
+      "description": "System-level design covering components, data flows, integrations, scalability, performance, and security.",
+      "llm_instruction": "Write in a technical & systems design style. Focus on system components, responsibilities, data flows, integrations, scalability, performance, security, and operational considerations. Use structured lists and diagrams-in-text where helpful. Avoid business fluff.",
+      "enforced_rules": [
+        "Describe components and responsibilities explicitly (who does what).",
+        "Explain key data flows and integration points clearly.",
+        "Address security, reliability, observability, and performance considerations.",
+        "Use technical terminology consistently; avoid marketing language.",
+        "Include failure modes and mitigations where important."
+      ]
+    },
+    {
+      "id": "compliance_risk",
+      "name": "Compliance & Risk-Oriented",
+      "description": "Formal, conservative style emphasizing controls, governance, auditability, risks, and mitigations.",
+      "llm_instruction": "Write in a compliance and risk-oriented style. Emphasize controls, validations, governance, auditability, and regulatory alignment. Clearly identify risks, mitigations, assumptions, and exclusions. Use formal, conservative language.",
+      "enforced_rules": [
+        "Explicitly list risks and mitigations; include residual risk where relevant.",
+        "Avoid absolute guarantees; use qualified language appropriately.",
+        "State regulatory assumptions and scope exclusions explicitly.",
+        "Describe controls, approvals, audit trails, and monitoring expectations.",
+        "Prefer verifiable statements over opinions."
+      ]
+    },
+    {
+      "id": "instructional_playbook",
+      "name": "Instructional Playbook",
+      "description": "Step-by-step, repeatable operational guidance using checklists, decision rules, and examples.",
+      "llm_instruction": "Write in an instructional playbook style. Provide step-by-step guidance, clear actions, decision rules, and examples. Use numbered steps, checklists, and do/don't guidance. Optimize for repeatable execution.",
+      "enforced_rules": [
+        "Use numbered steps for procedures; include prerequisites and inputs.",
+        "Include decision rules and checkpoints (if/then) where relevant.",
+        "Provide checklists for repeatable execution.",
+        "Include do/don't guidance and common pitfalls.",
+        "Avoid theory-heavy explanations unless necessary for correct execution."
+      ]
+    },
+    {
+      "id": "operational_reporting",
+      "name": "Operational Reporting",
+      "description": "Factual, metric-led reporting focused on KPIs, trends, variances, drivers, and actions.",
+      "llm_instruction": "Write in an operational reporting style. Focus on factual performance reporting using metrics, trends, variances, and drivers. Use tables/bullets for KPIs, clearly distinguish actuals vs targets, and end with operational actions and owners when applicable. Keep the tone neutral and execution-focused.",
+      "enforced_rules": [
+        "Prioritize metrics and trends; include period, baseline, and comparison where possible.",
+        "Clearly distinguish actuals vs targets vs prior period; if missing, state what is unavailable.",
+        "Explain key drivers for variances (what changed and why).",
+        "Keep tone neutral and factual; avoid speculation.",
+        "End with recommended operational actions, owners/roles, and timelines when applicable."
+      ]
+    }
+  ]
+}
+
+

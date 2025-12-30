@@ -240,27 +240,48 @@ async function handleJob(job) {
 }
 
 async function main() {
+  console.log(`🔄 Worker ${WORKER_ID} starting polling loop...`);
+  let pollCount = 0;
+  
   while (true) {
-    const job = await claimNextJob(WORKER_ID);
-    if (!job) {
-      await sleep(1000);
-      continue;
-    }
-    const heartbeatTimer = setInterval(() => {
-      void heartbeat(job);
-    }, 60000);
     try {
-      await handleJob(job);
-      await completeJob(job);
+      const job = await claimNextJob(WORKER_ID);
+      if (!job) {
+        pollCount++;
+        if (pollCount % 60 === 0) {
+          console.log(`⏳ Polled ${pollCount} times, no jobs found. Still waiting...`);
+        }
+        await sleep(1000);
+        continue;
+      }
+      
+      console.log(`✅ Claimed job: ${job.id} (${job.type})`);
+      pollCount = 0; // Reset counter when we find a job
+      
+      const heartbeatTimer = setInterval(() => {
+        void heartbeat(job);
+      }, 60000);
+      
+      try {
+        console.log(`🔨 Processing job: ${job.id}`);
+        await handleJob(job);
+        await completeJob(job);
+        console.log(`✅ Job completed: ${job.id}`);
+      } catch (err) {
+        console.error(`❌ Job failed: ${job.id}`, err.message);
+        await failJob(job, err.message || "Job failed");
+      } finally {
+        clearInterval(heartbeatTimer);
+      }
     } catch (err) {
-      await failJob(job, err.message || "Job failed");
-    } finally {
-      clearInterval(heartbeatTimer);
+      console.error(`❌ Error in polling loop:`, err.message);
+      await sleep(5000); // Wait longer on error
     }
   }
 }
 
+console.log(`🚀 Worker ${WORKER_ID} initialized`);
 main().catch((err) => {
-  console.error(err);
+  console.error('❌ Fatal error in worker:', err);
   process.exit(1);
 });

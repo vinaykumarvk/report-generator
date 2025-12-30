@@ -31,24 +31,32 @@ export async function PUT(
     .select("*")
     .eq("id", params.connectorId)
     .single();
-  if (findError || !existing) {
+  const typedExisting = existing as {
+    id: string;
+    name: string | null;
+    description: string | null;
+    config_json?: Record<string, unknown> | null;
+    tags?: string[] | null;
+    workspace_id?: string | null;
+  } | null;
+  if (findError || !typedExisting) {
     return NextResponse.json({ error: "Connector not found" }, { status: 404 });
   }
   const { data: updated, error: updateError } = await supabase
     .from("connectors")
     .update({
-      name: body.name ?? existing.name,
-      description: body.description ?? existing.description,
+      name: body.name ?? typedExisting.name,
+      description: body.description ?? typedExisting.description,
       config_json:
-        body.configJson !== undefined ? body.configJson : existing.config_json,
-      tags: Array.isArray(body.tags) ? body.tags : existing.tags,
+        body.configJson !== undefined ? body.configJson : typedExisting.config_json,
+      tags: Array.isArray(body.tags) ? body.tags : typedExisting.tags,
     })
     .eq("id", params.connectorId)
     .select("*")
     .single();
   assertNoSupabaseError(updateError, "Failed to update connector");
 
-  const workspaceId = existing.workspace_id || (await getDefaultWorkspaceId());
+  const workspaceId = typedExisting.workspace_id || (await getDefaultWorkspaceId());
   const { error: auditError } = await supabase.from("audit_logs").insert({
     workspace_id: workspaceId,
     action_type: "CONNECTOR_UPDATED",
@@ -70,7 +78,8 @@ export async function DELETE(
     .select("*")
     .eq("id", params.connectorId)
     .single();
-  if (findError || !existing) {
+  const typedExisting = existing as { workspace_id?: string | null } | null;
+  if (findError || !typedExisting) {
     return NextResponse.json({ error: "Connector not found" }, { status: 404 });
   }
   const { error: deleteError } = await supabase
@@ -78,7 +87,7 @@ export async function DELETE(
     .delete()
     .eq("id", params.connectorId);
   assertNoSupabaseError(deleteError, "Failed to delete connector");
-  const workspaceId = existing.workspace_id || (await getDefaultWorkspaceId());
+  const workspaceId = typedExisting.workspace_id || (await getDefaultWorkspaceId());
   const { error: auditError } = await supabase.from("audit_logs").insert({
     workspace_id: workspaceId,
     action_type: "CONNECTOR_DELETED",

@@ -16,6 +16,7 @@ export async function getWorkspaceIdFromRequest(
   // 1. Check X-Workspace-ID header
   const headerWorkspaceId = request.headers.get("x-workspace-id");
   if (headerWorkspaceId) {
+    console.log('[Workspace] Using workspace from header:', headerWorkspaceId);
     return headerWorkspaceId;
   }
 
@@ -23,17 +24,21 @@ export async function getWorkspaceIdFromRequest(
   const { searchParams } = new URL(request.url);
   const queryWorkspaceId = searchParams.get("workspace_id");
   if (queryWorkspaceId) {
+    console.log('[Workspace] Using workspace from query:', queryWorkspaceId);
     return queryWorkspaceId;
   }
 
   // 3. Check cookie
   const cookieWorkspaceId = request.cookies.get("workspace_id")?.value;
   if (cookieWorkspaceId) {
+    console.log('[Workspace] Using workspace from cookie:', cookieWorkspaceId);
     return cookieWorkspaceId;
   }
 
   // 4. Fall back to default workspace
-  return await getDefaultWorkspaceId();
+  const defaultId = await getDefaultWorkspaceId();
+  console.log('[Workspace] Using default workspace:', defaultId);
+  return defaultId;
 }
 
 /**

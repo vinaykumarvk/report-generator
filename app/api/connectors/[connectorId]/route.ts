@@ -43,7 +43,7 @@ export async function PUT(
     return NextResponse.json({ error: "Connector not found" }, { status: 404 });
   }
   const { data: updated, error: updateError } = await supabase
-    .from("connectors")
+    .from<any>("connectors")
     .update({
       name: body.name ?? typedExisting.name,
       description: body.description ?? typedExisting.description,

@@ -8,10 +8,10 @@ export const runtime = "nodejs";
 export async function GET(request: NextRequest) {
   const workspaceId = await getWorkspaceIdFromRequest(request);
   const supabase = supabaseAdmin();
-  const { data, error} = await supabase
+  const { data, error } = await supabase
     .from("templates")
     .select("*, template_sections(*)")
-    .eq("workspace_id", workspaceId)
+    .or(`workspace_id.eq.${workspaceId},workspace_id.is.null`)
     .order("updated_at", { ascending: false })
     .order("order", { foreignTable: "template_sections", ascending: true });
   if (error) {
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       const { data: fallbackData, error: fallbackError } = await supabase
         .from("templates")
         .select("*, template_sections(*)")
-        .eq("workspace_id", fallbackWorkspaceId)
+        .or(`workspace_id.eq.${fallbackWorkspaceId},workspace_id.is.null`)
         .order("updated_at", { ascending: false })
         .order("order", { foreignTable: "template_sections", ascending: true });
       if (fallbackError) {

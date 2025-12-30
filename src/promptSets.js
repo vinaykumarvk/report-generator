@@ -2,6 +2,39 @@ const { randomUUID } = require('crypto');
 const { loadData, saveData } = require('./dataStore');
 const { injectGuardrails } = require('./guardrailInjector');
 
+const DEFAULT_STAGES = ['plan', 'write', 'verify', 'repair', 'synthesis'];
+
+function normalizeStages(stages) {
+  const normalized = {};
+  DEFAULT_STAGES.forEach((stage) => {
+    normalized[stage] = typeof stages?.[stage] === 'string' ? stages[stage] : '';
+  });
+  return normalized;
+}
+
+function normalizeSection(section) {
+  return {
+    id: section.id,
+    name: section.name || section.title || 'Section',
+    purpose: section.purpose || '',
+    evidencePolicy: section.evidencePolicy || 'LLM_ONLY',
+    stages: normalizeStages(section.stages || section.overrides || {}),
+    guardrails: Array.isArray(section.guardrails) ? section.guardrails : [],
+  };
+}
+
+function normalizePromptSet(set) {
+  return {
+    ...set,
+    templateId: set.templateId || null,
+    globalPrompts: {
+      system: set.globalPrompts?.system || '',
+      developer: set.globalPrompts?.developer || '',
+    },
+    sections: Array.isArray(set.sections) ? set.sections.map(normalizeSection) : [],
+  };
+}
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -12,12 +45,13 @@ function clone(value) {
 
 function listPromptSets() {
   const data = loadData();
-  return data.promptSets;
+  return data.promptSets.map(normalizePromptSet);
 }
 
 function findPromptSet(id) {
   const data = loadData();
-  return data.promptSets.find((set) => set.id === id);
+  const found = data.promptSets.find((set) => set.id === id);
+  return found ? normalizePromptSet(found) : null;
 }
 
 function snapshotEntry(set, action, note) {
@@ -30,32 +64,45 @@ function snapshotEntry(set, action, note) {
       name: set.name,
       state: set.state,
       sections: set.sections,
+      globalPrompts: set.globalPrompts,
+      templateId: set.templateId || null,
       publishedVersion: set.publishedVersion || null,
     }),
   };
 }
 
-function createPromptSet({ name, sections }) {
+function createPromptSet({ name, templateId, sections }) {
   const data = loadData();
   const baseSections = Array.isArray(sections) && sections.length
-    ? sections
+    ? sections.map(normalizeSection)
     : [
         {
           id: randomUUID(),
           name: 'New Section',
-          basePrompt: 'Describe the section goals and tone.',
-          overrides: {},
-          evidencePolicy: 'vector-only',
+          purpose: '',
+          evidencePolicy: 'LLM_ONLY',
+          stages: normalizeStages({
+            plan: 'Outline the section plan.',
+            write: 'Draft the section content.',
+            verify: 'Verify compliance with evidence policy.',
+            repair: 'Repair the section based on issues.',
+            synthesis: 'Summarize section outputs only.',
+          }),
           guardrails: [],
         },
       ];
 
   const promptSet = {
     id: randomUUID(),
+    templateId: templateId || null,
     name: name || 'Untitled Prompt Set',
     state: 'draft',
     version: 1,
     publishedVersion: null,
+    globalPrompts: {
+      system: '',
+      developer: '',
+    },
     sections: baseSections,
     history: [],
   };
@@ -72,13 +119,22 @@ function updatePromptSet(id, payload, note) {
   if (!existing) return null;
 
   if (payload.name) existing.name = payload.name;
-  if (Array.isArray(payload.sections)) existing.sections = payload.sections;
+  if (payload.templateId !== undefined) existing.templateId = payload.templateId;
+  if (payload.globalPrompts) {
+    existing.globalPrompts = {
+      system: payload.globalPrompts.system || '',
+      developer: payload.globalPrompts.developer || '',
+    };
+  }
+  if (Array.isArray(payload.sections)) {
+    existing.sections = payload.sections.map(normalizeSection);
+  }
   existing.version += 1;
   existing.state = payload.state || existing.state;
 
   existing.history.push(snapshotEntry(existing, 'updated', note || 'Updated draft'));
   saveData(data);
-  return existing;
+  return normalizePromptSet(existing);
 }
 
 function publishPromptSet(id, note) {
@@ -90,7 +146,7 @@ function publishPromptSet(id, note) {
   set.publishedVersion = set.version;
   set.history.push(snapshotEntry(set, 'published', note || 'Published for use'));
   saveData(data);
-  return set;
+  return normalizePromptSet(set);
 }
 
 function rollbackPromptSet(id, targetVersion, note) {
@@ -108,22 +164,25 @@ function rollbackPromptSet(id, targetVersion, note) {
   const snapshotState = targetSnapshot.state;
   set.name = snapshotState.name;
   set.sections = snapshotState.sections;
+  set.globalPrompts = snapshotState.globalPrompts || { system: '', developer: '' };
+  set.templateId = snapshotState.templateId || null;
   set.state = 'draft';
   set.version += 1;
   set.history.push(snapshotEntry(set, 'rollback', note || `Rolled back to version ${targetVersion}`));
   saveData(data);
-  return set;
+  return normalizePromptSet(set);
 }
 
-function renderedSectionPrompt(setId, sectionId) {
+function renderedSectionPrompt(setId, sectionId, stage) {
   const set = findPromptSet(setId);
   if (!set) return null;
   const section = set.sections.find((item) => item.id === sectionId);
   if (!section) return null;
-  const base = section.basePrompt || '';
-  const override = section.overrides && section.overrides.write ? section.overrides.write : '';
-  const combined = [base, override].filter(Boolean).join('\n\n');
-  const injected = injectGuardrails(combined, section);
+  const base = section.stages?.[stage] || '';
+  const combined = [set.globalPrompts?.system, set.globalPrompts?.developer, base]
+    .filter(Boolean)
+    .join('\n\n');
+  const injected = injectGuardrails(combined, section, stage);
   return {
     promptSetId: setId,
     sectionId,
@@ -141,4 +200,5 @@ module.exports = {
   publishPromptSet,
   rollbackPromptSet,
   renderedSectionPrompt,
+  normalizePromptSet,
 };

@@ -1,6 +1,6 @@
 # Report Generator
 
-Bootstrap Next.js application with TypeScript, Prisma, linting/formatting, Jest-based testing, and local infrastructure via Docker Compose (Postgres with pgvector, Redis, and MinIO for S3-compatible storage).
+Bootstrap Next.js application with TypeScript, Supabase, linting/formatting, Jest-based testing, and local infrastructure via Docker Compose (Postgres with pgvector, Redis, and MinIO for S3-compatible storage).
 
 ## Prerequisites
 - Node.js 18+
@@ -17,16 +17,8 @@ Bootstrap Next.js application with TypeScript, Prisma, linting/formatting, Jest-
    ```bash
    docker compose up -d db redis storage storage-init
    ```
-4. Generate the Prisma client and run migrations:
-   ```bash
-   npm run prisma:generate
-   npm run prisma:migrate -- --name init
-   ```
-5. Seed baseline data:
-   ```bash
-   npm run prisma:seed
-   ```
-6. Run the Next.js dev server:
+4. Ensure Supabase is configured and the database schema is applied.
+5. Run the Next.js dev server:
    ```bash
    npm run dev
    ```
@@ -38,10 +30,6 @@ Bootstrap Next.js application with TypeScript, Prisma, linting/formatting, Jest-
 - `npm run format` / `npm run format:check` – Format or verify formatting with Prettier.
 - `npm run typecheck` – TypeScript compilation without emit.
 - `npm run test` – Jest test suite configured with `next/jest` and Testing Library.
-- `npm run prisma:generate` – Generate Prisma Client.
-- `npm run prisma:migrate` – Create and apply a new migration.
-- `npm run prisma:deploy` – Apply migrations in production environments.
-- `npm run prisma:seed` – Seed baseline workspace/user data.
 
 ## Docker Services
 - **db**: Postgres with pgvector enabled via `ops/db/init.sql`.
@@ -55,8 +43,8 @@ Bootstrap Next.js application with TypeScript, Prisma, linting/formatting, Jest-
 - `src/lib/features.ts` – Feature flag accessors backed by environment config.
 - `src/lib/result.ts` – Typed result helpers for functional-style flows.
 
-## Prisma Schema
-The initial models include `Workspace`, `User`, and `WorkspaceMember` with role enum support and pgvector extension enabled for future embedding use cases. Seed data provisions a demo workspace owner.
+## Database Schema
+Supabase hosts the core tables for templates, sections, runs, evidence bundles, and exports.
 
 ## Testing
 Jest is wired through `next/jest` with jsdom environment and Testing Library utilities. Add tests under `tests/` or alongside source files.

@@ -1,0 +1,284 @@
+openapi: 3.1.0
+info:
+  title: Report Generator API
+  version: "0.1.0"
+servers:
+  - url: http://localhost:3000
+paths:
+  /api/templates:
+    get:
+      summary: List templates
+      responses:
+        "200":
+          description: OK
+    post:
+      summary: Create template
+      responses:
+        "201":
+          description: Created
+  /api/templates/{templateId}:
+    get:
+      summary: Get template
+      responses:
+        "200":
+          description: OK
+    put:
+      summary: Update template
+      responses:
+        "200":
+          description: OK
+  /api/templates/{templateId}/sections:
+    post:
+      summary: Add template section
+      responses:
+        "201":
+          description: Created
+  /api/templates/{templateId}/validate:
+    post:
+      summary: Validate template
+      responses:
+        "200":
+          description: OK
+  /api/templates/{templateId}/publish:
+    post:
+      summary: Publish template
+      responses:
+        "200":
+          description: OK
+  /api/templates/{templateId}/diff:
+    get:
+      summary: Diff template history
+      responses:
+        "200":
+          description: OK
+  /api/templates/{templateId}/prompts:
+    get:
+      summary: List prompt sets for template
+      responses:
+        "200":
+          description: OK
+    post:
+      summary: Create prompt set
+      responses:
+        "201":
+          description: Created
+  /api/prompts:
+    get:
+      summary: List prompt sets
+      responses:
+        "200":
+          description: OK
+  /api/prompts/{promptId}:
+    get:
+      summary: Get prompt set
+      responses:
+        "200":
+          description: OK
+    put:
+      summary: Update prompt set
+      responses:
+        "200":
+          description: OK
+  /api/prompts/{promptId}/publish:
+    post:
+      summary: Publish prompt set
+      responses:
+        "200":
+          description: OK
+  /api/prompts/{promptId}/rollback:
+    post:
+      summary: Rollback prompt set
+      responses:
+        "200":
+          description: OK
+  /api/prompts/{promptId}/diff:
+    get:
+      summary: Diff prompt set versions
+      responses:
+        "200":
+          description: OK
+  /api/connectors:
+    get:
+      summary: List connectors
+      responses:
+        "200":
+          description: OK
+    post:
+      summary: Create connector
+      responses:
+        "201":
+          description: Created
+  /api/connectors/{connectorId}:
+    get:
+      summary: Get connector
+      responses:
+        "200":
+          description: OK
+    put:
+      summary: Update connector
+      responses:
+        "200":
+          description: OK
+    delete:
+      summary: Delete connector
+      responses:
+        "200":
+          description: OK
+  /api/connectors/{connectorId}/health:
+    get:
+      summary: Connector health check
+      responses:
+        "200":
+          description: OK
+  /api/vector/upload:
+    post:
+      summary: Upload vector documents
+      responses:
+        "200":
+          description: OK
+  /api/vector/reindex:
+    post:
+      summary: Reindex vector store
+      responses:
+        "200":
+          description: OK
+  /api/openai/vector-stores/sync:
+    post:
+      summary: Sync OpenAI vector stores into connectors
+      responses:
+        "200":
+          description: OK
+  /api/web/search:
+    post:
+      summary: Run web search with a connector
+      responses:
+        "200":
+          description: OK
+  /api/model-providers:
+    get:
+      summary: List model providers
+      responses:
+        "200":
+          description: OK
+    post:
+      summary: Create model provider
+      responses:
+        "201":
+          description: Created
+  /api/model-configs:
+    get:
+      summary: List model configs
+      responses:
+        "200":
+          description: OK
+    post:
+      summary: Create model config
+      responses:
+        "201":
+          description: Created
+  /api/generation-profiles:
+    get:
+      summary: List generation profiles
+      responses:
+        "200":
+          description: OK
+    post:
+      summary: Create generation profile
+      responses:
+        "201":
+          description: Created
+  /api/report-runs:
+    get:
+      summary: List report runs
+      responses:
+        "200":
+          description: OK
+    post:
+      summary: Create report run
+      responses:
+        "201":
+          description: Created
+  /api/report-runs/{runId}:
+    get:
+      summary: Get report run
+      responses:
+        "200":
+          description: OK
+  /api/report-runs/{runId}/start:
+    post:
+      summary: Start report run
+      responses:
+        "200":
+          description: OK
+  /api/report-runs/{runId}/sections:
+    get:
+      summary: List section runs
+      responses:
+        "200":
+          description: OK
+  /api/section-runs/{sectionRunId}/retry:
+    post:
+      summary: Retry section run
+      responses:
+        "200":
+          description: OK
+  /api/section-runs/{sectionRunId}/provenance:
+    get:
+      summary: Claim provenance for section run
+      responses:
+        "200":
+          description: OK
+  /api/report-runs/{runId}/export:
+    post:
+      summary: Export report
+      responses:
+        "201":
+          description: Created
+  /api/report-runs/{runId}/exports:
+    get:
+      summary: List exports
+      responses:
+        "200":
+          description: OK
+  /api/report-runs/{runId}/exports/{exportId}:
+    get:
+      summary: Download export file
+      responses:
+        "200":
+          description: OK
+  /api/report-runs/{runId}/events:
+    get:
+      summary: SSE events
+      responses:
+        "200":
+          description: OK
+  /api/report-runs/{runId}/scores:
+    get:
+      summary: Evidence scores
+      responses:
+        "200":
+          description: OK
+  /api/report-runs/{runId}/dashboard:
+    get:
+      summary: Report dashboard summary
+      responses:
+        "200":
+          description: OK
+  /api/report-runs/{runId}/rerun:
+    post:
+      summary: Delta rerun plan
+      responses:
+        "200":
+          description: OK
+  /api/openapi:
+    get:
+      summary: Serve OpenAPI spec
+      responses:
+        "200":
+          description: OK
+  /api/dashboard:
+    get:
+      summary: Workspace dashboard summary
+      responses:
+        "200":
+          description: OK

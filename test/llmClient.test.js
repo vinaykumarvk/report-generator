@@ -1,6 +1,3 @@
-const test = require("node:test");
-const assert = require("assert/strict");
-
 const { LLMClient, MockLLMProvider } = require("../src");
 
 test("retries retryable errors and succeeds on subsequent attempt", async () => {
@@ -24,9 +21,9 @@ test("retries retryable errors and succeeds on subsequent attempt", async () => 
     prompt: "hello",
   });
 
-  assert.equal(result.output, "second attempt content");
-  assert.equal(provider.calls.length, 2);
-  assert.equal(result.attempt, 2);
+  expect(result.output).toBe("second attempt content");
+  expect(provider.calls.length).toBe(2);
+  expect(result.attempt).toBe(2);
 });
 
 test("enforces rate limits before invoking provider", async () => {
@@ -51,9 +48,9 @@ test("enforces rate limits before invoking provider", async () => {
     client.generate({ provider: "mock", model: "m1", prompt: "two" }),
   ]);
 
-  assert.equal(starts.length, 2);
+  expect(starts.length).toBe(2);
   const gap = starts[1] - starts[0];
-  assert.ok(gap >= 55, `expected rate limit gap, received ${gap}ms`);
+  expect(gap).toBeGreaterThanOrEqual(55);
 });
 
 test("records telemetry and cost using pricing rules", async () => {
@@ -87,17 +84,17 @@ test("records telemetry and cost using pricing rules", async () => {
     prompt: "price me",
   });
 
-  assert.equal(result.output, "priced");
+  expect(result.output).toBe("priced");
   // 4k * 0.002 + 2k * 0.004 = 0.008 + 0.008 = 0.016 -> rounds to $0.02
-  assert.equal(result.costUsd, 0.02);
-  assert.ok(successEvent, "telemetry success event expected");
-  assert.equal(successEvent.promptTokens, 4000);
-  assert.equal(successEvent.completionTokens, 2000);
+  expect(result.costUsd).toBe(0.02);
+  expect(successEvent).toBeTruthy();
+  expect(successEvent.promptTokens).toBe(4000);
+  expect(successEvent.completionTokens).toBe(2000);
 
   const metrics = client.getMetrics("mock");
-  assert.equal(metrics.calls, 1);
-  assert.equal(metrics.totalTokens, 6000);
-  assert.equal(metrics.totalCostUsd, 0.02);
+  expect(metrics.calls).toBe(1);
+  expect(metrics.totalTokens).toBe(6000);
+  expect(metrics.totalCostUsd).toBe(0.02);
 });
 
 test("mock adapter captures calls and default output", async () => {
@@ -112,7 +109,7 @@ test("mock adapter captures calls and default output", async () => {
     prompt: "inspect",
   });
 
-  assert.ok(result.output.includes("inspect"));
-  assert.equal(provider.calls.length, 1);
-  assert.equal(provider.calls[0].prompt, "inspect");
+  expect(result.output.includes("inspect")).toBe(true);
+  expect(provider.calls.length).toBe(1);
+  expect(provider.calls[0].prompt).toBe("inspect");
 });

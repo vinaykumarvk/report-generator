@@ -1,17 +1,40 @@
 const DEFAULT_POLICY_CLAUSES = {
-  'vector-only': [
-    'Do not introduce claims that are not present in the approved vector store context.',
-    'Cite only the provided vector documents.',
+  VECTOR_ONLY: [
+    'You MUST only use facts from the provided vector evidence bundle.',
+    'Do NOT use outside knowledge or web facts.',
   ],
-  'web-search': [
-    'When using web search, cite every external claim with the source URL.',
-    'Avoid referencing internal-only documents when responding to public content.',
+  WEB_ONLY: [
+    'You MUST cite web sources for every external claim.',
+    'If sources are insufficient, list missing items explicitly.',
   ],
-  hybrid: [
-    'Clearly distinguish between vector-sourced and web-sourced evidence.',
-    'Prefer vector evidence if a conflict arises; flag any inconsistencies explicitly.',
+  VECTOR_LLM: [
+    'Prefer vector evidence; only use model knowledge for connective tissue.',
+  ],
+  WEB_LLM: [
+    'Prefer web evidence; cite all web-derived claims.',
+  ],
+  VECTOR_WEB: [
+    'Clearly distinguish vector-sourced and web-sourced evidence.',
+  ],
+  ALL: [
+    'Use evidence bundles first; do not add unsupported claims.',
+  ],
+  SYNTHESIS_ONLY: [
+    'You MUST NOT add new facts; summarize provided sections only.',
+    'Do NOT call retrieval tools.',
+  ],
+  LLM_ONLY: [
+    'Do not fabricate facts; be explicit about assumptions.',
   ],
 };
+
+function getPolicyClauses(evidencePolicy, stage) {
+  const base = DEFAULT_POLICY_CLAUSES[evidencePolicy] || [];
+  if (stage === 'synthesis' && evidencePolicy !== 'SYNTHESIS_ONLY') {
+    return base.concat(['Do NOT add new facts in synthesis.']);
+  }
+  return base;
+}
 
 function uniqueClauses(list) {
   const seen = new Set();
@@ -26,9 +49,9 @@ function uniqueClauses(list) {
   return results;
 }
 
-function injectGuardrails(basePrompt, section) {
-  const policy = section.evidencePolicy || 'vector-only';
-  const policyClauses = DEFAULT_POLICY_CLAUSES[policy] || [];
+function injectGuardrails(basePrompt, section, stage) {
+  const policy = section.evidencePolicy || 'LLM_ONLY';
+  const policyClauses = getPolicyClauses(policy, stage);
   const sectionClauses = Array.isArray(section.guardrails) ? section.guardrails : [];
   const clauses = uniqueClauses([...policyClauses, ...sectionClauses]);
 
@@ -44,4 +67,5 @@ function injectGuardrails(basePrompt, section) {
 module.exports = {
   injectGuardrails,
   DEFAULT_POLICY_CLAUSES,
+  getPolicyClauses,
 };

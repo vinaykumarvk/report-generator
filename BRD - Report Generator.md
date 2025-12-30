@@ -468,7 +468,7 @@ Each requirement includes Priority: **MVP (P0)**, **P1**, **P2**.
 
 * **Frontend:** Next.js (App Router) \+ TypeScript \+ Tailwind  
 * **Backend API:** Next.js Route Handlers (or separate Node service if preferred)  
-* **DB:** Postgres \+ Prisma  
+* **DB:** Postgres \+ Supabase  
 * **Vector Store (MVP):** Postgres \+ pgvector extension  
 * **Queue:** Redis \+ BullMQ (background jobs for sections)  
 * **Storage:** S3-compatible (or local filesystem in dev) for exports and artifacts  
@@ -498,7 +498,7 @@ Cursor should implement with Docker Compose for local dev: Postgres \+ Redis.
 
 ---
 
-## **11\. Data Model (Prisma-Friendly)**
+## **11\. Data Model (Supabase-Friendly)**
 
 ### **11.1 Core Entities**
 
@@ -907,7 +907,7 @@ Cursor should implement:
 
 * Durable job queue (BullMQ \+ Redis) for SectionRuns  
 * SSE endpoint for live progress  
-* Prisma schema matching the BRD entities  
+* Supabase schema matching the BRD entities  
 * A retrieval abstraction:  
   * `retrieveVector(sectionConfig, queryPlan)`  
   * `retrieveWeb(sectionConfig, queryPlan)`  
@@ -924,7 +924,7 @@ Cursor should implement:
 
 If you want, I can also produce a **second artifact** that Cursor often benefits from even more than a BRD: a **Developer Specification Pack** containing:
 
-* Prisma schema (ready-to-paste)  
+* Supabase schema (ready-to-paste)  
 * OpenAPI spec for all endpoints  
 * UI component map \+ routes  
 * Job queue event schema  
@@ -953,7 +953,7 @@ Below is a **Developer Specification Pack** you can paste into Cursor as the sin
 * **Frontend:** Next.js (App Router) \+ TypeScript \+ Tailwind  
 * **Backend:** Next.js Route Handlers (REST APIs) \+ background workers  
 * **Auth:** Auth.js / NextAuth (email/password or magic link OK; keep extensible)  
-* **DB:** Postgres \+ Prisma  
+* **DB:** Postgres \+ Supabase  
 * **Vector store (MVP):** Postgres \+ `pgvector`  
 * **Queue:** Redis \+ BullMQ  
 * **Object storage:** Local filesystem for dev; S3-compatible for prod (abstracted)  
@@ -1045,8 +1045,8 @@ Below is a **Developer Specification Pack** you can paste into Cursor as the sin
     SectionArtifactViewer.tsx  
     ExportViewer.tsx
 
-/prisma  
-  schema.prisma  
+/supabase  
+  schema.supabase  
   /migrations/... (includes pgvector enable \+ vector column)
 
 /workers  
@@ -1100,14 +1100,14 @@ export const env \= z.object({
 
 ---
 
-## **3\) Database Schema (Prisma)**
+## **3\) Database Schema (Supabase)**
 
-### **3.1 Prisma schema (`/prisma/schema.prisma`)**
+### **3.1 Supabase schema (`/supabase/schema.supabase`)**
 
 Note: pgvector column can be represented using `Unsupported("vector")` \+ raw SQL migration.
 
 generator client {  
-  provider \= "prisma-client-js"  
+  provider \= "supabase-client-js"  
 }
 
 datasource db {  
@@ -1318,7 +1318,7 @@ model VectorChunk {
   documentId  String  
   chunkIndex  Int  
   chunkText   String  
-  // pgvector embedding stored as vector column; Prisma uses Unsupported  
+  // pgvector embedding stored as vector column; Supabase uses Unsupported  
   embedding   Unsupported("vector")?  
   metadataJson Json?  
   createdAt   DateTime @default(now())
@@ -1430,7 +1430,7 @@ Create a migration that runs:
 \-- Enable extension  
 CREATE EXTENSION IF NOT EXISTS vector;
 
-\-- Example: add embedding column if Prisma didn't create it properly  
+\-- Example: add embedding column if Supabase didn't create it properly  
 \-- (You may need to drop/recreate the VectorChunk.embedding column via SQL)  
 \-- Ensure dimension matches env.EMBEDDING\_DIM (e.g., 3072\)  
 ALTER TABLE "VectorChunk"  
@@ -2272,11 +2272,11 @@ Build the Report Generation App using the existing BRD \+ Developer Spec Pack, b
 
 ### **2\) Replace BullMQ/Redis with a DB-backed job queue (mandatory)**
 
-Implement a **durable Postgres-backed job queue** using Prisma models and transactional leasing.
+Implement a **durable Postgres-backed job queue** using Supabase models and transactional leasing.
 
 #### **2.1 Job model (new table)**
 
-Add a new Prisma model `Job`:
+Add a new Supabase model `Job`:
 
 * `id` (cuid)
 
@@ -2348,7 +2348,7 @@ Implement `claimNextJob(workerId)` in a single DB transaction:
 
 * Return the claimed job
 
-Use `SELECT ... FOR UPDATE SKIP LOCKED` if possible via raw SQL (preferred). If Prisma cannot, use a safe fallback approach with `updateMany` \+ unique selection, but aim for correctness.
+Use `SELECT ... FOR UPDATE SKIP LOCKED` if possible via raw SQL (preferred). If Supabase cannot, use a safe fallback approach with `updateMany` \+ unique selection, but aim for correctness.
 
 #### **2.3 Heartbeat / lock extension**
 
@@ -2382,7 +2382,7 @@ If a job might exceed 5 minutes:
 
 Create `/workers/worker.ts` that:
 
-* loads env \+ Prisma
+* loads env \+ Supabase
 
 * generates a stable `workerId`
 

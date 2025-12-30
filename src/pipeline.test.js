@@ -1,5 +1,3 @@
-const { test } = require("node:test");
-const assert = require("assert");
 const { resolveProfileStages } = require("./pipeline");
 
 const mockState = {
@@ -25,9 +23,11 @@ const mockState = {
   ],
 };
 
-test("resolveProfileStages merges overrides onto profile defaults", () => {
-  const resolved = resolveProfileStages(mockState, "tmpl-1", "profile-1");
-  assert.ok(resolved);
-  assert.strictEqual(resolved.stages.write.modelConfigId, "model-override");
-  assert.strictEqual(resolved.stages.verify.modelConfigId, "model-base");
+describe("resolveProfileStages", () => {
+  test("merges overrides onto profile defaults", () => {
+    const resolved = resolveProfileStages(mockState, "tmpl-1", "profile-1");
+    expect(resolved).toBeTruthy();
+    expect(resolved.stages.write.modelConfigId).toBe("model-override");
+    expect(resolved.stages.verify.modelConfigId).toBe("model-base");
+  });
 });

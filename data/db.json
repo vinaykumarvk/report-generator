@@ -4,9 +4,20 @@
       "id": "seed-template",
       "name": "Sample BRD Template",
       "description": "Starter template demonstrating evidence-aware sections and ordering.",
-      "formats": ["markdown", "docx"],
+      "audience": "Product leadership",
+      "tone": "Professional",
+      "domain": "Product",
+      "jurisdiction": "Global",
+      "defaultVectorStoreIds": [
+        "seed-vector-store"
+      ],
+      "formats": [
+        "markdown",
+        "docx"
+      ],
       "status": "DRAFT",
       "version": 1,
+      "history": [],
       "createdAt": "2024-01-01T00:00:00.000Z",
       "updatedAt": "2024-01-01T00:00:00.000Z",
       "publishedAt": null
@@ -19,9 +30,16 @@
       "title": "Executive Summary",
       "purpose": "Summarize the report goals and key recommendations.",
       "order": 1,
-      "formats": ["markdown"],
+      "outputFormat": "NARRATIVE",
+      "targetLengthMin": 120,
+      "targetLengthMax": 220,
+      "dependencies": [],
       "evidencePolicy": "SYNTHESIS_ONLY",
-      "retrievalMethod": "SYNTHESIS_ONLY",
+      "vectorPolicyJson": null,
+      "webPolicyJson": null,
+      "qualityGatesJson": {
+        "noNewFacts": true
+      },
       "status": "DRAFT",
       "prompt": "Draft a concise summary using only provided blueprint context. Do not add new facts.",
       "createdAt": "2024-01-01T00:00:00.000Z",
@@ -33,13 +51,632 @@
       "title": "Findings",
       "purpose": "Detail the core findings with evidence-backed claims.",
       "order": 2,
-      "formats": ["markdown"],
-      "evidencePolicy": "EVIDENCE_REQUIRED",
-      "retrievalMethod": "VECTOR_AND_WEB",
+      "outputFormat": "BULLETS",
+      "targetLengthMin": 200,
+      "targetLengthMax": 400,
+      "dependencies": [],
+      "evidencePolicy": "VECTOR_WEB",
+      "vectorPolicyJson": {
+        "connectorIds": [
+          "seed-vector-store"
+        ]
+      },
+      "webPolicyJson": {
+        "allowlist": [
+          "example.com"
+        ],
+        "minSources": 2
+      },
+      "qualityGatesJson": {
+        "noNewFacts": false
+      },
       "status": "DRAFT",
       "prompt": "Use the retrieval plan to ground claims and include inline citations.",
       "createdAt": "2024-01-01T00:00:00.000Z",
       "updatedAt": "2024-01-01T00:00:00.000Z"
     }
-  ]
+  ],
+  "runs": [
+    {
+      "id": "20d0b7cb-c9e9-4f61-b5bd-5408662596cc",
+      "templateId": "seed-template",
+      "templateSnapshot": {
+        "id": "seed-template",
+        "name": "Sample BRD Template",
+        "description": "Starter template demonstrating evidence-aware sections and ordering.",
+        "audience": "Product leadership",
+        "tone": "Professional",
+        "domain": "Product",
+        "jurisdiction": "Global",
+        "defaultVectorStoreIds": [
+          "seed-vector-store"
+        ],
+        "formats": [
+          "markdown",
+          "docx"
+        ],
+        "status": "DRAFT",
+        "version": 1,
+        "history": [],
+        "createdAt": "2024-01-01T00:00:00.000Z",
+        "updatedAt": "2024-01-01T00:00:00.000Z",
+        "publishedAt": null,
+        "sections": [
+          {
+            "id": "seed-section-1",
+            "templateId": "seed-template",
+            "title": "Executive Summary",
+            "purpose": "Summarize the report goals and key recommendations.",
+            "order": 1,
+            "outputFormat": "NARRATIVE",
+            "targetLengthMin": 120,
+            "targetLengthMax": 220,
+            "dependencies": [],
+            "evidencePolicy": "SYNTHESIS_ONLY",
+            "vectorPolicyJson": null,
+            "webPolicyJson": null,
+            "qualityGatesJson": {
+              "noNewFacts": true
+            },
+            "status": "DRAFT",
+            "prompt": "Draft a concise summary using only provided blueprint context. Do not add new facts.",
+            "createdAt": "2024-01-01T00:00:00.000Z",
+            "updatedAt": "2024-01-01T00:00:00.000Z"
+          },
+          {
+            "id": "seed-section-2",
+            "templateId": "seed-template",
+            "title": "Findings",
+            "purpose": "Detail the core findings with evidence-backed claims.",
+            "order": 2,
+            "outputFormat": "BULLETS",
+            "targetLengthMin": 200,
+            "targetLengthMax": 400,
+            "dependencies": [],
+            "evidencePolicy": "VECTOR_WEB",
+            "vectorPolicyJson": {
+              "connectorIds": [
+                "seed-vector-store"
+              ]
+            },
+            "webPolicyJson": {
+              "allowlist": [
+                "example.com"
+              ],
+              "minSources": 2
+            },
+            "qualityGatesJson": {
+              "noNewFacts": false
+            },
+            "status": "DRAFT",
+            "prompt": "Use the retrieval plan to ground claims and include inline citations.",
+            "createdAt": "2024-01-01T00:00:00.000Z",
+            "updatedAt": "2024-01-01T00:00:00.000Z"
+          }
+        ]
+      },
+      "inputJson": {},
+      "profileId": null,
+      "profileSnapshot": null,
+      "promptSetId": null,
+      "promptSetSnapshot": null,
+      "status": "COMPLETED",
+      "createdAt": "2025-12-28T16:13:01.980Z",
+      "updatedAt": "2025-12-28T16:19:38.864Z",
+      "startedAt": "2025-12-28T16:19:37.959Z",
+      "completedAt": "2025-12-28T16:19:38.863Z",
+      "blueprint": {
+        "glossary": [],
+        "assumptions": [
+          "Template: Sample BRD Template"
+        ],
+        "scope": [
+          "Generate sections per template definition."
+        ],
+        "nonGoals": [],
+        "boundaries": [],
+        "createdAt": "2025-12-28T16:19:37.956Z"
+      },
+      "finalReport": "# Report\n\n## Table of Contents\n- 1. Executive Summary\n- 2. Findings\n\n## Executive Summary\n\n## Executive Summary\nSummary of prior sections:\n- ### Findings\n\nDetail the core findings with evidence-backed claims.\n\n## Findings\n\n### Findings\n\nDetail the core findings with evidence-backed claims.\n\nEvidence policy: VECTOR_WEB.\n\nKey point supported by evidence [citation:seed-vector-store-Findings]."
+    }
+  ],
+  "sectionRuns": [
+    {
+      "id": "18a7f609-64d1-4538-9890-6d79c1f7377b",
+      "runId": "20d0b7cb-c9e9-4f61-b5bd-5408662596cc",
+      "templateSectionId": "seed-section-1",
+      "title": "Executive Summary",
+      "status": "COMPLETED",
+      "attemptCount": 1,
+      "artifacts": [
+        {
+          "id": "088a91c0-8e67-4545-8325-e71fbe29cee4",
+          "type": "PLAN",
+          "content": {
+            "outline": [
+              "Cover purpose: Summarize the report goals and key recommendations."
+            ],
+            "retrievalQueries": [
+              "Executive Summary"
+            ],
+            "keyConstraints": [
+              "NARRATIVE"
+            ],
+            "riskNotes": []
+          },
+          "createdAt": "2025-12-28T16:19:38.353Z"
+        },
+        {
+          "id": "b2e07816-98b3-42b6-911a-c15efc8a437b",
+          "type": "EVIDENCE",
+          "content": [],
+          "createdAt": "2025-12-28T16:19:38.353Z"
+        },
+        {
+          "id": "f0e4a316-d3f9-48ab-917b-fa47d91fe674",
+          "type": "DRAFT",
+          "content": "### Executive Summary\n\nSummarize the report goals and key recommendations.\n\nEvidence policy: SYNTHESIS_ONLY.",
+          "createdAt": "2025-12-28T16:19:38.353Z"
+        },
+        {
+          "id": "b3545139-74fd-49c1-b318-278e85ed6aed",
+          "type": "VERIFICATION",
+          "content": {
+            "pass": true,
+            "issues": []
+          },
+          "createdAt": "2025-12-28T16:19:38.353Z"
+        },
+        {
+          "id": "d3e8946f-28e1-405e-903e-aa4644f9f8ce",
+          "type": "CLAIMS",
+          "content": [
+            {
+              "text": "### Executive Summary\n\nSummarize the report goals and key recommendations",
+              "evidenceIds": []
+            },
+            {
+              "text": "Evidence policy: SYNTHESIS_ONLY",
+              "evidenceIds": []
+            }
+          ],
+          "createdAt": "2025-12-28T16:19:38.353Z"
+        },
+        {
+          "id": "975b5181-f29a-42a0-95fd-7009aa242389",
+          "type": "PROVENANCE",
+          "content": [
+            {
+              "claim": "### Executive Summary\n\nSummarize the report goals and key recommendations",
+              "evidenceIds": []
+            },
+            {
+              "claim": "Evidence policy: SYNTHESIS_ONLY",
+              "evidenceIds": []
+            }
+          ],
+          "createdAt": "2025-12-28T16:19:38.353Z"
+        },
+        {
+          "id": "2e5ab4ed-5bad-4718-9a32-6e948855b0f7",
+          "type": "SCORES",
+          "content": {
+            "coverage": 0,
+            "diversity": 0,
+            "recency": 0,
+            "redundancy": 0
+          },
+          "createdAt": "2025-12-28T16:19:38.353Z"
+        },
+        {
+          "id": "4232c63a-877e-45ff-9c98-866f58a3e038",
+          "type": "PROMPTS_USED",
+          "content": {
+            "system": "",
+            "developer": "",
+            "plan": "",
+            "write": "",
+            "verify": "",
+            "repair": "",
+            "synthesis": ""
+          },
+          "createdAt": "2025-12-28T16:19:38.353Z"
+        },
+        {
+          "id": "91ae05f4-be32-4a62-965f-1168ed0227e9",
+          "type": "SYNTHESIS",
+          "content": "## Executive Summary\nSummary of prior sections:\n- ### Findings\n\nDetail the core findings with evidence-backed claims.",
+          "createdAt": "2025-12-28T16:19:38.860Z"
+        },
+        {
+          "id": "e8916490-9888-420e-bdb1-21f426b84c7b",
+          "type": "FINAL",
+          "content": "## Executive Summary\nSummary of prior sections:\n- ### Findings\n\nDetail the core findings with evidence-backed claims.",
+          "createdAt": "2025-12-28T16:19:38.860Z"
+        }
+      ],
+      "createdAt": "2025-12-28T16:13:01.980Z",
+      "updatedAt": "2025-12-28T16:19:38.861Z",
+      "outputFingerprint": "1900e2b7a98c85a73967914ce97b94622f11e8f6"
+    },
+    {
+      "id": "60948110-0a93-4a04-8335-2ed65613800d",
+      "runId": "20d0b7cb-c9e9-4f61-b5bd-5408662596cc",
+      "templateSectionId": "seed-section-2",
+      "title": "Findings",
+      "status": "COMPLETED",
+      "attemptCount": 1,
+      "artifacts": [
+        {
+          "id": "196fd132-dd3f-49f4-81e6-29428ab29801",
+          "type": "PLAN",
+          "content": {
+            "outline": [
+              "Cover purpose: Detail the core findings with evidence-backed claims."
+            ],
+            "retrievalQueries": [
+              "Findings"
+            ],
+            "keyConstraints": [
+              "BULLETS"
+            ],
+            "riskNotes": []
+          },
+          "createdAt": "2025-12-28T16:19:38.574Z"
+        },
+        {
+          "id": "4284029b-217a-4fb8-aa58-44d04ed349a7",
+          "type": "EVIDENCE",
+          "content": [
+            {
+              "id": "seed-vector-store-Findings",
+              "source": "Seed Vector Store",
+              "kind": "vector",
+              "content": "Placeholder evidence for \"Findings\" from vector store seed-vector-store.",
+              "metadata": {
+                "vectorStoreId": "seed-vector-store"
+              }
+            }
+          ],
+          "createdAt": "2025-12-28T16:19:38.574Z"
+        },
+        {
+          "id": "210cd91a-7d57-4646-8ab4-47ea1de6df89",
+          "type": "DRAFT",
+          "content": "### Findings\n\nDetail the core findings with evidence-backed claims.\n\nEvidence policy: VECTOR_WEB.\n\nKey point supported by evidence [citation:seed-vector-store-Findings].",
+          "createdAt": "2025-12-28T16:19:38.574Z"
+        },
+        {
+          "id": "88bb4d1c-89dd-40bd-9c45-0a266c3e213e",
+          "type": "VERIFICATION",
+          "content": {
+            "pass": true,
+            "issues": []
+          },
+          "createdAt": "2025-12-28T16:19:38.574Z"
+        },
+        {
+          "id": "c0c3133c-975c-411d-b502-4a2774ad7ec4",
+          "type": "FINAL",
+          "content": "### Findings\n\nDetail the core findings with evidence-backed claims.\n\nEvidence policy: VECTOR_WEB.\n\nKey point supported by evidence [citation:seed-vector-store-Findings].",
+          "createdAt": "2025-12-28T16:19:38.574Z"
+        },
+        {
+          "id": "da2802d0-c11f-46d3-b7e3-c29108d0bf0b",
+          "type": "CLAIMS",
+          "content": [
+            {
+              "text": "### Findings\n\nDetail the core findings with evidence-backed claims",
+              "evidenceIds": [
+                "seed-vector-store-Findings"
+              ]
+            },
+            {
+              "text": "Evidence policy: VECTOR_WEB",
+              "evidenceIds": [
+                "seed-vector-store-Findings"
+              ]
+            },
+            {
+              "text": "Key point supported by evidence [citation:seed-vector-store-Findings]",
+              "evidenceIds": [
+                "seed-vector-store-Findings"
+              ]
+            }
+          ],
+          "createdAt": "2025-12-28T16:19:38.574Z"
+        },
+        {
+          "id": "7040dbb8-f980-4b70-99ad-fa0801ea137e",
+          "type": "PROVENANCE",
+          "content": [
+            {
+              "claim": "### Findings\n\nDetail the core findings with evidence-backed claims",
+              "evidenceIds": [
+                "seed-vector-store-Findings"
+              ]
+            },
+            {
+              "claim": "Evidence policy: VECTOR_WEB",
+              "evidenceIds": [
+                "seed-vector-store-Findings"
+              ]
+            },
+            {
+              "claim": "Key point supported by evidence [citation:seed-vector-store-Findings]",
+              "evidenceIds": [
+                "seed-vector-store-Findings"
+              ]
+            }
+          ],
+          "createdAt": "2025-12-28T16:19:38.574Z"
+        },
+        {
+          "id": "84efeaba-6e74-437e-86e5-594d96a1b810",
+          "type": "SCORES",
+          "content": {
+            "coverage": 0.3333333333333333,
+            "diversity": 1,
+            "recency": 0.5,
+            "redundancy": 0
+          },
+          "createdAt": "2025-12-28T16:19:38.574Z"
+        },
+        {
+          "id": "19fc3ca8-dcf8-4067-b8c9-8c510d1d76be",
+          "type": "PROMPTS_USED",
+          "content": {
+            "system": "",
+            "developer": "",
+            "plan": "",
+            "write": "",
+            "verify": "",
+            "repair": "",
+            "synthesis": ""
+          },
+          "createdAt": "2025-12-28T16:19:38.574Z"
+        }
+      ],
+      "createdAt": "2025-12-28T16:13:01.980Z",
+      "updatedAt": "2025-12-28T16:19:38.574Z",
+      "outputFingerprint": "be8538f118fefea49d7a1e2a93ca30aa1f6cff32"
+    }
+  ],
+  "exports": [],
+  "runEvents": [
+    {
+      "id": "6680f2ee-13f8-493d-97dc-421c5bdc6f02",
+      "runId": "20d0b7cb-c9e9-4f61-b5bd-5408662596cc",
+      "type": "BLUEPRINT_CREATED",
+      "payload": {
+        "blueprint": {
+          "glossary": [],
+          "assumptions": [
+            "Template: Sample BRD Template"
+          ],
+          "scope": [
+            "Generate sections per template definition."
+          ],
+          "nonGoals": [],
+          "boundaries": [],
+          "createdAt": "2025-12-28T16:19:37.956Z"
+        }
+      },
+      "createdAt": "2025-12-28T16:19:37.960Z"
+    },
+    {
+      "id": "83cc1245-1a60-4b40-aeab-561bf728b7d1",
+      "runId": "20d0b7cb-c9e9-4f61-b5bd-5408662596cc",
+      "type": "SECTION_STATUS",
+      "payload": {
+        "sectionRunId": "18a7f609-64d1-4538-9890-6d79c1f7377b",
+        "status": "COMPLETED"
+      },
+      "createdAt": "2025-12-28T16:19:38.354Z"
+    },
+    {
+      "id": "bb766012-5c87-4fc4-ae5c-b37f96136d90",
+      "runId": "20d0b7cb-c9e9-4f61-b5bd-5408662596cc",
+      "type": "SECTION_STATUS",
+      "payload": {
+        "sectionRunId": "60948110-0a93-4a04-8335-2ed65613800d",
+        "status": "COMPLETED"
+      },
+      "createdAt": "2025-12-28T16:19:38.575Z"
+    },
+    {
+      "id": "32f0c81c-e054-4473-b6b2-95478204d704",
+      "runId": "20d0b7cb-c9e9-4f61-b5bd-5408662596cc",
+      "type": "EXEC_SUMMARY_SYNTHESIZED",
+      "payload": {
+        "sectionRunId": "18a7f609-64d1-4538-9890-6d79c1f7377b"
+      },
+      "createdAt": "2025-12-28T16:19:38.862Z"
+    },
+    {
+      "id": "345bcc86-e8ac-4aca-95b1-0f6e63993931",
+      "runId": "20d0b7cb-c9e9-4f61-b5bd-5408662596cc",
+      "type": "RUN_COMPLETED",
+      "payload": {},
+      "createdAt": "2025-12-28T16:19:38.865Z"
+    }
+  ],
+  "auditLogs": [
+    {
+      "id": "c17cee69-89dc-4659-9c5b-24013fe35391",
+      "actionType": "CLAIM_PROVENANCE_CAPTURED",
+      "targetType": "SectionRun",
+      "targetId": "18a7f609-64d1-4538-9890-6d79c1f7377b",
+      "details": {
+        "claimCount": 2
+      },
+      "createdAt": "2025-12-28T16:19:38.355Z"
+    },
+    {
+      "id": "78251523-fcf5-4e2a-9d6c-bcb1af3be549",
+      "actionType": "CLAIM_PROVENANCE_CAPTURED",
+      "targetType": "SectionRun",
+      "targetId": "60948110-0a93-4a04-8335-2ed65613800d",
+      "details": {
+        "claimCount": 3
+      },
+      "createdAt": "2025-12-28T16:19:38.576Z"
+    }
+  ],
+  "connectors": [
+    {
+      "id": "seed-vector-store",
+      "type": "VECTOR",
+      "name": "Seed Vector Store",
+      "description": "Placeholder vector connector for validation.",
+      "configJson": {},
+      "tags": [
+        "seed"
+      ],
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "modelProviders": [
+    {
+      "id": "seed-provider",
+      "name": "Mock Provider",
+      "region": "local",
+      "models": [
+        {
+          "name": "mock-1",
+          "contextWindow": 8192,
+          "maxOutputTokens": 2048
+        }
+      ],
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "modelConfigs": [
+    {
+      "id": "seed-model-config",
+      "providerId": "seed-provider",
+      "model": "mock-1",
+      "temperature": 0.4,
+      "maxOutputTokens": 1024,
+      "topP": 0.9,
+      "strictness": "medium",
+      "verification": {
+        "citationRequired": true,
+        "reviewerSimulation": false
+      },
+      "stageHints": {
+        "write": true,
+        "verify": true,
+        "repair": true
+      },
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "generationProfiles": [
+    {
+      "id": "seed-fast",
+      "name": "Fast Draft",
+      "description": "Fast draft mode with minimal verification.",
+      "toggles": {
+        "enableVerification": false,
+        "enableRepair": false,
+        "enableReviewer": false,
+        "enforceCitations": false,
+        "allowWeb": true,
+        "allowVector": true
+      },
+      "stageConfig": {
+        "plan": {
+          "enabled": true
+        },
+        "retrieve": {
+          "enabled": true
+        },
+        "write": {
+          "enabled": true
+        },
+        "verify": {
+          "enabled": false
+        },
+        "repair": {
+          "enabled": false
+        }
+      },
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "seed-defensible",
+      "name": "Defensible",
+      "description": "Verification + repair + reviewer simulation.",
+      "toggles": {
+        "enableVerification": true,
+        "enableRepair": true,
+        "enableReviewer": true,
+        "enforceCitations": true,
+        "allowWeb": true,
+        "allowVector": true
+      },
+      "stageConfig": {
+        "plan": {
+          "enabled": true
+        },
+        "retrieve": {
+          "enabled": true
+        },
+        "write": {
+          "enabled": true
+        },
+        "verify": {
+          "enabled": true
+        },
+        "repair": {
+          "enabled": true
+        }
+      },
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "scores": [
+    {
+      "runId": "20d0b7cb-c9e9-4f61-b5bd-5408662596cc",
+      "sectionRunId": "18a7f609-64d1-4538-9890-6d79c1f7377b",
+      "coverage": 0,
+      "diversity": 0,
+      "recency": 0,
+      "redundancy": 0
+    },
+    {
+      "runId": "20d0b7cb-c9e9-4f61-b5bd-5408662596cc",
+      "sectionRunId": "60948110-0a93-4a04-8335-2ed65613800d",
+      "coverage": 0.3333333333333333,
+      "diversity": 1,
+      "recency": 0.5,
+      "redundancy": 0
+    }
+  ],
+  "dependencies": [
+    {
+      "runId": "20d0b7cb-c9e9-4f61-b5bd-5408662596cc",
+      "templateId": "seed-template",
+      "blueprintAssumptions": [
+        "Template: Sample BRD Template"
+      ],
+      "retrievalQueriesBySection": {
+        "seed-section-1": [
+          "Executive Summary"
+        ],
+        "seed-section-2": [
+          "Findings"
+        ]
+      },
+      "sectionOutputs": {
+        "seed-section-1": "1900e2b7a98c85a73967914ce97b94622f11e8f6",
+        "seed-section-2": "be8538f118fefea49d7a1e2a93ca30aa1f6cff32"
+      }
+    }
+  ],
+  "jobs": [],
+  "settings": {
+    "webProviderConfigured": false
+  }
 }

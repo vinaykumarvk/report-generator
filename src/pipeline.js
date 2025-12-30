@@ -55,11 +55,6 @@ async function assembleReport(run, sections, { assemblyService }) {
   return assembly;
 }
 
-module.exports = {
-  generateBlueprint,
-  runSectionPipeline,
-  normalizeSections,
-  assembleReport,
 function resolveProfileStages(state, templateId, profileId) {
   const template = state.templates.find((t) => t.id === templateId);
   const profile = state.generationProfiles.find((p) => p.id === profileId);
@@ -79,5 +74,9 @@ function resolveProfileStages(state, templateId, profileId) {
 }
 
 module.exports = {
+  generateBlueprint,
+  runSectionPipeline,
+  normalizeSections,
+  assembleReport,
   resolveProfileStages,
 };

@@ -747,7 +747,7 @@ export default function ReportsStudioClient() {
               </div>
 
               {sections.length === 0 && (
-                <p className="empty-message">No sections added yet. Click "+ Add Section" to begin.</p>
+                <p className="empty-message">No sections added yet. Click &quot;+ Add Section&quot; to begin.</p>
               )}
 
               {sections.map((section, index) => (
@@ -1335,7 +1335,7 @@ export default function ReportsStudioClient() {
           {filteredTemplates.length === 0 && (
             <div className="empty-state">
               <p>No report templates found</p>
-              <p>Click "+ New Report" to create your first template</p>
+              <p>Click &quot;+ New Report&quot; to create your first template</p>
             </div>
           )}
         </>
@@ -1343,4 +1343,3 @@ export default function ReportsStudioClient() {
     </div>
   );
 }
-

@@ -151,7 +151,7 @@ export default function VectorStoreSelector({
       )}
 
       {sortedVectorStores.length === 0 && availableVectorStores.length === 0 && !loadingVectorStores && (
-        <p className="info-message">No vector stores found. Click "Sync Stores" to load.</p>
+        <p className="info-message">No vector stores found. Click &quot;Sync Stores&quot; to load.</p>
       )}
 
       <div className="vector-store-grid">
@@ -238,4 +238,3 @@ export default function VectorStoreSelector({
     </div>
   );
 }
-

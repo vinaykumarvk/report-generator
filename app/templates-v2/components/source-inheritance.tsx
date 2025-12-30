@@ -106,7 +106,7 @@ export default function SourceInheritance({
           />
           <div className="mode-details">
             <strong>Inherit from Template</strong>
-            <p>Use the template's default sources ({defaultSourceIds.length})</p>
+            <p>Use the template&apos;s default sources ({defaultSourceIds.length})</p>
           </div>
         </label>
 
@@ -200,4 +200,3 @@ export default function SourceInheritance({
     </div>
   );
 }
-

@@ -1596,7 +1596,7 @@ export default function ObjectiveStudioClient() {
                   <div className="muted">Loading vector stores...</div>
                 ) : availableVectorStores.length === 0 ? (
                   <div className="muted">
-                    No vector stores available. Click "Sync OpenAI Vector Stores" below to load them.
+                    No vector stores available. Click &quot;Sync OpenAI Vector Stores&quot; below to load them.
                   </div>
                 ) : (
                   <>

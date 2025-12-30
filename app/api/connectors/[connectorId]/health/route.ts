@@ -9,11 +9,16 @@ export async function GET(
   { params }: { params: { connectorId: string } }
 ) {
   const supabase = supabaseAdmin();
-  const { data: connector, error } = await supabase
+  const { data, error } = await supabase
     .from("connectors")
     .select("*")
     .eq("id", params.connectorId)
     .single();
+  const connector = data as {
+    id: string;
+    type: string | null;
+    config_json?: Record<string, unknown> | null;
+  } | null;
   if (error || !connector) {
     return NextResponse.json({ error: "Connector not found" }, { status: 404 });
   }

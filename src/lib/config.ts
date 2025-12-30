@@ -52,33 +52,23 @@ function parseConfig() {
 
   const data = parsed.data;
 
-  // Validate required values in production
-  if (data.NODE_ENV === 'production') {
-    if (!data.DATABASE_URL) {
-      throw new Error('DATABASE_URL is required in production mode');
-    }
-    if (!data.REDIS_URL) {
-      throw new Error('REDIS_URL is required in production mode');
-    }
-    if (!data.S3_ENDPOINT || !data.S3_ACCESS_KEY || !data.S3_SECRET_KEY || !data.S3_BUCKET) {
-      throw new Error('S3 configuration is required in production mode');
-    }
-  }
-
   const featureFlags = parseFeatureFlags(data.FEATURE_FLAGS);
 
   return {
     nodeEnv: data.NODE_ENV,
-    databaseUrl: data.DATABASE_URL || 'postgresql://report_user:report_pass@localhost:5432/report_generator?schema=public',
-    directDatabaseUrl: data.DIRECT_DATABASE_URL || data.DATABASE_URL || 'postgresql://report_user:report_pass@localhost:5432/report_generator?schema=public',
-    redisUrl: data.REDIS_URL || 'redis://localhost:6379',
+    databaseUrl: data.DATABASE_URL,
+    directDatabaseUrl: data.DIRECT_DATABASE_URL || data.DATABASE_URL,
+    redisUrl: data.REDIS_URL,
     logLevel: data.LOG_LEVEL,
-    s3: {
-      endpoint: data.S3_ENDPOINT || 'http://localhost:9000',
-      accessKey: data.S3_ACCESS_KEY || 'minio',
-      secretKey: data.S3_SECRET_KEY || 'minio123',
-      bucket: data.S3_BUCKET || 'report-generator'
-    },
+    s3:
+      data.S3_ENDPOINT && data.S3_ACCESS_KEY && data.S3_SECRET_KEY && data.S3_BUCKET
+        ? {
+            endpoint: data.S3_ENDPOINT,
+            accessKey: data.S3_ACCESS_KEY,
+            secretKey: data.S3_SECRET_KEY,
+            bucket: data.S3_BUCKET,
+          }
+        : undefined,
     featureFlags,
     appName: data.NEXT_PUBLIC_APP_NAME
   } as const;

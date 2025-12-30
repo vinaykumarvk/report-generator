@@ -9,11 +9,11 @@ export async function POST(
   { params }: { params: { runId: string } }
 ) {
   const supabase = supabaseAdmin();
-  const { data: run, error } = await supabase
+  const { data: run, error } = (await supabase
     .from("report_runs")
     .select("*")
     .eq("id", params.runId)
-    .single();
+    .single()) as { data: any; error: any };
   if (error || !run) {
     return NextResponse.json({ error: "Run not found" }, { status: 404 });
   }
@@ -26,19 +26,19 @@ export async function POST(
   }
 
   const workspaceId = run.workspace_id || (await getDefaultWorkspaceId());
-  const { data: updated, error: updateError } = await supabase
-    .from("report_runs")
+  const { data: updated, error: updateError } = (await (supabase
+    .from("report_runs") as any)
     .update({
       status: "RUNNING",
       started_at: new Date().toISOString(),
     })
     .eq("id", params.runId)
     .select("*")
-    .single();
+    .single()) as { data: any; error: any };
   assertNoSupabaseError(updateError, "Failed to update report run");
 
-  const { data: job, error: jobError } = await supabase
-    .from("jobs")
+  const { data: job, error: jobError } = (await (supabase
+    .from("jobs") as any)
     .insert({
       workspace_id: workspaceId,
       type: "START_RUN",
@@ -47,17 +47,17 @@ export async function POST(
       run_id: run.id,
     })
     .select("id")
-    .single();
+    .single()) as { data: any; error: any };
   assertNoSupabaseError(jobError, "Failed to create job");
 
-  const { error: eventError } = await supabase.from("run_events").insert({
+  const { error: eventError } = await (supabase.from("run_events") as any).insert({
     run_id: run.id,
     workspace_id: workspaceId,
     type: "RUN_STARTED",
     payload_json: {},
   });
   assertNoSupabaseError(eventError, "Failed to write run event");
-  const { error: auditError } = await supabase.from("audit_logs").insert({
+  const { error: auditError } = await (supabase.from("audit_logs") as any).insert({
     workspace_id: workspaceId,
     action_type: "RUN_STARTED",
     target_type: "ReportRun",

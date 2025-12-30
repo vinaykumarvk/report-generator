@@ -20,11 +20,12 @@ export async function POST(
       { status: 404 }
     );
   }
+  const runId = String(sectionRun.report_run_id);
 
   const { data: run } = await supabase
     .from("report_runs")
     .select("workspace_id")
-    .eq("id", sectionRun.report_run_id)
+    .eq("id", runId)
     .single();
   const workspaceId = run?.workspace_id || (await getDefaultWorkspaceId());
 
@@ -54,7 +55,7 @@ export async function POST(
     type: "RUN_SECTION",
     status: "QUEUED",
     payload_json: {},
-    run_id: sectionRun.report_run_id,
+    run_id: runId,
     section_run_id: sectionRun.id,
   });
   assertNoSupabaseError(jobError, "Failed to enqueue section run");

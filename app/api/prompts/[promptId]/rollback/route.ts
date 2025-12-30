@@ -36,11 +36,11 @@ export async function POST(
     );
   }
   const supabase = supabaseAdmin();
-  const { data: set, error: findError } = await supabase
+  const { data: set, error: findError } = (await supabase
     .from("prompt_sets")
     .select("*")
     .eq("id", params.promptId)
-    .single();
+    .single()) as { data: any; error: any };
   if (findError || !set) {
     return NextResponse.json({ error: "Prompt set not found" }, { status: 404 });
   }
@@ -57,8 +57,8 @@ export async function POST(
 
   const nextVersion = (set.version || 0) + 1;
   const nextState = target.state || {};
-  const { data: updated, error: updateError } = await supabase
-    .from("prompt_sets")
+  const { data: updated, error: updateError } = (await (supabase
+    .from("prompt_sets") as any)
     .update({
       name: nextState.name ?? set.name,
       sections_json: nextState.sections ?? set.sections_json,
@@ -77,7 +77,7 @@ export async function POST(
     })
     .eq("id", params.promptId)
     .select("*")
-    .single();
+    .single()) as { data: any; error: any };
   assertNoSupabaseError(updateError, "Failed to rollback prompt set");
   return NextResponse.json(updated);
 }

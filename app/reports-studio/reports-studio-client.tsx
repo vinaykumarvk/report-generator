@@ -4,25 +4,6 @@ import { useEffect, useState } from "react";
 import VectorStoreSelector from "./components/vector-store-selector";
 import "./reports-studio.css";
 
-const EVIDENCE_POLICIES = [
-  "LLM_ONLY",
-  "VECTOR_ONLY",
-  "WEB_ONLY",
-  "VECTOR_LLM",
-  "WEB_LLM",
-  "VECTOR_WEB",
-  "ALL",
-  "SYNTHESIS_ONLY",
-];
-
-const OUTPUT_FORMATS = [
-  "NARRATIVE",
-  "BULLETS",
-  "TABLE",
-  "REQUIREMENTS",
-  "JSON_SCHEMA",
-];
-
 type Template = {
   id: string;
   name: string;
@@ -65,16 +46,15 @@ type Connector = {
   name: string;
   type: string;
   description?: string;
+  metadata?: {
+    vectorStoreId?: string;
+    fileIds?: string[];
+  };
 };
 
 type VectorStore = {
   id: string;
   name: string;
-};
-
-type VectorFile = {
-  id: string;
-  filename: string;
 };
 
 export default function ReportsStudioClient() {
@@ -85,14 +65,8 @@ export default function ReportsStudioClient() {
   const [expandedTemplateId, setExpandedTemplateId] = useState<string | null>(null);
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<Template>>({});
-  const [availableConnectors, setAvailableConnectors] = useState<Connector[]>([]);
   const [availableVectorStores, setAvailableVectorStores] = useState<VectorStore[]>([]);
-  const [loadingVectorStores, setLoadingVectorStores] = useState(false);
-  const [expandedVectorStore, setExpandedVectorStore] = useState<string | null>(null);
-  const [vectorStoreFiles, setVectorStoreFiles] = useState<Record<string, VectorFile[]>>({});
-  const [loadingFiles, setLoadingFiles] = useState<Record<string, boolean>>({});
   const [writingStyles, setWritingStyles] = useState<WritingStyle[]>([]);
-  const [selectedStyleForInfo, setSelectedStyleForInfo] = useState<string | null>(null);
 
   // Form states - Objectives
   const [name, setName] = useState("");
@@ -110,12 +84,9 @@ export default function ReportsStudioClient() {
   const [selectedConnectorTypes, setSelectedConnectorTypes] = useState<string[]>([]);
   const [selectedVectorStores, setSelectedVectorStores] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<Record<string, string[]>>({});
-  const [vectorStoreSearchTerm, setVectorStoreSearchTerm] = useState("");
-  const [fileSearchTerms, setFileSearchTerms] = useState<Record<string, string>>({});
 
   useEffect(() => {
     loadTemplates();
-    loadConnectors();
     loadWritingStyles();
   }, []);
 
@@ -325,18 +296,6 @@ export default function ReportsStudioClient() {
     }
   }
 
-  async function loadConnectors() {
-    try {
-      const res = await fetch("/api/connectors");
-      if (res.ok) {
-        const data = await res.json();
-        setAvailableConnectors(data);
-      }
-    } catch (error) {
-      console.error("Failed to load connectors:", error);
-    }
-  }
-
   async function loadWritingStyles() {
     try {
       const res = await fetch("/api/writing-styles");
@@ -351,7 +310,6 @@ export default function ReportsStudioClient() {
 
   async function loadVectorStores() {
     console.log("loadVectorStores called");
-    setLoadingVectorStores(true);
     try {
       const res = await fetch("/api/openai/vector-stores");
       console.log("Vector stores response:", res.status);
@@ -366,23 +324,6 @@ export default function ReportsStudioClient() {
       }
     } catch (error) {
       console.error("Failed to load vector stores:", error);
-    } finally {
-      setLoadingVectorStores(false);
-    }
-  }
-
-  async function loadVectorStoreFiles(vectorStoreId: string) {
-    setLoadingFiles((prev) => ({ ...prev, [vectorStoreId]: true }));
-    try {
-      const res = await fetch(`/api/openai/vector-stores/${vectorStoreId}/files`);
-      if (res.ok) {
-        const data = await res.json();
-        setVectorStoreFiles((prev) => ({ ...prev, [vectorStoreId]: data }));
-      }
-    } catch (error) {
-      console.error("Failed to load files:", error);
-    } finally {
-      setLoadingFiles((prev) => ({ ...prev, [vectorStoreId]: false }));
     }
   }
 
@@ -401,40 +342,6 @@ export default function ReportsStudioClient() {
       
       return newTypes;
     });
-  }
-
-  function handleVectorStoreToggle(id: string) {
-    if (selectedVectorStores.includes(id)) {
-      setSelectedVectorStores((prev) => prev.filter((vsId) => vsId !== id));
-    } else {
-      if (selectedVectorStores.length >= 2) {
-        alert("You can select up to 2 vector stores only");
-        return;
-      }
-      setSelectedVectorStores((prev) => [...prev, id]);
-    }
-  }
-
-  function handleFileToggle(vectorStoreId: string, fileId: string) {
-    setSelectedFiles((prev) => {
-      const current = prev[vectorStoreId] || [];
-      if (current.includes(fileId)) {
-        return { ...prev, [vectorStoreId]: current.filter((fId) => fId !== fileId) };
-      } else {
-        return { ...prev, [vectorStoreId]: [...current, fileId] };
-      }
-    });
-  }
-
-  function toggleSpecificFiles(vectorStoreId: string) {
-    if (expandedVectorStore === vectorStoreId) {
-      setExpandedVectorStore(null);
-    } else {
-      setExpandedVectorStore(vectorStoreId);
-      if (!vectorStoreFiles[vectorStoreId]) {
-        loadVectorStoreFiles(vectorStoreId);
-      }
-    }
   }
 
   function addSection() {
@@ -579,12 +486,6 @@ export default function ReportsStudioClient() {
       t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const sortedVectorStores = [...availableVectorStores]
-    .filter((vs) =>
-      vs.name.toLowerCase().includes(vectorStoreSearchTerm.toLowerCase())
-    )
-    .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <div className="page-container">

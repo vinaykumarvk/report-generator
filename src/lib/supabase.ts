@@ -1,6 +1,57 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-let supabaseClient: ReturnType<typeof createClient> | null = null;
+type GenericRelationship = {
+  foreignKeyName: string;
+  columns: string[];
+  isOneToOne?: boolean;
+  referencedRelation: string;
+  referencedColumns: string[];
+};
+
+type GenericTable = {
+  Row: Record<string, unknown>;
+  Insert: Record<string, unknown>;
+  Update: Record<string, unknown>;
+  Relationships: GenericRelationship[];
+};
+
+type GenericUpdatableView = {
+  Row: Record<string, unknown>;
+  Insert: Record<string, unknown>;
+  Update: Record<string, unknown>;
+  Relationships: GenericRelationship[];
+};
+
+type GenericNonUpdatableView = {
+  Row: Record<string, unknown>;
+  Relationships: GenericRelationship[];
+};
+
+type GenericView = GenericUpdatableView | GenericNonUpdatableView;
+
+type GenericFunction = {
+  Args: Record<string, unknown> | never;
+  Returns: unknown;
+  SetofOptions?: {
+    isSetofReturn?: boolean;
+    isOneToOne?: boolean;
+    isNotNullable?: boolean;
+    to: string;
+    from: string;
+  };
+};
+
+type GenericSchema = {
+  Tables: Record<string, GenericTable>;
+  Views: Record<string, GenericView>;
+  Functions: Record<string, GenericFunction>;
+};
+
+type Database = {
+  public: GenericSchema;
+};
+
+let supabaseClient: SupabaseClient<Database> | null = null;
 
 /**
  * Get Supabase client instance (singleton)
@@ -20,7 +71,7 @@ export function getSupabaseClient() {
     );
   }
 
-  supabaseClient = createClient(supabaseUrl, supabaseKey, {
+  supabaseClient = createClient<Database>(supabaseUrl, supabaseKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
@@ -43,7 +94,7 @@ export function getSupabaseClientPublic() {
     );
   }
 
-  return createClient(supabaseUrl, supabaseAnonKey);
+  return createClient<Database>(supabaseUrl, supabaseAnonKey);
 }
 
 /**
@@ -99,4 +150,3 @@ export async function testSupabaseConnection() {
     };
   }
 }
-

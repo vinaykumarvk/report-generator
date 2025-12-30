@@ -10,7 +10,7 @@ type SectionOutput = {
   finalMarkdown: string;
 };
 
-function normalizeFinalMarkdown(value: unknown) {
+function normalizeFinalMarkdown(value: unknown): string {
   if (typeof value === "string") return value;
   if (value == null) return "";
   
@@ -39,20 +39,20 @@ export async function GET(
   { params }: { params: { runId: string } }
 ) {
   const supabase = supabaseAdmin();
-  const { data: run, error } = await supabase
+  const { data: run, error } = (await supabase
     .from("report_runs")
     .select("*")
     .eq("id", params.runId)
-    .single();
+    .single()) as { data: any; error: any };
   if (error || !run) {
     return NextResponse.json({ error: "Run not found" }, { status: 404 });
   }
 
-  const { data: sectionRuns } = await supabase
+  const { data: sectionRuns } = (await supabase
     .from("section_runs")
     .select("*, section_artifacts(*)")
     .eq("report_run_id", params.runId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })) as { data: any; error: any };
 
   const sections: SectionOutput[] = (sectionRuns || []).map((section: any) => {
     const artifacts = Array.isArray(section.section_artifacts)

@@ -3,7 +3,7 @@ import { supabaseAdmin, assertNoSupabaseError } from "@/lib/supabaseAdmin";
 const DEFAULT_WORKSPACE_NAME =
   process.env.DEFAULT_WORKSPACE_NAME || "Default Workspace";
 
-export async function getDefaultWorkspaceId() {
+export async function getDefaultWorkspaceId(): Promise<string> {
   const supabase = supabaseAdmin();
   const { data: existing, error: findError } = await supabase
     .from("workspaces")
@@ -14,8 +14,9 @@ export async function getDefaultWorkspaceId() {
   if (findError && findError.code !== "PGRST116") {
     assertNoSupabaseError(findError, "Failed to lookup default workspace");
   }
-  if (existing?.id) {
-    return existing.id;
+  const existingId = existing?.id;
+  if (typeof existingId === "string" || typeof existingId === "number") {
+    return String(existingId);
   }
 
   const { data: created, error: createError } = await supabase
@@ -24,5 +25,9 @@ export async function getDefaultWorkspaceId() {
     .select("id")
     .single();
   assertNoSupabaseError(createError, "Failed to create default workspace");
-  return created.id;
+  const createdId = created?.id;
+  if (!(typeof createdId === "string" || typeof createdId === "number")) {
+    throw new Error("Failed to create default workspace");
+  }
+  return String(createdId);
 }

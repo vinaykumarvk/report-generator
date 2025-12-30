@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Template = {
   id: string;
@@ -67,7 +67,7 @@ export default function PromptStudioClient() {
     [promptSets, selectedId]
   );
 
-  async function loadTemplates() {
+  const loadTemplates = useCallback(async () => {
     setLoadingTemplates(true);
     const res = await fetch("/api/templates", { cache: "no-store" });
     if (res.ok) {
@@ -79,9 +79,9 @@ export default function PromptStudioClient() {
       }
     }
     setLoadingTemplates(false);
-  }
+  }, [templateId]);
 
-  async function loadPromptSets(activeTemplateId: string) {
+  const loadPromptSets = useCallback(async (activeTemplateId: string) => {
     if (!activeTemplateId) return;
     setLoadingPromptSets(true);
     const res = await fetch(`/api/templates/${activeTemplateId}/prompts`, {
@@ -95,17 +95,17 @@ export default function PromptStudioClient() {
     const data = await res.json();
     setPromptSets(Array.isArray(data) ? data : []);
     setLoadingPromptSets(false);
-  }
+  }, []);
 
   useEffect(() => {
     loadTemplates();
-  }, []);
+  }, [loadTemplates]);
 
   useEffect(() => {
     if (templateId) {
       loadPromptSets(templateId);
     }
-  }, [templateId]);
+  }, [loadPromptSets, templateId]);
 
   useEffect(() => {
     if (!selectedSet) {

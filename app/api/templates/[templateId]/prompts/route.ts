@@ -60,11 +60,11 @@ export async function POST(
   const supabase = supabaseAdmin();
   let sections = body.sections;
   if (!Array.isArray(sections) || sections.length === 0) {
-    const { data: template, error: templateError } = await supabase
+    const { data: template, error: templateError } = (await supabase
       .from("templates")
       .select("id, template_sections(*)")
       .eq("id", params.templateId)
-      .single();
+      .single()) as { data: any; error: any };
     if (templateError || !template) {
       return NextResponse.json(
         { error: "Template not found" },
@@ -96,12 +96,19 @@ export async function POST(
     .select("*")
     .single();
   assertNoSupabaseError(createError, "Failed to create prompt set");
+  if (!created) {
+    return NextResponse.json(
+      { error: "Failed to create prompt set" },
+      { status: 500 }
+    );
+  }
+  const createdId = String(created.id);
 
   const history = [snapshotEntry(created, "created", "Initial draft created")];
   const { data: updated, error: updateError } = await supabase
     .from("prompt_sets")
     .update({ history_json: history })
-    .eq("id", created.id)
+    .eq("id", createdId)
     .select("*")
     .single();
   assertNoSupabaseError(updateError, "Failed to update prompt history");

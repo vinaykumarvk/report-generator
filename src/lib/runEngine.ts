@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { retrieveEvidenceBundle } from "@/lib/retrieval";
+import type { EvidenceItem } from "@/lib/retrieval";
 import { buildClaims, enforceEvidencePolicy } from "@/lib/evidencePolicy";
 import { runReviewerSimulation } from "@/lib/reviewer";
 import { hasOpenAIKey, runWriterPrompt } from "@/lib/openaiWriter";
@@ -20,6 +20,7 @@ type SectionSnapshot = {
   purpose?: string;
   outputFormat?: string;
   evidencePolicy?: string;
+  prompt?: string;
   vectorPolicyJson?: { connectorIds?: string[] } | null;
   webPolicyJson?: { allowlist?: string[]; blocklist?: string[]; minSources?: number; citationStyle?: string } | null;
   qualityGatesJson?: { noNewFacts?: boolean } | null;
@@ -225,10 +226,7 @@ function resolveVectorToolConfig(
   };
 }
 
-function writeSection(
-  section: SectionSnapshot,
-  evidence: Array<{ id: string; content: string }>
-) {
+function writeSection(section: SectionSnapshot, evidence: EvidenceItem[]) {
   const lines = [
     `### ${section.title}`,
     section.purpose ? section.purpose : "",
@@ -260,7 +258,7 @@ function writeSection(
 
 async function writeSectionWithModel(params: {
   section: SectionSnapshot;
-  evidence: Array<{ id: string; content: string; kind?: string; metadata?: Record<string, unknown> }>;
+  evidence: EvidenceItem[];
   vectorToolConfig?: { vectorStoreIds: string[]; fileIds?: string[] };
   webToolConfig?: { enabled: boolean };
   runInput?: Record<string, unknown>;
@@ -275,7 +273,7 @@ async function writeSectionWithModel(params: {
   };
 }) {
   if (!hasOpenAIKey()) {
-    return writeSection(params.section, params.evidence as Array<{ id: string; content: string }>);
+    return writeSection(params.section, params.evidence);
   }
   return await runWriterPrompt({
     section: {
@@ -344,7 +342,6 @@ export async function runSection(
     synthesis: stagePrompts.synthesis || "",
   };
   const plan = stageEnabled(profile, "plan", true) ? planSection(section) : null;
-  const query = section.title;
   const retrieveEnabled = stageEnabled(profile, "retrieve", true);
   const vectorPolicy = Boolean(section.evidencePolicy?.includes("VECTOR"));
   const webPolicy = Boolean(section.evidencePolicy?.includes("WEB"));
@@ -354,7 +351,7 @@ export async function runSection(
     retrieveEnabled && vectorPolicy
       ? resolveVectorToolConfig(section, template, connectors, runInput)
       : { vectorStoreIds: [] as string[] };
-  const evidence: Array<{ id: string; content: string; kind?: string; metadata?: Record<string, unknown> }> = [];
+  const evidence: EvidenceItem[] = [];
   const webToolConfig = {
     enabled:
       sourceOverride?.webSearchEnabled ??

@@ -11,8 +11,6 @@ interface Source {
 }
 
 interface SourceInheritanceProps {
-  templateId: string;
-  sectionId: string;
   defaultSourceIds: string[];
   currentPolicy: {
     mode?: "INHERIT" | "OVERRIDE";
@@ -22,8 +20,6 @@ interface SourceInheritanceProps {
 }
 
 export default function SourceInheritance({
-  templateId,
-  sectionId,
   defaultSourceIds,
   currentPolicy,
   onSave,

@@ -36,11 +36,11 @@ export async function POST(
   }
 
   const supabase = supabaseAdmin();
-  const { data: existing, error: findError } = await supabase
+  const { data: existing, error: findError } = (await supabase
     .from("prompt_sets")
     .select("*")
     .eq("id", params.promptId)
-    .single();
+    .single()) as { data: any; error: any };
   if (findError || !existing) {
     return NextResponse.json({ error: "Prompt set not found" }, { status: 404 });
   }
@@ -60,8 +60,8 @@ export async function POST(
     )
   );
 
-  const { data: updated, error: updateError } = await supabase
-    .from("prompt_sets")
+  const { data: updated, error: updateError } = (await (supabase
+    .from("prompt_sets") as any)
     .update({
       state: "PUBLISHED",
       published_version: existing.version,
@@ -69,7 +69,7 @@ export async function POST(
     })
     .eq("id", params.promptId)
     .select("*")
-    .single();
+    .single()) as { data: any; error: any };
   assertNoSupabaseError(updateError, "Failed to publish prompt set");
   return NextResponse.json(updated);
 }

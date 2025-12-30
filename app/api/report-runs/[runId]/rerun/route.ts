@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+// @ts-ignore - JS module without types
 import { ChangeDetector, DependencyTracker } from "@/dependency-tracker";
 import { supabaseAdmin, assertNoSupabaseError } from "@/lib/supabaseAdmin";
 
@@ -19,11 +20,11 @@ export async function POST(
   }
   const body = await request.json();
   const changes = body?.changes || {};
-  const { data: dependencySnapshot, error: depError } = await supabase
+  const { data: dependencySnapshot, error: depError } = (await supabase
     .from("dependency_snapshots")
     .select("*")
     .eq("report_run_id", params.runId)
-    .single();
+    .single()) as { data: any; error: any };
   if (depError || !dependencySnapshot) {
     return NextResponse.json(
       { error: "No dependency snapshot found for run." },
@@ -95,8 +96,8 @@ export async function POST(
         .delete()
         .in("section_run_id", impactedRunIds);
       assertNoSupabaseError(scoreError, "Failed to clear section scores");
-      const { error: updateError } = await supabase
-        .from("section_runs")
+      const { error: updateError } = await (supabase
+        .from("section_runs") as any)
         .update({ status: "QUEUED", attempt_count: 0 })
         .in("id", impactedRunIds);
       assertNoSupabaseError(updateError, "Failed to reset section runs");

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const OPENAI_BASE_URL = "https://api.openai.com/v1";
 
@@ -34,7 +35,7 @@ async function openaiFetch(path: string, init: RequestInit = {}) {
  * Fetches all files in a specific vector store with pagination
  */
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: { vectorStoreId: string } }
 ) {
   try {
@@ -109,4 +110,3 @@ export async function GET(
     );
   }
 }
-

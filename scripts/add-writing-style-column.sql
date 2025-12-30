@@ -5,3 +5,4 @@ ADD COLUMN IF NOT EXISTS writing_style text;
 -- Add comment
 COMMENT ON COLUMN template_sections.writing_style IS 'Writing style ID from writing-styles.json (e.g., executive_briefing, analytical_research)';
 
+

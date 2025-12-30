@@ -26,6 +26,6 @@ export async function POST(request: Request) {
       { status: 404 }
     );
   }
-  const results = await searchWeb(connector, query, 5);
+  const results = await searchWeb(connector as any, query, 5);
   return NextResponse.json(results);
 }

@@ -15,11 +15,11 @@ export async function GET(
   { params }: { params: { runId: string } }
 ) {
   const supabase = supabaseAdmin();
-  const { data: run, error } = await supabase
+  const { data: run, error } = (await supabase
     .from("report_runs")
     .select("*")
     .eq("id", params.runId)
-    .single();
+    .single()) as { data: any; error: any };
   if (error || !run) {
     return NextResponse.json({ error: "Run not found" }, { status: 404 });
   }

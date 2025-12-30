@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { listVectorStores } from "@/lib/openaiVectorStores";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 /**
  * GET /api/openai/vector-stores

@@ -44,22 +44,22 @@ export async function POST(request: Request) {
     );
   }
   const supabase = supabaseAdmin();
-  const { data: template, error: templateError } = await supabase
+  const { data: template, error: templateError } = (await supabase
     .from("templates")
     .select("*, template_sections(*)")
     .eq("id", body.templateId)
-    .single();
+    .single()) as { data: any; error: any };
   if (templateError || !template) {
     return NextResponse.json({ error: "Template not found" }, { status: 404 });
   }
 
   let profile: any = null;
   if (body.profileId) {
-    const { data, error } = await supabase
+    const { data, error } = (await supabase
       .from("generation_profiles")
       .select("*")
       .eq("id", body.profileId)
-      .single();
+      .single()) as { data: any; error: any };
     if (error || !data) {
       return NextResponse.json(
         { error: "Generation profile not found" },
@@ -71,11 +71,11 @@ export async function POST(request: Request) {
 
   let promptSet: any = null;
   if (body.promptSetId) {
-    const { data, error } = await supabase
+    const { data, error } = (await supabase
       .from("prompt_sets")
       .select("*")
       .eq("id", body.promptSetId)
-      .single();
+      .single()) as { data: any; error: any };
     if (error || !data) {
       return NextResponse.json(
         { error: "Prompt set not found" },
@@ -129,6 +129,13 @@ export async function POST(request: Request) {
     .select("*")
     .single();
   assertNoSupabaseError(runError, "Failed to create report run");
+  if (!run) {
+    return NextResponse.json(
+      { error: "Failed to create report run" },
+      { status: 500 }
+    );
+  }
+  const runId = String(run.id);
 
   const sections = template.template_sections || [];
   if (sections.length > 0) {
@@ -136,7 +143,7 @@ export async function POST(request: Request) {
       .from("section_runs")
       .insert(
         sections.map((section: any) => ({
-          report_run_id: run.id,
+          report_run_id: runId,
           template_section_id: section.id,
           title: section.title,
           status: "QUEUED",
@@ -146,7 +153,7 @@ export async function POST(request: Request) {
   }
 
   const { error: eventError } = await supabase.from("run_events").insert({
-    run_id: run.id,
+    run_id: runId,
     workspace_id: workspaceId,
     type: "RUN_CREATED",
     payload_json: { templateId: run.template_id },
@@ -157,7 +164,7 @@ export async function POST(request: Request) {
     workspace_id: workspaceId,
     action_type: "RUN_CREATED",
     target_type: "ReportRun",
-    target_id: run.id,
+    target_id: runId,
     details_json: { templateId: run.template_id },
   });
   assertNoSupabaseError(auditError, "Failed to write audit log");
@@ -165,7 +172,7 @@ export async function POST(request: Request) {
   const { data: sectionRuns } = await supabase
     .from("section_runs")
     .select("*")
-    .eq("report_run_id", run.id)
+    .eq("report_run_id", runId)
     .order("created_at", { ascending: true });
 
   return NextResponse.json(

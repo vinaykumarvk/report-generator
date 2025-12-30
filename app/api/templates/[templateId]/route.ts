@@ -11,17 +11,19 @@ export async function GET(
 ) {
   const workspaceId = await getWorkspaceIdFromRequest(request);
   const supabase = supabaseAdmin();
-  const { data: template, error } = await supabase
+  const { data: template, error } = (await supabase
     .from("templates")
     .select("*, template_sections(*)")
     .eq("id", params.templateId)
-    .single();
-  if (error) {
+    .single()) as { data: any; error: any };
+  if (error || !template) {
     return NextResponse.json({ error: "Template not found" }, { status: 404 });
   }
   
   // Validate workspace access
-  if (!validateWorkspaceAccess(template.workspace_id, workspaceId)) {
+  const templateWorkspaceId =
+    typeof template.workspace_id === "string" ? template.workspace_id : null;
+  if (!validateWorkspaceAccess(templateWorkspaceId, workspaceId)) {
     return NextResponse.json({ error: "Template not found" }, { status: 404 });
   }
   
@@ -60,17 +62,19 @@ export async function PUT(
   const workspaceId = await getWorkspaceIdFromRequest(request);
   const body = await request.json();
   const supabase = supabaseAdmin();
-  const { data: template, error } = await supabase
+  const { data: template, error } = (await supabase
     .from("templates")
     .select("*")
     .eq("id", params.templateId)
-    .single();
+    .single()) as { data: any; error: any };
   if (error || !template) {
     return NextResponse.json({ error: "Template not found" }, { status: 404 });
   }
   
   // Validate workspace access
-  if (!validateWorkspaceAccess(template.workspace_id, workspaceId)) {
+  const templateWorkspaceId =
+    typeof template.workspace_id === "string" ? template.workspace_id : null;
+  if (!validateWorkspaceAccess(templateWorkspaceId, workspaceId)) {
     return NextResponse.json({ error: "Template not found" }, { status: 404 });
   }
 
@@ -137,6 +141,12 @@ export async function PUT(
     .select("*")
     .single();
   assertNoSupabaseError(updateError, "Failed to update template");
+  if (!updated) {
+    return NextResponse.json(
+      { error: "Failed to update template" },
+      { status: 500 }
+    );
+  }
 
   // Update sections if provided
   if (Array.isArray(body.sections)) {
@@ -183,18 +193,20 @@ export async function DELETE(
   const supabase = supabaseAdmin();
   
   // First check if template exists
-  const { data: template, error: fetchError } = await supabase
+  const { data: template, error: fetchError } = (await supabase
     .from("templates")
     .select("id, name, workspace_id")
     .eq("id", params.templateId)
-    .single();
+    .single()) as { data: any; error: any };
     
   if (fetchError || !template) {
     return NextResponse.json({ error: "Template not found" }, { status: 404 });
   }
   
   // Validate workspace access
-  if (!validateWorkspaceAccess(template.workspace_id, workspaceId)) {
+  const templateWorkspaceId =
+    typeof template.workspace_id === "string" ? template.workspace_id : null;
+  if (!validateWorkspaceAccess(templateWorkspaceId, workspaceId)) {
     return NextResponse.json({ error: "Template not found" }, { status: 404 });
   }
 
@@ -207,7 +219,8 @@ export async function DELETE(
   assertNoSupabaseError(deleteError, "Failed to delete template");
 
   // Log the deletion
-  const auditWorkspaceId = template.workspace_id || (await getDefaultWorkspaceId());
+  const auditWorkspaceId =
+    templateWorkspaceId || (await getDefaultWorkspaceId());
   const { error: auditError } = await supabase.from("audit_logs").insert({
     workspace_id: auditWorkspaceId,
     action_type: "TEMPLATE_DELETED",

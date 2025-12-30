@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
   
   let templates = data || [];
   if (!templates.length) {
-    const fallbackWorkspaceId = await getDefaultWorkspaceId();
+    const fallbackWorkspaceId = String(await getDefaultWorkspaceId());
     if (fallbackWorkspaceId !== workspaceId) {
       const { data: fallbackData, error: fallbackError } = await supabase
         .from("templates")
@@ -120,12 +120,18 @@ export async function POST(request: Request) {
     .select("*")
     .single();
   assertNoSupabaseError(createError, "Failed to create template");
+  if (!template) {
+    return NextResponse.json(
+      { error: "Failed to create template" },
+      { status: 500 }
+    );
+  }
 
   const { error: auditError } = await supabase.from("audit_logs").insert({
     workspace_id: workspaceId,
     action_type: "TEMPLATE_CREATED",
     target_type: "Template",
-    target_id: template.id,
+    target_id: String(template.id),
     details_json: { name: template.name },
   });
   assertNoSupabaseError(auditError, "Failed to write audit log");

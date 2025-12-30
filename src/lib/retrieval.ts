@@ -120,7 +120,7 @@ async function fetchOpenAIVectorEvidence(
               return resultFileId && fileIds.includes(resultFileId);
             })
           : results;
-        return filtered.map((result: any) => ({
+        return filtered.map((result: any): EvidenceItem => ({
           id: result.id,
           source: connector.name,
           kind: "vector",

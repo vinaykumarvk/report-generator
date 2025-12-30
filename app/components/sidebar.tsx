@@ -2,16 +2,17 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import type { Route } from 'next';
 import { usePathname } from 'next/navigation';
 import ThemeToggle from './theme-toggle';
 
 type NavItem = {
-  href: string;
+  href: Route;
   label: string;
   icon?: string;
 };
 
-const navItems: NavItem[] = [
+const navItems = [
   { href: '/', label: 'Home', icon: '🏠' },
   { href: '/reports-studio', label: 'Reports Studio', icon: '📊' },
   { href: '/runs', label: 'Runs', icon: '🚀' },
@@ -21,7 +22,7 @@ const navItems: NavItem[] = [
   { href: '/evidence', label: 'Evidence', icon: '🔍' },
   { href: '/exports', label: 'Exports', icon: '📄' },
   { href: '/settings', label: 'Settings', icon: '⚙️' },
-];
+ ] satisfies NavItem[];
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);

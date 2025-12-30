@@ -9,11 +9,11 @@ export async function POST(
   { params }: { params: { runId: string } }
 ) {
   const supabase = supabaseAdmin();
-  const { data: run, error } = await supabase
+  const { data: run, error } = (await supabase
     .from("report_runs")
     .select("*")
     .eq("id", params.runId)
-    .single();
+    .single()) as { data: any; error: any };
   if (error || !run) {
     return NextResponse.json({ error: "Run not found" }, { status: 404 });
   }
@@ -28,8 +28,8 @@ export async function POST(
   }
 
   const workspaceId = run.workspace_id || (await getDefaultWorkspaceId());
-  const { data: job, error: jobError } = await supabase
-    .from("jobs")
+  const { data: job, error: jobError } = (await (supabase
+    .from("jobs") as any)
     .insert({
       workspace_id: workspaceId,
       type: "EXPORT",
@@ -38,10 +38,10 @@ export async function POST(
       run_id: params.runId,
     })
     .select("id")
-    .single();
+    .single()) as { data: any; error: any };
   assertNoSupabaseError(jobError, "Failed to enqueue export job");
 
-  const { error: eventError } = await supabase.from("run_events").insert({
+  const { error: eventError } = await (supabase.from("run_events") as any).insert({
     run_id: params.runId,
     workspace_id: workspaceId,
     type: "EXPORT_REQUESTED",

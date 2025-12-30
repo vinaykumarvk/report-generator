@@ -26,13 +26,13 @@ export async function GET(
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
       };
 
-      supabase
+      (supabase
         .from("run_events")
         .select("*")
         .eq("run_id", params.runId)
         .order("created_at", { ascending: true })
-        .limit(200)
-        .then(({ data }) => {
+        .limit(200) as any)
+        .then(({ data }: { data: any }) => {
           const events = data || [];
           events.forEach(send);
           if (events.length) {
@@ -44,14 +44,14 @@ export async function GET(
         });
 
       const interval = setInterval(async () => {
-        const { data } = await supabase
+        const { data } = (await supabase
           .from("run_events")
           .select("*")
           .eq("run_id", params.runId)
           .order("created_at", { ascending: true })
-          .gt("created_at", lastTimestamp || "1970-01-01T00:00:00Z");
+          .gt("created_at", lastTimestamp || "1970-01-01T00:00:00Z")) as { data: any; error: any };
         const updates = data || [];
-        updates.forEach((event) => {
+        updates.forEach((event: any) => {
           send(event);
           lastTimestamp = event.created_at;
         });

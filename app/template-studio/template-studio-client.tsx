@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import TopNav from "@/components/top-nav";
-import { templateStudioNavItems } from "@/components/nav-items";
 import ObjectiveStudioAnchors from "./template-studio-anchors";
 
 const EVIDENCE_POLICIES = [
@@ -117,15 +115,6 @@ type RunScore = {
   diversity: number;
   recency: number;
   redundancy: number;
-};
-
-type DashboardSummary = {
-  templatesCount: number;
-  connectorsCount: number;
-  runsCount: number;
-  exportsCount: number;
-  runStatusCounts?: Record<string, number>;
-  recentRuns?: Array<{ id: string; status: string; createdAt?: string }>;
 };
 
 type RunDashboard = {
@@ -306,17 +295,11 @@ export default function ObjectiveStudioClient() {
   const [selectedPromptSetId, setSelectedPromptSetId] = useState<string | null>(null);
   
   // New UI state
-  const [objectiveSearch, setObjectiveSearch] = useState("");
-  const [showAllObjectives, setShowAllObjectives] = useState(false);
-  const [isCreatingNewObjective, setIsCreatingNewObjective] = useState(false);
-  const [isEditingObjective, setIsEditingObjective] = useState(false);
-  const [showSourcesSection, setShowSourcesSection] = useState(false);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [runs, setRuns] = useState<Run[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [validation, setValidation] = useState<any>(null);
   const [publishMessage, setPublishMessage] = useState("");
-  const [dashboard, setDashboard] = useState<DashboardSummary | null>(null);
   const [objectiveErrors, setObjectiveErrors] = useState<{ name?: string }>({});
   const [promptErrors, setPromptErrors] = useState<{ name?: string; sectionsJson?: string }>({});
   const [runErrors, setRunErrors] = useState<{ templateId?: string; inputJson?: string }>({});
@@ -487,22 +470,12 @@ export default function ObjectiveStudioClient() {
     }
   }
 
-  async function loadDashboard() {
-    try {
-      const data = await fetchJson("/api/dashboard");
-      setDashboard(data);
-    } catch (err) {
-      setDashboard(null);
-    }
-  }
-
   useEffect(() => {
     void loadObjectives();
     void loadConnectors();
     void loadPromptSets();
     void loadProfiles();
     void loadRuns();
-    void loadDashboard();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

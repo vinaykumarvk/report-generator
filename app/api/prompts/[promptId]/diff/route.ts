@@ -9,11 +9,11 @@ export async function GET(
   { params }: { params: { promptId: string } }
 ) {
   const supabase = supabaseAdmin();
-  const { data: set, error } = await supabase
+  const { data: set, error } = (await supabase
     .from("prompt_sets")
     .select("history_json")
     .eq("id", params.promptId)
-    .single();
+    .single()) as { data: any; error: any };
   if (error || !set) {
     return NextResponse.json({ error: "Prompt set not found" }, { status: 404 });
   }

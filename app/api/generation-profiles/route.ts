@@ -26,8 +26,8 @@ export async function POST(request: Request) {
   }
   const supabase = supabaseAdmin();
   const workspaceId = await getDefaultWorkspaceId();
-  const { data: profile, error: createError } = await supabase
-    .from("generation_profiles")
+  const { data: profile, error: createError } = (await (supabase
+    .from("generation_profiles") as any)
     .insert({
       workspace_id: workspaceId,
       name: body.name,
@@ -36,15 +36,15 @@ export async function POST(request: Request) {
       stage_config: body.stageConfig || {},
     })
     .select("*")
-    .single();
+    .single()) as { data: any; error: any };
   assertNoSupabaseError(createError, "Failed to create generation profile");
 
-  const { error: auditError } = await supabase.from("audit_logs").insert({
+  const { error: auditError } = await (supabase.from("audit_logs") as any).insert({
     workspace_id: workspaceId,
     action_type: "PROFILE_CREATED",
     target_type: "GenerationProfile",
-    target_id: profile.id,
-    details_json: { name: profile.name },
+    target_id: profile?.id,
+    details_json: { name: profile?.name },
   });
   assertNoSupabaseError(auditError, "Failed to write audit log");
   return NextResponse.json({ data: profile }, { status: 201 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { marked } from "marked";
 
@@ -77,8 +77,6 @@ function renderMarkdown(markdown: string) {
   marked.setOptions({
     breaks: true,
     gfm: true, // GitHub Flavored Markdown
-    headerIds: false,
-    mangle: false,
   });
   
   try {
@@ -107,7 +105,7 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
   const [error, setError] = useState<string | null>(null);
   const skeletonRows = [0, 1, 2];
 
-  async function loadRun() {
+  const loadRun = useCallback(async () => {
     try {
       setLoadingRun(true);
       setError(null);
@@ -124,9 +122,9 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
     } finally {
       setLoadingRun(false);
     }
-  }
+  }, [runId, selectedSectionId]);
 
-  async function loadDashboard() {
+  const loadDashboard = useCallback(async () => {
     setLoadingDashboard(true);
     const res = await fetch(`/api/report-runs/${runId}/dashboard`, {
       cache: "no-store",
@@ -135,9 +133,9 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
       setDashboard(await res.json());
     }
     setLoadingDashboard(false);
-  }
+  }, [runId]);
 
-  async function loadExports() {
+  const loadExports = useCallback(async () => {
     setLoadingExports(true);
     const res = await fetch(`/api/report-runs/${runId}/exports`, {
       cache: "no-store",
@@ -147,9 +145,9 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
       setExportsList(Array.isArray(data) ? data : []);
     }
     setLoadingExports(false);
-  }
+  }, [runId]);
 
-  async function loadArtifacts(sectionRunId: string) {
+  const loadArtifacts = useCallback(async (sectionRunId: string) => {
     setLoadingArtifacts(true);
     const res = await fetch(`/api/section-runs/${sectionRunId}/artifacts`, {
       cache: "no-store",
@@ -159,7 +157,7 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
       setArtifacts(Array.isArray(data) ? data : []);
     }
     setLoadingArtifacts(false);
-  }
+  }, []);
 
   async function requestExport(format: string) {
     await fetch(`/api/report-runs/${runId}/export`, {
@@ -174,12 +172,12 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
     loadRun();
     loadDashboard();
     loadExports();
-  }, [runId]);
+  }, [loadDashboard, loadExports, loadRun]);
 
   useEffect(() => {
     if (!selectedSectionId) return;
     loadArtifacts(selectedSectionId);
-  }, [selectedSectionId]);
+  }, [loadArtifacts, selectedSectionId]);
 
   useEffect(() => {
     const source = new EventSource(`/api/report-runs/${runId}/events`);

@@ -76,9 +76,17 @@ export async function POST(
       .single();
 
     assertNoSupabaseError(createError, "Failed to create cloned template");
+    if (!createdTemplate) {
+      return NextResponse.json(
+        { error: "Failed to create cloned template" },
+        { status: 500 }
+      );
+    }
 
     // 3. Clone all sections
-    const sections = originalTemplate.sections || [];
+    const sections: any[] = Array.isArray(originalTemplate.sections)
+      ? originalTemplate.sections
+      : [];
     const clonedSections = [];
 
     for (const section of sections) {
@@ -146,4 +154,3 @@ export async function POST(
     );
   }
 }
-

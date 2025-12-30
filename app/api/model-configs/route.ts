@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin, assertNoSupabaseError } from "@/lib/supabaseAdmin";
-import { getDefaultWorkspaceId } from "@/lib/workspace";
 import { getWorkspaceIdFromRequest } from "@/lib/workspaceContext";
 
 export const runtime = "nodejs";
@@ -32,8 +31,8 @@ export async function POST(request: NextRequest) {
     );
   }
   const supabase = supabaseAdmin();
-  const { data: config, error: createError } = await supabase
-    .from("model_configs")
+  const { data: config, error: createError } = (await (supabase
+    .from("model_configs") as any)
     .insert({
       workspace_id: workspaceId,
       provider_id: body.providerId,
@@ -46,15 +45,15 @@ export async function POST(request: NextRequest) {
       stage_hints: body.stageHints || {},
     })
     .select("*")
-    .single();
+    .single()) as { data: any; error: any };
   assertNoSupabaseError(createError, "Failed to create model config");
 
-  const { error: auditError } = await supabase.from("audit_logs").insert({
+  const { error: auditError } = await (supabase.from("audit_logs") as any).insert({
     workspace_id: workspaceId,
     action_type: "MODEL_CONFIG_CREATED",
     target_type: "ModelConfig",
-    target_id: config.id,
-    details_json: { model: config.model },
+    target_id: config?.id,
+    details_json: { model: config?.model },
   });
   assertNoSupabaseError(auditError, "Failed to write audit log");
   return NextResponse.json({ data: config }, { status: 201 });

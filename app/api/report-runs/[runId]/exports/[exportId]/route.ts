@@ -9,12 +9,12 @@ export async function GET(
   { params }: { params: { runId: string; exportId: string } }
 ) {
   const supabase = supabaseAdmin();
-  const { data: exportRecord, error } = await supabase
+  const { data: exportRecord, error } = (await supabase
     .from("exports")
     .select("*")
     .eq("id", params.exportId)
     .eq("report_run_id", params.runId)
-    .single();
+    .single()) as { data: any; error: any };
   if (error || !exportRecord) {
     return NextResponse.json({ error: "Export not found" }, { status: 404 });
   }

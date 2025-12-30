@@ -26,8 +26,8 @@ export async function POST(request: Request) {
   }
   const supabase = supabaseAdmin();
   const workspaceId = await getDefaultWorkspaceId();
-  const { data: provider, error: createError } = await supabase
-    .from("model_providers")
+  const { data: provider, error: createError } = (await (supabase
+    .from("model_providers") as any)
     .insert({
       workspace_id: workspaceId,
       name: body.name,
@@ -35,15 +35,15 @@ export async function POST(request: Request) {
       models: Array.isArray(body.models) ? body.models : [],
     })
     .select("*")
-    .single();
+    .single()) as { data: any; error: any };
   assertNoSupabaseError(createError, "Failed to create model provider");
 
-  const { error: auditError } = await supabase.from("audit_logs").insert({
+  const { error: auditError } = await (supabase.from("audit_logs") as any).insert({
     workspace_id: workspaceId,
     action_type: "MODEL_PROVIDER_CREATED",
     target_type: "ModelProvider",
-    target_id: provider.id,
-    details_json: { name: provider.name },
+    target_id: provider?.id,
+    details_json: { name: provider?.name },
   });
   assertNoSupabaseError(auditError, "Failed to write audit log");
   return NextResponse.json({ data: provider }, { status: 201 });

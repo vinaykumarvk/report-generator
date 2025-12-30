@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Run = {
   id: string;
@@ -48,21 +48,25 @@ export default function EvidenceViewerClient() {
   const [loadingArtifacts, setLoadingArtifacts] = useState(true);
   const skeletonRows = [0, 1, 2];
 
-  async function loadRuns() {
+  const loadRuns = useCallback(async () => {
     setLoadingRuns(true);
     const res = await fetch("/api/report-runs", { cache: "no-store" });
     if (res.ok) {
       const data = await res.json();
       const list = Array.isArray(data) ? data : [];
       setRuns(list);
+      setError(null);
       if (!runId && list[0]) {
         setRunId(list[0].id);
       }
+    } else {
+      setRuns([]);
+      setError("Failed to load runs.");
     }
     setLoadingRuns(false);
-  }
+  }, [runId]);
 
-  async function loadSections(activeRunId: string) {
+  const loadSections = useCallback(async (activeRunId: string) => {
     if (!activeRunId) return;
     setLoadingSections(true);
     const res = await fetch(`/api/report-runs/${activeRunId}/sections`, {
@@ -71,14 +75,18 @@ export default function EvidenceViewerClient() {
     if (res.ok) {
       const data = await res.json();
       setSections(Array.isArray(data) ? data : []);
+      setError(null);
       if (!sectionId && Array.isArray(data) && data[0]) {
         setSectionId(data[0].id);
       }
+    } else {
+      setSections([]);
+      setError("Failed to load sections.");
     }
     setLoadingSections(false);
-  }
+  }, [sectionId]);
 
-  async function loadArtifacts(activeSectionId: string) {
+  const loadArtifacts = useCallback(async (activeSectionId: string) => {
     if (!activeSectionId) return;
     setLoadingArtifacts(true);
     const res = await fetch(`/api/section-runs/${activeSectionId}/artifacts`, {
@@ -86,29 +94,31 @@ export default function EvidenceViewerClient() {
     });
     if (!res.ok) {
       setArtifacts([]);
+      setError("Failed to load artifacts.");
       setLoadingArtifacts(false);
       return;
     }
     const data = await res.json();
     setArtifacts(Array.isArray(data) ? data : []);
+    setError(null);
     setLoadingArtifacts(false);
-  }
+  }, []);
 
   useEffect(() => {
     loadRuns();
-  }, []);
+  }, [loadRuns]);
 
   useEffect(() => {
     if (runId) {
       loadSections(runId);
     }
-  }, [runId]);
+  }, [loadSections, runId]);
 
   useEffect(() => {
     if (sectionId) {
       loadArtifacts(sectionId);
     }
-  }, [sectionId]);
+  }, [loadArtifacts, sectionId]);
 
   const evidenceItems = useMemo(() => {
     const evidence = artifacts.find((item) => item.type === "EVIDENCE");

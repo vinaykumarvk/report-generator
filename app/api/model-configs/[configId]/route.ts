@@ -26,17 +26,17 @@ export async function PUT(
 ) {
   const body = await request.json();
   const supabase = supabaseAdmin();
-  const { data: existing, error: findError } = await supabase
+  const { data: existing, error: findError } = (await supabase
     .from("model_configs")
     .select("*")
     .eq("id", params.configId)
-    .single();
+    .single()) as { data: any; error: any };
   if (findError || !existing) {
     return NextResponse.json({ error: "Model config not found" }, { status: 404 });
   }
 
-  const { data: updated, error: updateError } = await supabase
-    .from("model_configs")
+  const { data: updated, error: updateError } = (await (supabase
+    .from("model_configs") as any)
     .update({
       provider_id: body.providerId ?? existing.provider_id,
       model: body.model ?? existing.model,
@@ -49,11 +49,11 @@ export async function PUT(
     })
     .eq("id", params.configId)
     .select("*")
-    .single();
+    .single()) as { data: any; error: any };
   assertNoSupabaseError(updateError, "Failed to update model config");
 
   const workspaceId = existing.workspace_id || (await getDefaultWorkspaceId());
-  const { error: auditError } = await supabase.from("audit_logs").insert({
+  const { error: auditError } = await (supabase.from("audit_logs") as any).insert({
     workspace_id: workspaceId,
     action_type: "MODEL_CONFIG_UPDATED",
     target_type: "ModelConfig",
@@ -69,11 +69,11 @@ export async function DELETE(
   { params }: { params: { configId: string } }
 ) {
   const supabase = supabaseAdmin();
-  const { data: existing, error: findError } = await supabase
+  const { data: existing, error: findError } = (await supabase
     .from("model_configs")
     .select("*")
     .eq("id", params.configId)
-    .single();
+    .single()) as { data: any; error: any };
   if (findError || !existing) {
     return NextResponse.json({ error: "Model config not found" }, { status: 404 });
   }
@@ -84,7 +84,7 @@ export async function DELETE(
   assertNoSupabaseError(deleteError, "Failed to delete model config");
 
   const workspaceId = existing.workspace_id || (await getDefaultWorkspaceId());
-  const { error: auditError } = await supabase.from("audit_logs").insert({
+  const { error: auditError } = await (supabase.from("audit_logs") as any).insert({
     workspace_id: workspaceId,
     action_type: "MODEL_CONFIG_DELETED",
     target_type: "ModelConfig",

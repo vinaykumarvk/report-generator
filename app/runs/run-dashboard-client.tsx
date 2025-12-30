@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import VectorStoreSelector from "../reports-studio/components/vector-store-selector";
 import { marked } from "marked";
 
@@ -77,7 +77,7 @@ export default function RunDashboardClient() {
   const [loadingPreview, setLoadingPreview] = useState(false);
   const skeletonRows = [0, 1, 2];
 
-  async function loadRuns() {
+  const loadRuns = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -96,9 +96,9 @@ export default function RunDashboardClient() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [selectedRunId]);
 
-  async function loadTemplates() {
+  const loadTemplates = useCallback(async () => {
     try {
       setLoadingTemplates(true);
       const res = await fetch("/api/templates", { cache: "no-store" });
@@ -113,7 +113,7 @@ export default function RunDashboardClient() {
     } finally {
       setLoadingTemplates(false);
     }
-  }
+  }, [selectedTemplateId]);
 
   async function createRun(startImmediately: boolean) {
     setCreateStatus("Creating run...");
@@ -226,7 +226,7 @@ export default function RunDashboardClient() {
   useEffect(() => {
     loadRuns();
     loadTemplates();
-  }, []);
+  }, [loadRuns, loadTemplates]);
 
   useEffect(() => {
     const template = templates.find((item) => item.id === selectedTemplateId);
@@ -310,8 +310,6 @@ export default function RunDashboardClient() {
     marked.setOptions({
       breaks: true,
       gfm: true, // GitHub Flavored Markdown
-      headerIds: false,
-      mangle: false,
     });
     
     try {

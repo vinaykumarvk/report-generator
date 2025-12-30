@@ -42,27 +42,31 @@ export async function PUT(
   if (findError || !typedExisting) {
     return NextResponse.json({ error: "Connector not found" }, { status: 404 });
   }
-  const { data: updated, error: updateError } = await supabase
-    .from<any>("connectors")
-    .update({
-      name: body.name ?? typedExisting.name,
-      description: body.description ?? typedExisting.description,
-      config_json:
-        body.configJson !== undefined ? body.configJson : typedExisting.config_json,
-      tags: Array.isArray(body.tags) ? body.tags : typedExisting.tags,
-    })
+  
+  // Prepare update data
+  const updatePayload = {
+    name: body.name ?? typedExisting.name,
+    description: body.description ?? typedExisting.description,
+    config_json:
+      body.configJson !== undefined ? body.configJson : typedExisting.config_json,
+    tags: Array.isArray(body.tags) ? body.tags : typedExisting.tags,
+  };
+  
+  const { data: updated, error: updateError } = (await (supabase
+    .from("connectors") as any)
+    .update(updatePayload)
     .eq("id", params.connectorId)
     .select("*")
-    .single();
+    .single()) as { data: any; error: any };
   assertNoSupabaseError(updateError, "Failed to update connector");
 
   const workspaceId = typedExisting.workspace_id || (await getDefaultWorkspaceId());
-  const { error: auditError } = await supabase.from("audit_logs").insert({
+  const { error: auditError } = await (supabase.from("audit_logs") as any).insert({
     workspace_id: workspaceId,
     action_type: "CONNECTOR_UPDATED",
     target_type: "Connector",
     target_id: params.connectorId,
-    details_json: { name: updated.name },
+    details_json: { name: updated?.name },
   });
   assertNoSupabaseError(auditError, "Failed to write audit log");
   return NextResponse.json(updated);
@@ -88,7 +92,7 @@ export async function DELETE(
     .eq("id", params.connectorId);
   assertNoSupabaseError(deleteError, "Failed to delete connector");
   const workspaceId = typedExisting.workspace_id || (await getDefaultWorkspaceId());
-  const { error: auditError } = await supabase.from("audit_logs").insert({
+  const { error: auditError } = await (supabase.from("audit_logs") as any).insert({
     workspace_id: workspaceId,
     action_type: "CONNECTOR_DELETED",
     target_type: "Connector",

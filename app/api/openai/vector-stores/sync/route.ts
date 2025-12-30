@@ -4,6 +4,7 @@ import { supabaseAdmin, assertNoSupabaseError } from "@/lib/supabaseAdmin";
 import { getDefaultWorkspaceId } from "@/lib/workspace";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST() {
   try {
@@ -14,15 +15,15 @@ export async function POST() {
     const workspaceId = await getDefaultWorkspaceId();
 
     for (const store of vectorStores) {
-      const { data: existing } = await supabase
+      const { data: existing } = (await supabase
         .from("connectors")
         .select("*")
         .eq("type", "VECTOR")
         .contains("config_json", { vectorStoreId: store.id })
-        .maybeSingle();
+        .maybeSingle()) as { data: any; error: any };
       if (existing) {
-        const { error: updateError } = await supabase
-          .from("connectors")
+        const { error: updateError } = await (supabase
+          .from("connectors") as any)
           .update({
             name: store.name,
             config_json: {
@@ -35,7 +36,7 @@ export async function POST() {
         assertNoSupabaseError(updateError, "Failed to update vector connector");
         updated.push(store.id);
       } else {
-        const { error: createError } = await supabase.from("connectors").insert({
+        const { error: createError } = await (supabase.from("connectors") as any).insert({
           workspace_id: workspaceId,
           name: store.name,
           type: "VECTOR",

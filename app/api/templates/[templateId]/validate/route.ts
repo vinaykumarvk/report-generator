@@ -9,11 +9,11 @@ export async function POST(
   { params }: { params: { templateId: string } }
 ) {
   const supabase = supabaseAdmin();
-  const { data: template, error } = await supabase
+  const { data: template, error } = (await supabase
     .from("templates")
     .select("*, template_sections(*)")
     .eq("id", params.templateId)
-    .single();
+    .single()) as { data: any; error: any };
   if (error || !template) {
     return NextResponse.json({ error: "Template not found" }, { status: 404 });
   }
@@ -27,10 +27,14 @@ export async function POST(
     .select("id")
     .eq("type", "WEB_SEARCH");
 
-  const sections = template.template_sections || [];
+  const sections: any[] = Array.isArray(template.template_sections)
+    ? template.template_sections
+    : [];
   const result = lintTemplate(template, sections, {
     webProviderConfigured: (webConnectors || []).length > 0,
-    vectorConnectorIds: (vectorConnectors || []).map((connector) => connector.id),
+    vectorConnectorIds: (vectorConnectors || []).map((connector: any) =>
+      String(connector.id)
+    ),
   });
   const cycles = detectDependencyCycles(sections);
 

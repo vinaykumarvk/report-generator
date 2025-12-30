@@ -14,3 +14,4 @@ UPDATE template_sections
 SET source_mode = 'inherit' 
 WHERE source_mode IS NULL;
 
+

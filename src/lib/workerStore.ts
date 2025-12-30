@@ -159,12 +159,12 @@ export async function listSectionRuns(runId: string): Promise<SectionRunRecord[]
     .order("created_at", { ascending: true });
   assertNoSupabaseError(error, "Failed to load section runs");
   return (data || []).map((row) => ({
-    id: row.id,
-    runId: row.report_run_id,
-    templateSectionId: row.template_section_id,
-    title: row.title,
-    status: row.status,
-    attemptCount: row.attempt_count ?? 0,
+    id: String(row.id),
+    runId: String(row.report_run_id),
+    templateSectionId: String(row.template_section_id),
+    title: String(row.title ?? ""),
+    status: String(row.status ?? ""),
+    attemptCount: Number(row.attempt_count ?? 0),
     artifacts: [],
   }));
 }
@@ -178,12 +178,12 @@ export async function getSectionRunById(sectionRunId: string): Promise<SectionRu
     .single();
   if (error) return null;
   return {
-    id: data.id,
-    runId: data.report_run_id,
-    templateSectionId: data.template_section_id,
-    title: data.title,
-    status: data.status,
-    attemptCount: data.attempt_count ?? 0,
+    id: String(data.id),
+    runId: String(data.report_run_id),
+    templateSectionId: String(data.template_section_id),
+    title: String(data.title ?? ""),
+    status: String(data.status ?? ""),
+    attemptCount: Number(data.attempt_count ?? 0),
     artifacts: [],
   };
 }

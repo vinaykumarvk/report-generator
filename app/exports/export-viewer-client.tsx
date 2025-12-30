@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Run = {
   id: string;
@@ -35,7 +35,7 @@ export default function ExportViewerClient() {
   const statusId = "export-status";
   const skeletonRows = [0, 1, 2];
 
-  async function loadRuns() {
+  const loadRuns = useCallback(async () => {
     setLoadingRuns(true);
     const res = await fetch("/api/report-runs", { cache: "no-store" });
     if (res.ok) {
@@ -45,9 +45,9 @@ export default function ExportViewerClient() {
       if (!runId && list[0]) setRunId(list[0].id);
     }
     setLoadingRuns(false);
-  }
+  }, [runId]);
 
-  async function loadExports(activeRunId: string) {
+  const loadExports = useCallback(async (activeRunId: string) => {
     if (!activeRunId) return;
     setLoadingExports(true);
     const res = await fetch(`/api/report-runs/${activeRunId}/exports`, {
@@ -58,7 +58,7 @@ export default function ExportViewerClient() {
       setExportsList(Array.isArray(data) ? data : []);
     }
     setLoadingExports(false);
-  }
+  }, []);
 
   async function requestExport(format: string) {
     if (!runId) return;
@@ -80,13 +80,13 @@ export default function ExportViewerClient() {
 
   useEffect(() => {
     loadRuns();
-  }, []);
+  }, [loadRuns]);
 
   useEffect(() => {
     if (runId) {
       loadExports(runId);
     }
-  }, [runId]);
+  }, [loadExports, runId]);
 
   const selectedRun = useMemo(
     () => runs.find((run) => run.id === runId) || null,

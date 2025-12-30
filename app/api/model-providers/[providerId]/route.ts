@@ -26,17 +26,17 @@ export async function PUT(
 ) {
   const body = await request.json();
   const supabase = supabaseAdmin();
-  const { data: existing, error: findError } = await supabase
+  const { data: existing, error: findError} = (await supabase
     .from("model_providers")
     .select("*")
     .eq("id", params.providerId)
-    .single();
+    .single()) as { data: any; error: any };
   if (findError || !existing) {
     return NextResponse.json({ error: "Model provider not found" }, { status: 404 });
   }
 
-  const { data: updated, error: updateError } = await supabase
-    .from("model_providers")
+  const { data: updated, error: updateError } = (await (supabase
+    .from("model_providers") as any)
     .update({
       name: body.name ?? existing.name,
       region: body.region ?? existing.region,
@@ -44,16 +44,16 @@ export async function PUT(
     })
     .eq("id", params.providerId)
     .select("*")
-    .single();
+    .single()) as { data: any; error: any };
   assertNoSupabaseError(updateError, "Failed to update model provider");
 
   const workspaceId = existing.workspace_id || (await getDefaultWorkspaceId());
-  const { error: auditError } = await supabase.from("audit_logs").insert({
+  const { error: auditError } = await (supabase.from("audit_logs") as any).insert({
     workspace_id: workspaceId,
     action_type: "MODEL_PROVIDER_UPDATED",
     target_type: "ModelProvider",
     target_id: params.providerId,
-    details_json: { name: updated.name },
+    details_json: { name: updated?.name },
   });
   assertNoSupabaseError(auditError, "Failed to write audit log");
   return NextResponse.json({ data: updated });
@@ -64,11 +64,11 @@ export async function DELETE(
   { params }: { params: { providerId: string } }
 ) {
   const supabase = supabaseAdmin();
-  const { data: existing, error: findError } = await supabase
+  const { data: existing, error: findError } = (await supabase
     .from("model_providers")
     .select("*")
     .eq("id", params.providerId)
-    .single();
+    .single()) as { data: any; error: any };
   if (findError || !existing) {
     return NextResponse.json({ error: "Model provider not found" }, { status: 404 });
   }
@@ -79,7 +79,7 @@ export async function DELETE(
   assertNoSupabaseError(deleteError, "Failed to delete model provider");
 
   const workspaceId = existing.workspace_id || (await getDefaultWorkspaceId());
-  const { error: auditError } = await supabase.from("audit_logs").insert({
+  const { error: auditError } = await (supabase.from("audit_logs") as any).insert({
     workspace_id: workspaceId,
     action_type: "MODEL_PROVIDER_DELETED",
     target_type: "ModelProvider",

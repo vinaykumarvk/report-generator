@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin, assertNoSupabaseError } from "@/lib/supabaseAdmin";
-import { getDefaultWorkspaceId } from "@/lib/workspace";
 import { getWorkspaceIdFromRequest } from "@/lib/workspaceContext";
 
 export const runtime = "nodejs";
@@ -41,8 +40,8 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = supabaseAdmin();
-  const { data: connector, error: createError } = await supabase
-    .from("connectors")
+  const { data: connector, error: createError } = (await (supabase
+    .from("connectors") as any)
     .insert({
       workspace_id: workspaceId,
       name: body.name,
@@ -52,15 +51,15 @@ export async function POST(request: NextRequest) {
       tags: Array.isArray(body.tags) ? body.tags : [],
     })
     .select("*")
-    .single();
+    .single()) as { data: any; error: any };
   assertNoSupabaseError(createError, "Failed to create connector");
 
-  const { error: auditError } = await supabase.from("audit_logs").insert({
+  const { error: auditError } = await (supabase.from("audit_logs") as any).insert({
     workspace_id: workspaceId,
     action_type: "CONNECTOR_CREATED",
     target_type: "Connector",
-    target_id: connector.id,
-    details_json: { type: connector.type, name: connector.name },
+    target_id: connector?.id,
+    details_json: { type: connector?.type, name: connector?.name },
   });
   assertNoSupabaseError(auditError, "Failed to write audit log");
 

@@ -7,3 +7,4 @@ ADD COLUMN IF NOT EXISTS sources_json jsonb DEFAULT '[]'::jsonb;
 -- Add comment for documentation
 COMMENT ON COLUMN templates.sources_json IS 'Stores source configurations (vector stores, web search) as JSON array';
 
+

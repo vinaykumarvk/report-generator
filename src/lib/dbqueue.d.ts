@@ -62,3 +62,4 @@ export function heartbeat(job: {
   id: string;
   [key: string]: unknown;
 }): Promise<void>;
+

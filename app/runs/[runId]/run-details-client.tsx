@@ -160,11 +160,53 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
   }, []);
 
   async function requestExport(format: string) {
-    await fetch(`/api/report-runs/${runId}/export`, {
+    const res = await fetch(`/api/report-runs/${runId}/export`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ format }),
     });
+    
+    if (!res.ok) {
+      alert("Failed to start export");
+      return;
+    }
+    
+    // Poll for export completion
+    let attempts = 0;
+    const maxAttempts = 60; // 60 seconds max
+    
+    while (attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+      
+      // Reload exports list
+      const exportsRes = await fetch(`/api/report-runs/${runId}/exports`, {
+        cache: "no-store",
+      });
+      
+      if (exportsRes.ok) {
+        const exports = await exportsRes.json();
+        setExportsList(Array.isArray(exports) ? exports : []);
+        
+        const completedExport = exports.find((exp: any) => 
+          exp.status === "COMPLETED" && 
+          exp.format === format &&
+          exp.created_at && 
+          new Date(exp.created_at).getTime() > Date.now() - 120000 // Within last 2 minutes
+        );
+        
+        if (completedExport) {
+          // Trigger download
+          const downloadUrl = `/api/report-runs/${runId}/exports/${completedExport.id}`;
+          window.open(downloadUrl, '_blank');
+          return;
+        }
+      }
+      
+      attempts++;
+    }
+    
+    // Timeout
+    alert("Export is taking longer than expected. Check the Exports section below.");
     await loadExports();
   }
 

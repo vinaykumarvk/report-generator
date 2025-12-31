@@ -212,6 +212,47 @@ export default function RunDashboardClient() {
           body: JSON.stringify({ format: "MARKDOWN" }),
         });
         if (!res.ok) throw new Error("Failed to enqueue export");
+        
+        const data = await res.json();
+        const jobId = data.jobId;
+        
+        // Poll for export completion
+        setActionStatus((prev) => ({ ...prev, [runId]: "Exporting..." }));
+        
+        let attempts = 0;
+        const maxAttempts = 60; // 60 seconds max
+        
+        while (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+          
+          // Check if export is ready
+          const exportsRes = await fetch(`/api/report-runs/${runId}/exports`, {
+            cache: "no-store",
+          });
+          
+          if (exportsRes.ok) {
+            const exports = await exportsRes.json();
+            const completedExport = exports.find((exp: any) => 
+              exp.status === "COMPLETED" && 
+              exp.created_at && 
+              new Date(exp.created_at).getTime() > Date.now() - 120000 // Within last 2 minutes
+            );
+            
+            if (completedExport) {
+              // Trigger download
+              const downloadUrl = `/api/report-runs/${runId}/exports/${completedExport.id}`;
+              window.open(downloadUrl, '_blank');
+              setActionStatus((prev) => ({ ...prev, [runId]: "Downloaded!" }));
+              await loadRuns();
+              return;
+            }
+          }
+          
+          attempts++;
+        }
+        
+        // Timeout - export took too long
+        setActionStatus((prev) => ({ ...prev, [runId]: "Export timeout - check Exports page" }));
       }
       setActionStatus((prev) => ({ ...prev, [runId]: "Done." }));
       await loadRuns();

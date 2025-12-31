@@ -1,59 +1,17 @@
 const features = [
   {
-    title: 'Objective Studio',
-    description: 'Create objectives with sections, validation, and versioning for reports.',
+    title: 'Reports Studio',
+    description: 'Create and manage report templates with sections, validation, and versioning.',
     href: '/template-studio',
     icon: '📝',
-    category: 'Objectives'
+    category: 'Studio'
   },
   {
-    title: 'Run Dashboard',
+    title: 'Runs',
     description: 'Monitor and manage report generation runs, track progress, and view results.',
     href: '/runs',
     icon: '🚀',
     category: 'Execution'
-  },
-  {
-    title: 'Sources',
-    description: 'Configure and manage sources for external data and integrations.',
-    href: '/connectors',
-    icon: '🔌',
-    category: 'Integration'
-  },
-  {
-    title: 'Model Configs',
-    description: 'Manage AI model configurations, providers, and inference settings.',
-    href: '/models',
-    icon: '🤖',
-    category: 'AI Models'
-  },
-  {
-    title: 'Prompt Studio',
-    description: 'Design, version, and manage prompts for AI-powered report generation.',
-    href: '/prompts',
-    icon: '💬',
-    category: 'Prompts'
-  },
-  {
-    title: 'Evidence Viewer',
-    description: 'Browse and analyze evidence, citations, and source materials used in reports.',
-    href: '/evidence',
-    icon: '🔍',
-    category: 'Data'
-  },
-  {
-    title: 'Export Viewer',
-    description: 'View and manage exported reports in various formats (PDF, DOCX, Markdown).',
-    href: '/exports',
-    icon: '📄',
-    category: 'Export'
-  },
-  {
-    title: 'Settings',
-    description: 'Configure system settings, manage users, and access administrative tools.',
-    href: '/settings',
-    icon: '⚙️',
-    category: 'Admin'
   }
 ];
 
@@ -71,7 +29,7 @@ export default function HomePage() {
       </div>
 
       <main>
-        <div className="grid grid-4">
+        <div className="grid grid-2">
             {features.map((feature) => (
               <a key={feature.href} href={feature.href} className="card card-link">
                 <div className="feature-card">

@@ -30,24 +30,10 @@ type Artifact = {
   created_at?: string;
 };
 
-type RunDashboard = {
-  status?: string;
-  sectionCount?: number;
-  exportsCount?: number;
-  sectionStatusCounts?: Record<string, number>;
-  averageScores?: Record<string, number>;
-};
-
-type RunEvent = {
-  id: string;
-  type: string;
-  created_at?: string;
-  payload_json?: Record<string, unknown>;
-};
-
 type RunExport = {
   id: string;
   format: string;
+  status: string;
   created_at?: string;
   file_path?: string;
 };
@@ -64,19 +50,12 @@ function statusClass(status?: string) {
   return `badge status-${status}`;
 }
 
-function renderContent(content: unknown) {
-  if (content === null || content === undefined) return "—";
-  if (typeof content === "string") return content;
-  return JSON.stringify(content, null, 2);
-}
-
 function renderMarkdown(markdown: string) {
   if (!markdown) return "";
   
-  // Configure marked options
   marked.setOptions({
     breaks: true,
-    gfm: true, // GitHub Flavored Markdown
+    gfm: true,
   });
   
   try {
@@ -90,20 +69,15 @@ function renderMarkdown(markdown: string) {
 export default function RunDetailsClient({ runId }: { runId: string }) {
   const [run, setRun] = useState<Run | null>(null);
   const [sections, setSections] = useState<SectionRun[]>([]);
-  const [dashboard, setDashboard] = useState<RunDashboard | null>(null);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
-  const [artifactFilter, setArtifactFilter] = useState<string>("ALL");
-  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(
-    null
-  );
-  const [events, setEvents] = useState<RunEvent[]>([]);
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
   const [exportsList, setExportsList] = useState<RunExport[]>([]);
   const [loadingRun, setLoadingRun] = useState(true);
-  const [loadingDashboard, setLoadingDashboard] = useState(true);
   const [loadingExports, setLoadingExports] = useState(true);
   const [loadingArtifacts, setLoadingArtifacts] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const skeletonRows = [0, 1, 2];
+  const [retryInstructions, setRetryInstructions] = useState<Record<string, string>>({});
+  const [retryingSection, setRetryingSection] = useState<string | null>(null);
 
   const loadRun = useCallback(async () => {
     try {
@@ -123,17 +97,6 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
       setLoadingRun(false);
     }
   }, [runId, selectedSectionId]);
-
-  const loadDashboard = useCallback(async () => {
-    setLoadingDashboard(true);
-    const res = await fetch(`/api/report-runs/${runId}/dashboard`, {
-      cache: "no-store",
-    });
-    if (res.ok) {
-      setDashboard(await res.json());
-    }
-    setLoadingDashboard(false);
-  }, [runId]);
 
   const loadExports = useCallback(async () => {
     setLoadingExports(true);
@@ -173,12 +136,11 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
     
     // Poll for export completion
     let attempts = 0;
-    const maxAttempts = 60; // 60 seconds max
+    const maxAttempts = 60;
     
     while (attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Reload exports list
       const exportsRes = await fetch(`/api/report-runs/${runId}/exports`, {
         cache: "no-store",
       });
@@ -191,11 +153,10 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
           exp.status === "COMPLETED" && 
           exp.format === format &&
           exp.created_at && 
-          new Date(exp.created_at).getTime() > Date.now() - 120000 // Within last 2 minutes
+          new Date(exp.created_at).getTime() > Date.now() - 120000
         );
         
         if (completedExport) {
-          // Trigger download
           const downloadUrl = `/api/report-runs/${runId}/exports/${completedExport.id}`;
           window.open(downloadUrl, '_blank');
           return;
@@ -205,68 +166,64 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
       attempts++;
     }
     
-    // Timeout
     alert("Export is taking longer than expected. Check the Exports section below.");
     await loadExports();
   }
 
+  async function retrySection(sectionRunId: string) {
+    const instructions = retryInstructions[sectionRunId] || "";
+    
+    if (!instructions.trim()) {
+      alert("Please provide instructions for regenerating this section.");
+      return;
+    }
+
+    setRetryingSection(sectionRunId);
+    
+    try {
+      const res = await fetch(`/api/section-runs/${sectionRunId}/retry`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          additionalInstructions: instructions.trim() 
+        }),
+      });
+      
+      if (!res.ok) {
+        throw new Error("Failed to retry section");
+      }
+      
+      alert("Section queued for regeneration!");
+      setRetryInstructions((prev) => ({ ...prev, [sectionRunId]: "" }));
+      
+      // Reload run to see updated status
+      setTimeout(() => {
+        loadRun();
+      }, 1000);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to retry section");
+    } finally {
+      setRetryingSection(null);
+    }
+  }
+
   useEffect(() => {
     loadRun();
-    loadDashboard();
     loadExports();
-  }, [loadDashboard, loadExports, loadRun]);
+  }, [loadExports, loadRun]);
 
   useEffect(() => {
     if (!selectedSectionId) return;
     loadArtifacts(selectedSectionId);
   }, [loadArtifacts, selectedSectionId]);
 
-  useEffect(() => {
-    const source = new EventSource(`/api/report-runs/${runId}/events`);
-    source.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        setEvents((prev) => {
-          const next = [...prev, payload];
-          return next.slice(-200);
-        });
-      } catch {
-        // ignore malformed events
-      }
-    };
-    source.onerror = () => {
-      source.close();
-    };
-    return () => {
-      source.close();
-    };
-  }, [runId]);
-
-  const evidenceItems = useMemo(() => {
-    const evidence = artifacts.find((item) => item.type === "EVIDENCE");
-    if (!evidence?.content_json) return [];
-    if (Array.isArray(evidence.content_json)) return evidence.content_json;
-    return [];
+  const finalArtifact = useMemo(() => {
+    return artifacts.find((item) => item.type === "FINAL");
   }, [artifacts]);
 
-  const filteredArtifacts = useMemo(() => {
-    if (artifactFilter === "ALL") return artifacts;
-    return artifacts.filter((artifact) => artifact.type === artifactFilter);
-  }, [artifacts, artifactFilter]);
-
-  const filterOptions = [
-    "ALL",
-    "FINAL",
-    "DRAFT",
-    "EVIDENCE",
-    "VERIFICATION",
-    "PLAN",
-    "CLAIMS",
-    "PROVENANCE",
-    "SCORES",
-    "REVIEW",
-    "PROMPTS_USED",
-  ];
+  const selectedSection = useMemo(() => {
+    return sections.find((s) => s.id === selectedSectionId);
+  }, [sections, selectedSectionId]);
 
   return (
     <div className="page-container">
@@ -283,239 +240,210 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
       </div>
       
       <div className="content-section">
-        {error && <div className="card">{error}</div>}
-        <section className="details-grid">
+        {error && (
           <div className="card">
-            <h3>Run Summary</h3>
-            {loadingRun ? (
-              <>
-                <div className="skeleton-line" />
-                <div className="skeleton-line" />
-                <div className="skeleton-line" />
-              </>
-            ) : run ? (
-              <>
-                <div className="split">
-                  <strong>{run.template_version_snapshot_json?.name || "Untitled Objective"}</strong>
-                  <span className={statusClass(run.status)}>{run.status || "UNKNOWN"}</span>
+            <div className="empty-state">
+              <div className="empty-state-icon">⚠️</div>
+              <p>{error}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Run Summary */}
+        <div className="card">
+          <h2>Run Summary</h2>
+          {loadingRun ? (
+            <>
+              <div className="skeleton-line" />
+              <div className="skeleton-line" />
+              <div className="skeleton-line" />
+            </>
+          ) : run ? (
+            <>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                <strong style={{ fontSize: "1.25rem" }}>{run.template_version_snapshot_json?.name || "Untitled Template"}</strong>
+                <span className={statusClass(run.status)}>{run.status || "UNKNOWN"}</span>
+              </div>
+              <div className="run-meta">
+                <div className="run-meta-item">
+                  <span className="run-meta-label">Created</span>
+                  <span className="run-meta-value">{formatTimestamp(run.created_at)}</span>
                 </div>
-                <div className="muted">Created: {formatTimestamp(run.created_at)}</div>
-                <div className="muted">Started: {formatTimestamp(run.started_at)}</div>
-                <div className="muted">Completed: {formatTimestamp(run.completed_at)}</div>
-              </>
-            ) : (
-              <div className="muted">Loading run...</div>
-            )}
+                <div className="run-meta-item">
+                  <span className="run-meta-label">Started</span>
+                  <span className="run-meta-value">{formatTimestamp(run.started_at)}</span>
+                </div>
+                <div className="run-meta-item">
+                  <span className="run-meta-label">Completed</span>
+                  <span className="run-meta-value">{formatTimestamp(run.completed_at)}</span>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="muted">Loading run...</div>
+          )}
+        </div>
 
-            <h4>Sections</h4>
-            {loadingRun ? (
-              <div className="list" aria-busy="true">
-                {skeletonRows.map((row) => (
-                  <div className="list-item" key={`section-skeleton-${row}`}>
-                    <div>
-                      <div className="skeleton-line" />
-                      <div className="skeleton-line" />
-                    </div>
+        {/* Final Report */}
+        <div className="card">
+          <h2>Final Report</h2>
+          {run?.final_report_json ? (
+            <div 
+              className="markdown-output"
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(run.final_report_json) }}
+            />
+          ) : (
+            <div className="muted">No final report available yet. Report is still being generated or hasn't started.</div>
+          )}
+        </div>
+
+        {/* Sections */}
+        <div className="card">
+          <h2>Sections</h2>
+          <p className="muted">Click a section to view its output and regenerate if needed.</p>
+          {loadingRun ? (
+            <div className="list" aria-busy="true">
+              {[0, 1, 2].map((row) => (
+                <div className="list-item" key={`section-skeleton-${row}`}>
+                  <div>
+                    <div className="skeleton-line" />
                     <div className="skeleton-line" />
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="list">
-                {sections.map((section) => (
-                  <button
-                    key={section.id}
-                    type="button"
-                    className={`list-item ${selectedSectionId === section.id ? "active" : ""}`}
-                    onClick={() => setSelectedSectionId(section.id)}
-                  >
-                    <div>
-                      <strong>{section.title || "Untitled Section"}</strong>
-                      <div className="muted">{section.id}</div>
-                    </div>
-                    <span className={statusClass(section.status)}>
-                      {section.status || "UNKNOWN"}
-                    </span>
-                  </button>
-                ))}
-                {!sections.length && <div className="muted">No sections found.</div>}
-              </div>
-            )}
-          </div>
-
-          <div className="card">
-            <h3>Run Activity</h3>
-            {loadingDashboard ? (
-              <div className="skeleton-block" aria-busy="true" />
-            ) : (
-              dashboard && (
-              <div className="pill-row">
-                <span className="badge">Sections: {dashboard.sectionCount ?? 0}</span>
-                <span className="badge">Exports: {dashboard.exportsCount ?? 0}</span>
-                {dashboard.sectionStatusCounts &&
-                  Object.entries(dashboard.sectionStatusCounts).map(([status, count]) => (
-                    <span key={status} className={statusClass(status)}>
-                      {status}: {count}
-                    </span>
-                  ))}
-              </div>
-            ))}
-
-            <h4>Final Report</h4>
-            {run?.final_report_json ? (
-              <div className="code-block">{run.final_report_json}</div>
-            ) : (
-              <div className="muted">No final report yet.</div>
-            )}
-
-            <h4>Exports</h4>
-            <div className="pill-row">
-              <button type="button" onClick={() => requestExport("MARKDOWN")}>
-                Export Markdown
-              </button>
-              <button type="button" className="secondary" onClick={() => requestExport("PDF")}>
-                Export PDF
-              </button>
-              <button type="button" className="secondary" onClick={() => requestExport("DOCX")}>
-                Export DOCX
-              </button>
+                  <div className="skeleton-line" />
+                </div>
+              ))}
             </div>
+          ) : (
             <div className="list">
-              {loadingExports ? (
-                skeletonRows.map((row) => (
-                  <div className="list-item" key={`export-skeleton-${row}`}>
-                    <div>
-                      <div className="skeleton-line" />
-                      <div className="skeleton-line" />
-                    </div>
-                    <div className="skeleton-line" />
-                  </div>
-                ))
-              ) : (
-                <>
-                  {exportsList.map((exportItem) => (
-                    <div className="list-item" key={exportItem.id}>
-                      <div>
-                        <strong>{exportItem.format}</strong>
-                        <div className="muted">{formatTimestamp(exportItem.created_at)}</div>
-                      </div>
-                      <div className="muted">{exportItem.file_path || "Pending..."}</div>
-                    </div>
-                  ))}
-                  {!exportsList.length && <div className="muted">No exports yet.</div>}
-                </>
-              )}
-            </div>
-
-            <h4>Events</h4>
-            <div className="list">
-              {events
-                .slice()
-                .reverse()
-                .map((event) => (
-                  <div className="list-item" key={event.id}>
-                    <div>
-                      <strong>{event.type}</strong>
-                      <div className="muted">{formatTimestamp(event.created_at)}</div>
-                    </div>
-                    <div className="muted">{renderContent(event.payload_json)}</div>
-                  </div>
-                ))}
-              {!events.length && <div className="muted">Awaiting run events...</div>}
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="split">
-              <h3>Artifacts</h3>
-              <Link className="link" href="/runs">
-                Back to runs
-              </Link>
-            </div>
-            {!selectedSectionId && <div className="muted">Select a section to view artifacts.</div>}
-            {selectedSectionId && (
-              <>
-                <h4>Artifact Filters</h4>
-                <div className="pill-row">
-                  {filterOptions.map((option) => (
+              {sections.map((section) => {
+                const isSelected = selectedSectionId === section.id;
+                const instructions = retryInstructions[section.id] || "";
+                
+                return (
+                  <div key={section.id} className="list-item" style={{ flexDirection: "column", alignItems: "stretch" }}>
                     <button
                       type="button"
-                      key={option}
-                      className={option === artifactFilter ? "" : "secondary"}
-                      onClick={() => setArtifactFilter(option)}
+                      onClick={() => setSelectedSectionId(section.id)}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        width: "100%",
+                        background: isSelected ? "var(--color-accent-light)" : "transparent",
+                        border: "none",
+                        padding: "1rem",
+                        cursor: "pointer",
+                        textAlign: "left",
+                      }}
                     >
-                      {option}
+                      <div>
+                        <strong>{section.title || "Untitled Section"}</strong>
+                        <div className="muted" style={{ fontSize: "0.75rem" }}>{section.id}</div>
+                      </div>
+                      <span className={statusClass(section.status)}>
+                        {section.status || "UNKNOWN"}
+                      </span>
                     </button>
-                  ))}
-                </div>
-                <h4>Evidence</h4>
-                <div className="artifact-list">
-                  {loadingArtifacts ? (
-                    skeletonRows.map((row) => (
-                      <div className="artifact-item" key={`evidence-skeleton-${row}`}>
-                        <div className="skeleton-line" />
-                        <div className="skeleton-line" />
-                      </div>
-                    ))
-                  ) : evidenceItems.length ? (
-                    evidenceItems.map((item: any, index: number) => (
-                      <div className="artifact-item" key={`${item.id || index}`}>
-                        <div className="split">
-                          <strong>{item.kind || "source"}</strong>
-                          <span className="muted">{item.id}</span>
-                        </div>
-                        {item.metadata?.url && (
-                          <div className="muted">URL: {item.metadata.url}</div>
-                        )}
-                        <div className="muted">{item.content || ""}</div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="muted">No evidence attached.</div>
-                  )}
-                </div>
 
-                <h4>Artifacts List</h4>
-                <div className="artifact-list">
-                  {loadingArtifacts ? (
-                    skeletonRows.map((row) => (
-                      <div className="artifact-item" key={`artifact-skeleton-${row}`}>
-                        <div className="skeleton-line" />
-                        <div className="skeleton-block" />
+                    {isSelected && (
+                      <div style={{ padding: "1rem", borderTop: "1px solid var(--color-border)" }}>
+                        <h4>Section Output</h4>
+                        {loadingArtifacts ? (
+                          <div className="skeleton-block" aria-busy="true" />
+                        ) : finalArtifact?.content_markdown ? (
+                          <div 
+                            className="markdown-output"
+                            dangerouslySetInnerHTML={{ 
+                              __html: renderMarkdown(finalArtifact.content_markdown) 
+                            }}
+                          />
+                        ) : (
+                          <div className="muted">No output available yet.</div>
+                        )}
+
+                        <h4 style={{ marginTop: "2rem" }}>Regenerate Section</h4>
+                        <p className="muted">Provide additional instructions to regenerate this section with different guidance.</p>
+                        <textarea
+                          value={instructions}
+                          onChange={(e) => setRetryInstructions((prev) => ({ ...prev, [section.id]: e.target.value }))}
+                          placeholder="e.g., Focus more on financial metrics, add more recent data, simplify the language..."
+                          rows={3}
+                          style={{ width: "100%", marginTop: "0.5rem" }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => retrySection(section.id)}
+                          disabled={!instructions.trim() || retryingSection === section.id}
+                          style={{ marginTop: "0.5rem" }}
+                        >
+                          {retryingSection === section.id ? "Regenerating..." : "Regenerate Section"}
+                        </button>
                       </div>
-                    ))
-                  ) : (
-                    <>
-                      {filteredArtifacts.map((artifact) => (
-                        <div className="artifact-item" key={artifact.id}>
-                          <div className="split">
-                            <strong>{artifact.type}</strong>
-                            <span className="muted">{formatTimestamp(artifact.created_at)}</span>
-                          </div>
-                          {artifact.content_markdown && typeof artifact.content_markdown === "string" ? (
-                            <div 
-                              className="markdown-output"
-                              dangerouslySetInnerHTML={{ 
-                                __html: renderMarkdown(artifact.content_markdown) 
-                              }}
-                            />
-                          ) : (
-                            <div className="code-block">
-                              {renderContent(artifact.content_markdown || artifact.content_json)}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                      {!filteredArtifacts.length && (
-                        <div className="muted">No artifacts captured yet.</div>
-                      )}
-                    </>
-                  )}
+                    )}
+                  </div>
+                );
+              })}
+              {!sections.length && <div className="muted">No sections found.</div>}
+            </div>
+          )}
+        </div>
+
+        {/* Exports */}
+        <div className="card">
+          <h2>Exports</h2>
+          <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+            <button type="button" onClick={() => requestExport("MARKDOWN")}>
+              Export Markdown
+            </button>
+            <button type="button" className="secondary" onClick={() => requestExport("PDF")}>
+              Export PDF
+            </button>
+            <button type="button" className="secondary" onClick={() => requestExport("DOCX")}>
+              Export DOCX
+            </button>
+          </div>
+          
+          <h4>Export History</h4>
+          <div className="list">
+            {loadingExports ? (
+              [0, 1, 2].map((row) => (
+                <div className="list-item" key={`export-skeleton-${row}`}>
+                  <div>
+                    <div className="skeleton-line" />
+                    <div className="skeleton-line" />
+                  </div>
+                  <div className="skeleton-line" />
                 </div>
+              ))
+            ) : (
+              <>
+                {exportsList.map((exportItem) => (
+                  <div className="list-item" key={exportItem.id}>
+                    <div>
+                      <strong>{exportItem.format}</strong>
+                      <div className="muted">{formatTimestamp(exportItem.created_at)}</div>
+                    </div>
+                    <div>
+                      <span className={statusClass(exportItem.status)}>{exportItem.status}</span>
+                      {exportItem.status === "COMPLETED" && (
+                        <a 
+                          href={`/api/report-runs/${runId}/exports/${exportItem.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="button secondary"
+                          style={{ marginLeft: "0.5rem" }}
+                        >
+                          Download
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {!exportsList.length && <div className="muted">No exports yet.</div>}
               </>
             )}
           </div>
-        </section>
+        </div>
       </div>
     </div>
   );

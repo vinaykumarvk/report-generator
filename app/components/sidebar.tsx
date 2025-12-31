@@ -14,14 +14,8 @@ type NavItem = {
 
 const navItems = [
   { href: '/', label: 'Home', icon: '🏠' },
-  { href: '/reports-studio', label: 'Reports Studio', icon: '📊' },
+  { href: '/template-studio', label: 'Reports Studio', icon: '📊' },
   { href: '/runs', label: 'Runs', icon: '🚀' },
-  { href: '/connectors', label: 'Sources', icon: '🔌' },
-  { href: '/models', label: 'Model Configs', icon: '🤖' },
-  { href: '/prompts', label: 'Prompt Studio', icon: '💬' },
-  { href: '/evidence', label: 'Evidence', icon: '🔍' },
-  { href: '/exports', label: 'Exports', icon: '📄' },
-  { href: '/settings', label: 'Settings', icon: '⚙️' },
  ] satisfies NavItem[];
 
 export default function Sidebar() {

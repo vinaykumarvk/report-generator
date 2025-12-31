@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin, assertNoSupabaseError } from "@/lib/supabaseAdmin";
 import { getDefaultWorkspaceId } from "@/lib/workspace";
+import { notifyJobQueued } from "@/lib/jobTrigger";
 
 export const runtime = "nodejs";
 
@@ -50,15 +51,28 @@ export async function POST(
     .eq("id", params.sectionRunId);
   assertNoSupabaseError(updateError, "Failed to reset section run");
 
-  const { error: jobError } = await supabase.from("jobs").insert({
-    workspace_id: workspaceId,
-    type: "RUN_SECTION",
-    status: "QUEUED",
-    payload_json: {},
-    run_id: runId,
-    section_run_id: sectionRun.id,
-  });
+  const { data: job, error: jobError } = await supabase
+    .from("jobs")
+    .insert({
+      workspace_id: workspaceId,
+      type: "RUN_SECTION",
+      status: "QUEUED",
+      payload_json: {},
+      run_id: runId,
+      section_run_id: sectionRun.id,
+    })
+    .select("id,type,run_id,section_run_id,workspace_id")
+    .single();
   assertNoSupabaseError(jobError, "Failed to enqueue section run");
+  if (job) {
+    await notifyJobQueued({
+      id: String(job.id),
+      type: String(job.type),
+      runId: job.run_id ? String(job.run_id) : null,
+      sectionRunId: job.section_run_id ? String(job.section_run_id) : null,
+      workspaceId: job.workspace_id ? String(job.workspace_id) : null,
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }

@@ -24,6 +24,16 @@ These have sensible defaults but can be customized:
 | `OPENAI_REVIEW_MODEL` | ❌ No | `gpt-4o-mini` | Model used for reviewing/validating outputs |
 | `SUPABASE_DB_PASSWORD` | ❌ No | - | Direct database password (not needed if using Supabase client) |
 | `PORT` | ❌ No | `8080` | Port for health check server (Cloud Run sets this automatically) |
+| `JOB_TRIGGER_MODE` | ❌ No | `db` | Job trigger mode: `db` (polling), `http` (event-driven), `cloud-tasks`, or `none` |
+| `WORKER_TRIGGER_URL` | ❌ No | - | HTTP endpoint for triggering the worker (`/process-job`) |
+| `WORKER_TRIGGER_SECRET` | ❌ No | - | Shared secret for worker trigger requests |
+| `WORKER_POLL_INTERVAL_MS` | ❌ No | `1000` | Polling interval in ms when using DB polling |
+| `WORKER_POLLING_ENABLED` | ❌ No | - | Set `true` to enable polling even when in `http` trigger mode |
+| `CLOUD_TASKS_PROJECT` | ❌ No | - | Google Cloud project ID for Cloud Tasks |
+| `CLOUD_TASKS_LOCATION` | ❌ No | - | Cloud Tasks location (e.g., `europe-west1`) |
+| `CLOUD_TASKS_QUEUE` | ❌ No | - | Cloud Tasks queue name |
+| `WORKER_TASK_SERVICE_ACCOUNT` | ❌ No | - | Service account email for Cloud Tasks OIDC (optional) |
+| `CLOUD_TASKS_ACCESS_TOKEN` | ❌ No | - | Override access token for Cloud Tasks (local testing) |
 
 ---
 
@@ -182,6 +192,127 @@ PORT=8080
 
 ---
 
+### 10. JOB_TRIGGER_MODE (Optional)
+**Required:** ❌ No  
+**Default:** `db`  
+**Values:** `db`, `http`, `cloud-tasks`, `none`
+
+```bash
+JOB_TRIGGER_MODE=db
+```
+
+**Why it's optional:** Keeps the current DB polling behavior by default. Set to `http` to trigger the worker via HTTP when jobs are created.
+
+---
+
+### 11. WORKER_TRIGGER_URL (Optional)
+**Required:** ❌ No  
+**Default:** Not set
+
+```bash
+WORKER_TRIGGER_URL=https://YOUR-WORKER-URL/process-job
+```
+
+**Why it's optional:** Needed only when `JOB_TRIGGER_MODE=http` so the web service can wake the worker on job creation.
+
+---
+
+### 12. WORKER_TRIGGER_SECRET (Optional)
+**Required:** ❌ No  
+**Default:** Not set
+
+```bash
+WORKER_TRIGGER_SECRET=your-shared-secret
+```
+
+**Why it's optional:** Secures the worker trigger endpoint. If set, the worker expects `x-worker-trigger` header to match.
+
+---
+
+### 13. WORKER_POLL_INTERVAL_MS (Optional)
+**Required:** ❌ No  
+**Default:** `1000`
+
+```bash
+WORKER_POLL_INTERVAL_MS=1000
+```
+
+**Why it's optional:** Controls how frequently the worker polls when using DB polling.
+
+---
+
+### 14. WORKER_POLLING_ENABLED (Optional)
+**Required:** ❌ No  
+**Default:** Not set
+
+```bash
+WORKER_POLLING_ENABLED=true
+```
+
+**Why it's optional:** Allows DB polling to remain active even when `JOB_TRIGGER_MODE=http`.
+
+---
+
+### 15. CLOUD_TASKS_PROJECT (Optional)
+**Required:** ❌ No  
+**Default:** Not set
+
+```bash
+CLOUD_TASKS_PROJECT=wealth-report
+```
+
+**Why it's optional:** Required only when `JOB_TRIGGER_MODE=cloud-tasks`.
+
+---
+
+### 16. CLOUD_TASKS_LOCATION (Optional)
+**Required:** ❌ No  
+**Default:** Not set
+
+```bash
+CLOUD_TASKS_LOCATION=europe-west1
+```
+
+**Why it's optional:** Required only when `JOB_TRIGGER_MODE=cloud-tasks`.
+
+---
+
+### 17. CLOUD_TASKS_QUEUE (Optional)
+**Required:** ❌ No  
+**Default:** Not set
+
+```bash
+CLOUD_TASKS_QUEUE=report-generator-jobs
+```
+
+**Why it's optional:** Required only when `JOB_TRIGGER_MODE=cloud-tasks`.
+
+---
+
+### 18. WORKER_TASK_SERVICE_ACCOUNT (Optional)
+**Required:** ❌ No  
+**Default:** Not set
+
+```bash
+WORKER_TASK_SERVICE_ACCOUNT=report-generator-sa@wealth-report.iam.gserviceaccount.com
+```
+
+**Why it's optional:** Adds OIDC auth to Cloud Tasks requests. Use this if the worker service requires authenticated requests.
+
+---
+
+### 19. CLOUD_TASKS_ACCESS_TOKEN (Optional)
+**Required:** ❌ No  
+**Default:** Not set
+
+```bash
+CLOUD_TASKS_ACCESS_TOKEN=ya29...
+```
+
+**Why it's optional:** Useful for local testing when the metadata server isn't available.
+
+---
+
 ## Quick Reference: Minimum Required Variables
 
 For the **worker service** to work, you need exactly these 6:
@@ -319,4 +450,3 @@ Look for:
 **Not needed:**
 - SUPABASE_DB_PASSWORD (not used by the app)
 - PORT (Cloud Run sets this automatically)
-

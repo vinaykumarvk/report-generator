@@ -46,6 +46,26 @@ export function claimNextJob(workerId: string): Promise<{
   workspaceId?: string | null;
 } | null>;
 
+export function claimJobById(jobId: string, workerId: string): Promise<{
+  id: string;
+  type: string;
+  status: string;
+  priority: number;
+  payloadJson: unknown;
+  runId: string | null;
+  sectionRunId: string | null;
+  attemptCount: number;
+  maxAttempts: number;
+  lockedBy: string;
+  lockedAt: string;
+  lockExpiresAt: string;
+  scheduledAt: string;
+  lastError: string | null;
+  createdAt: string;
+  updatedAt: string;
+  workspaceId?: string | null;
+} | null>;
+
 export function completeJob(job: {
   id: string;
   [key: string]: unknown;
@@ -62,4 +82,3 @@ export function heartbeat(job: {
   id: string;
   [key: string]: unknown;
 }): Promise<void>;
-

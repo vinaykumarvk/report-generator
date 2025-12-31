@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin, assertNoSupabaseError } from "@/lib/supabaseAdmin";
 import { getDefaultWorkspaceId } from "@/lib/workspace";
+import { notifyJobQueued } from "@/lib/jobTrigger";
 
 export const runtime = "nodejs";
 
@@ -46,9 +47,16 @@ export async function POST(
       payload_json: { runId: run.id },
       run_id: run.id,
     })
-    .select("id")
+    .select("id,type,run_id,section_run_id,workspace_id")
     .single()) as { data: any; error: any };
   assertNoSupabaseError(jobError, "Failed to create job");
+  await notifyJobQueued({
+    id: String(job.id),
+    type: String(job.type),
+    runId: job.run_id ? String(job.run_id) : null,
+    sectionRunId: job.section_run_id ? String(job.section_run_id) : null,
+    workspaceId: job.workspace_id ? String(job.workspace_id) : null,
+  });
 
   const { error: eventError } = await (supabase.from("run_events") as any).insert({
     run_id: run.id,

@@ -1,5 +1,6 @@
 const dotenv = require("dotenv");
 const { createClient } = require("@supabase/supabase-js");
+const { notifyJobQueued } = require("./jobTrigger");
 
 dotenv.config();
 
@@ -73,7 +74,15 @@ async function enqueueJob(params) {
   if (error) {
     throw new Error(error.message || "Failed to enqueue job");
   }
-  return mapJob(data);
+  const job = mapJob(data);
+  await notifyJobQueued({
+    id: job.id,
+    type: job.type,
+    runId: job.runId,
+    sectionRunId: job.sectionRunId,
+    workspaceId: job.workspaceId,
+  });
+  return job;
 }
 
 async function claimNextJob(workerId) {
@@ -86,6 +95,49 @@ async function claimNextJob(workerId) {
   }
   const row = Array.isArray(data) ? data[0] : data;
   return mapJob(row);
+}
+
+async function claimJobById(jobId, workerId) {
+  const now = nowIso();
+  const { data, error } = await supabase
+    .from("jobs")
+    .update({
+      status: "RUNNING",
+      locked_by: workerId,
+      locked_at: now,
+      lock_expires_at: new Date(Date.now() + LOCK_SECONDS * 1000).toISOString(),
+      updated_at: now,
+    })
+    .eq("id", jobId)
+    .eq("status", "QUEUED")
+    .lte("scheduled_at", now)
+    .or(`lock_expires_at.is.null,lock_expires_at.lte.${now}`)
+    .select("*")
+    .single();
+  if (error) {
+    if (error.code === "PGRST116") {
+      return null;
+    }
+    throw new Error(error.message || "Failed to claim job by id");
+  }
+  if (!data) return null;
+
+  const attemptCount = (data.attempt_count ?? 0) + 1;
+  const { error: incrementError } = await supabase
+    .from("jobs")
+    .update({
+      attempt_count: attemptCount,
+      updated_at: nowIso(),
+    })
+    .eq("id", jobId);
+  if (incrementError) {
+    throw new Error(incrementError.message || "Failed to update job attempt count");
+  }
+
+  return mapJob({
+    ...data,
+    attempt_count: attemptCount,
+  });
 }
 
 async function completeJob(job) {
@@ -164,6 +216,7 @@ async function heartbeat(job) {
 module.exports = {
   enqueueJob,
   claimNextJob,
+  claimJobById,
   completeJob,
   failJob,
   heartbeat,

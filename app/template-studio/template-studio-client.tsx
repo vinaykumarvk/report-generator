@@ -1347,7 +1347,7 @@ export default function ObjectiveStudioClient() {
           <p className="page-description">Create and manage report templates</p>
         </div>
       </div>
-      <main style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
+      <main>
         <div className="content">
         <section id="objectives">
           <h2>Objectives</h2>

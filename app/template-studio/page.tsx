@@ -3,7 +3,7 @@ import "../styles/template-studio.css";
 import TemplateStudioClient from "./template-studio-client";
 
 export const metadata: Metadata = {
-  title: "Objective Studio",
+  title: "Reports Studio",
 };
 
 export default function TemplateStudioPage() {

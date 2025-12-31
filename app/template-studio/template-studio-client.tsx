@@ -1343,12 +1343,12 @@ export default function ObjectiveStudioClient() {
     <div className="page-container">
       <div className="page-header-section">
         <div className="page-header-content">
-          <h1>Objective Studio</h1>
-          <p className="page-description">Evidence-aware report objectives with validation</p>
+          <h1>Reports Studio</h1>
+          <p className="page-description">Create and manage report templates</p>
         </div>
       </div>
-      <main>
-        <div className="content" style={{ marginLeft: 0, maxWidth: '100%' }}>
+      <main style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
+        <div className="content">
         <section id="objectives">
           <h2>Objectives</h2>
           <form onSubmit={handleCreateObjective}>

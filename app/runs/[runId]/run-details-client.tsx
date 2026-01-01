@@ -77,6 +77,7 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [retryInstructions, setRetryInstructions] = useState<Record<string, string>>({});
   const [retryingSection, setRetryingSection] = useState<string | null>(null);
+  const [exportingFormat, setExportingFormat] = useState<string | null>(null);
 
   const loadRun = useCallback(async () => {
     try {
@@ -122,50 +123,61 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
   }, []);
 
   async function requestExport(format: string) {
-    const res = await fetch(`/api/report-runs/${runId}/export`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ format }),
-    });
+    setExportingFormat(format);
     
-    if (!res.ok) {
-      alert("Failed to start export");
-      return;
-    }
-    
-    // Poll for export completion
-    let attempts = 0;
-    const maxAttempts = 60;
-    
-    while (attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const exportsRes = await fetch(`/api/report-runs/${runId}/exports`, {
-        cache: "no-store",
+    try {
+      const res = await fetch(`/api/report-runs/${runId}/export`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ format }),
       });
       
-      if (exportsRes.ok) {
-        const exports = await exportsRes.json();
-        setExportsList(Array.isArray(exports) ? exports : []);
-        
-        const completedExport = exports.find((exp: any) => 
-          exp.format === format &&
-          exp.created_at && 
-          new Date(exp.created_at).getTime() > Date.now() - 120000
-        );
-        
-        if (completedExport) {
-          const downloadUrl = `/api/report-runs/${runId}/exports/${completedExport.id}`;
-          window.open(downloadUrl, '_blank');
-          return;
-        }
+      if (!res.ok) {
+        alert("Failed to start export");
+        return;
       }
       
-      attempts++;
+      // Poll for export completion
+      let attempts = 0;
+      const maxAttempts = 60;
+      
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const exportsRes = await fetch(`/api/report-runs/${runId}/exports`, {
+          cache: "no-store",
+        });
+        
+        if (exportsRes.ok) {
+          const exports = await exportsRes.json();
+          setExportsList(Array.isArray(exports) ? exports : []);
+          
+          const completedExport = exports.find((exp: any) => 
+            exp.format === format &&
+            exp.created_at && 
+            new Date(exp.created_at).getTime() > Date.now() - 120000
+          );
+          
+          if (completedExport) {
+            const downloadUrl = `/api/report-runs/${runId}/exports/${completedExport.id}`;
+            window.open(downloadUrl, '_blank');
+            setExportingFormat(null);
+            await loadExports();
+            return;
+          }
+        }
+        
+        attempts++;
+      }
+      
+      alert("Export is taking longer than expected. Check the Exports section below.");
+      await loadExports();
+    } catch (err) {
+      console.error("Export error:", err);
+      alert("Export failed. Please try again.");
+    } finally {
+      setExportingFormat(null);
     }
-    
-    alert("Export is taking longer than expected. Check the Exports section below.");
-    await loadExports();
   }
 
   async function retrySection(sectionRunId: string) {
@@ -390,16 +402,35 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
         <div className="card">
           <h2>Exports</h2>
           <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
-            <button type="button" onClick={() => requestExport("MARKDOWN")}>
-              Export Markdown
+            <button 
+              type="button" 
+              onClick={() => requestExport("MARKDOWN")}
+              disabled={exportingFormat !== null}
+            >
+              {exportingFormat === "MARKDOWN" ? "Exporting..." : "Export Markdown"}
             </button>
-            <button type="button" className="secondary" onClick={() => requestExport("PDF")}>
-              Export PDF
+            <button 
+              type="button" 
+              className="secondary" 
+              onClick={() => requestExport("PDF")}
+              disabled={exportingFormat !== null}
+            >
+              {exportingFormat === "PDF" ? "Exporting..." : "Export PDF"}
             </button>
-            <button type="button" className="secondary" onClick={() => requestExport("DOCX")}>
-              Export DOCX
+            <button 
+              type="button" 
+              className="secondary" 
+              onClick={() => requestExport("DOCX")}
+              disabled={exportingFormat !== null}
+            >
+              {exportingFormat === "DOCX" ? "Exporting..." : "Export DOCX"}
             </button>
           </div>
+          {exportingFormat && (
+            <div className="muted" style={{ marginBottom: "1rem" }}>
+              ⏳ Generating {exportingFormat} export... This may take a few seconds.
+            </div>
+          )}
           
           <h4>Export History</h4>
           <div className="list">

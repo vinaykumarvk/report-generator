@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage } from "pdf-lib";
 
 const EXPORT_DIR = path.join(process.cwd(), "data", "exports");
 
@@ -9,18 +9,6 @@ function ensureExportDir() {
   if (!fs.existsSync(EXPORT_DIR)) {
     fs.mkdirSync(EXPORT_DIR, { recursive: true });
   }
-}
-
-function markdownToText(markdown: string): string {
-  let text = markdown;
-  text = text.replace(/```[\s\S]*?```/g, (block) => block.replace(/```/g, ""));
-  text = text.replace(/^#{1,6}\s+/gm, "");
-  text = text.replace(/^>\s?/gm, "");
-  text = text.replace(/^\s*[-*+]\s+/gm, "");
-  text = text.replace(/^\s*\d+\.\s+/gm, "");
-  text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
-  text = text.replace(/`([^`]+)`/g, "$1");
-  return text.trim();
 }
 
 function normalizePdfText(text: string): string {
@@ -33,9 +21,110 @@ function normalizePdfText(text: string): string {
     .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, " ");
 }
 
+interface MarkdownBlock {
+  type: "heading" | "paragraph" | "list" | "table" | "code";
+  level?: number;
+  content: string;
+  items?: string[];
+  rows?: string[][];
+}
+
+function parseMarkdown(markdown: string): MarkdownBlock[] {
+  const blocks: MarkdownBlock[] = [];
+  const lines = markdown.split("\n");
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // Skip empty lines
+    if (!line.trim()) {
+      i++;
+      continue;
+    }
+
+    // Headings
+    const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
+    if (headingMatch) {
+      blocks.push({
+        type: "heading",
+        level: headingMatch[1].length,
+        content: headingMatch[2].trim(),
+      });
+      i++;
+      continue;
+    }
+
+    // Lists
+    if (line.match(/^\s*[-*+]\s+/) || line.match(/^\s*\d+\.\s+/)) {
+      const items: string[] = [];
+      while (i < lines.length && (lines[i].match(/^\s*[-*+]\s+/) || lines[i].match(/^\s*\d+\.\s+/))) {
+        const itemMatch = lines[i].match(/^\s*(?:[-*+]|\d+\.)\s+(.+)$/);
+        if (itemMatch) {
+          items.push(itemMatch[1].trim());
+        }
+        i++;
+      }
+      blocks.push({ type: "list", content: "", items });
+      continue;
+    }
+
+    // Tables
+    if (line.includes("|")) {
+      const rows: string[][] = [];
+      while (i < lines.length && lines[i].includes("|")) {
+        const row = lines[i]
+          .split("|")
+          .map((cell) => cell.trim())
+          .filter((cell) => cell);
+        if (row.length > 0 && !lines[i].match(/^[\s|:-]+$/)) {
+          rows.push(row);
+        }
+        i++;
+      }
+      if (rows.length > 0) {
+        blocks.push({ type: "table", content: "", rows });
+      }
+      continue;
+    }
+
+    // Code blocks
+    if (line.startsWith("```")) {
+      const codeLines: string[] = [];
+      i++; // Skip opening ```
+      while (i < lines.length && !lines[i].startsWith("```")) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      i++; // Skip closing ```
+      blocks.push({ type: "code", content: codeLines.join("\n") });
+      continue;
+    }
+
+    // Regular paragraph
+    const paragraphLines: string[] = [line];
+    i++;
+    while (
+      i < lines.length &&
+      lines[i].trim() &&
+      !lines[i].match(/^#{1,6}\s+/) &&
+      !lines[i].match(/^\s*[-*+]\s+/) &&
+      !lines[i].match(/^\s*\d+\.\s+/) &&
+      !lines[i].includes("|") &&
+      !lines[i].startsWith("```")
+    ) {
+      paragraphLines.push(lines[i]);
+      i++;
+    }
+    blocks.push({ type: "paragraph", content: paragraphLines.join(" ").trim() });
+  }
+
+  return blocks;
+}
+
 function wrapText(
   text: string,
-  font: ReturnType<typeof PDFDocument.prototype.embedFont>,
+  font: PDFFont,
   fontSize: number,
   maxWidth: number
 ): string[] {
@@ -43,36 +132,17 @@ function wrapText(
   const lines: string[] = [];
   let current = "";
 
-  const pushLine = () => {
-    if (current.trim()) lines.push(current.trim());
-    current = "";
-  };
-
   words.forEach((word) => {
     const test = current ? `${current} ${word}` : word;
     const width = font.widthOfTextAtSize(test, fontSize);
     if (width <= maxWidth) {
       current = test;
-      return;
-    }
-    if (current) pushLine();
-    if (font.widthOfTextAtSize(word, fontSize) <= maxWidth) {
+    } else {
+      if (current) lines.push(current);
       current = word;
-      return;
     }
-    let buffer = "";
-    for (const ch of word) {
-      const next = buffer + ch;
-      if (font.widthOfTextAtSize(next, fontSize) > maxWidth) {
-        lines.push(buffer);
-        buffer = ch;
-      } else {
-        buffer = next;
-      }
-    }
-    if (buffer) lines.push(buffer);
   });
-  pushLine();
+  if (current) lines.push(current);
 
   return lines;
 }
@@ -80,41 +150,118 @@ function wrapText(
 async function renderPdfFromMarkdown(markdown: string): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const fontSize = 11;
-  const lineHeight = 14;
-  const margin = 48;
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  
+  const margin = 50;
+  const lineHeight = 16;
+  const normalFontSize = 11;
+  const headingFontSizes = [24, 20, 16, 14, 12, 11];
 
-  const text = normalizePdfText(markdownToText(markdown));
-  const paragraphs = text.split(/\n{2,}/);
   let page = pdfDoc.addPage();
   let { width, height } = page.getSize();
   let y = height - margin;
 
-  const drawLine = (line: string) => {
-    if (y < margin + lineHeight) {
-      page = pdfDoc.addPage();
-      ({ width, height } = page.getSize());
-      y = height - margin;
+  const addNewPage = () => {
+    page = pdfDoc.addPage();
+    ({ width, height } = page.getSize());
+    y = height - margin;
+  };
+
+  const checkSpace = (needed: number) => {
+    if (y - needed < margin) {
+      addNewPage();
     }
-    page.drawText(line, {
+  };
+
+  const drawText = (text: string, fontSize: number, font: PDFFont, color = rgb(0.1, 0.12, 0.18)) => {
+    checkSpace(lineHeight);
+    page.drawText(text, {
       x: margin,
       y,
       size: fontSize,
       font,
-      color: rgb(0.1, 0.12, 0.18),
+      color,
     });
     y -= lineHeight;
   };
 
-  paragraphs.forEach((paragraph, index) => {
-    const trimmed = paragraph.trim();
-    if (!trimmed) return;
-    const lines = wrapText(trimmed, font, fontSize, width - margin * 2);
-    lines.forEach(drawLine);
-    if (index < paragraphs.length - 1) {
-      y -= lineHeight;
+  const blocks = parseMarkdown(normalizePdfText(markdown));
+
+  for (const block of blocks) {
+    if (block.type === "heading") {
+      const fontSize = headingFontSizes[block.level! - 1] || normalFontSize;
+      checkSpace(fontSize + 10);
+      y -= 10; // Extra space before heading
+      const lines = wrapText(block.content, boldFont, fontSize, width - margin * 2);
+      for (const line of lines) {
+        drawText(line, fontSize, boldFont);
+      }
+      y -= 5; // Extra space after heading
+    } else if (block.type === "paragraph") {
+      const lines = wrapText(block.content, font, normalFontSize, width - margin * 2);
+      for (const line of lines) {
+        drawText(line, normalFontSize, font);
+      }
+      y -= 5; // Space after paragraph
+    } else if (block.type === "list" && block.items) {
+      for (const item of block.items) {
+        checkSpace(lineHeight);
+        const bulletText = `• ${item}`;
+        const lines = wrapText(bulletText, font, normalFontSize, width - margin * 2 - 20);
+        for (let i = 0; i < lines.length; i++) {
+          drawText(i === 0 ? lines[i] : `  ${lines[i]}`, normalFontSize, font);
+        }
+      }
+      y -= 5;
+    } else if (block.type === "table" && block.rows) {
+      const colWidths = block.rows[0]?.map(() => (width - margin * 2) / block.rows[0].length) || [];
+      
+      for (let rowIndex = 0; rowIndex < block.rows.length; rowIndex++) {
+        const row = block.rows[rowIndex];
+        const isHeader = rowIndex === 0;
+        const rowFont = isHeader ? boldFont : font;
+        
+        checkSpace(lineHeight + 10);
+        
+        let x = margin;
+        for (let colIndex = 0; colIndex < row.length; colIndex++) {
+          const cell = row[colIndex];
+          const cellWidth = colWidths[colIndex] - 10;
+          const lines = wrapText(cell, rowFont, normalFontSize, cellWidth);
+          
+          page.drawText(lines[0] || "", {
+            x,
+            y,
+            size: normalFontSize,
+            font: rowFont,
+            color: rgb(0.1, 0.12, 0.18),
+          });
+          
+          x += colWidths[colIndex];
+        }
+        
+        // Draw line under header
+        if (isHeader) {
+          page.drawLine({
+            start: { x: margin, y: y - 5 },
+            end: { x: width - margin, y: y - 5 },
+            thickness: 1,
+            color: rgb(0.7, 0.7, 0.7),
+          });
+        }
+        
+        y -= lineHeight + 5;
+      }
+      y -= 10;
+    } else if (block.type === "code") {
+      checkSpace(lineHeight * 2);
+      const codeLines = block.content.split("\n");
+      for (const line of codeLines) {
+        drawText(line || " ", 9, font, rgb(0.2, 0.2, 0.2));
+      }
+      y -= 5;
     }
-  });
+  }
 
   return pdfDoc.save();
 }
@@ -135,17 +282,17 @@ export async function writePdfExport(
 
   const body = run.finalReport || "# Report\n\nNo content available.";
   const appendixLines = [
-    "## Appendix",
-    `- Template: ${templateName} (v${templateVersion})`,
-    `- Run ID: ${run.id}`,
-    `- Exported At: ${createdAt}`,
+    "\n\n---\n\n## Appendix",
+    `**Template:** ${templateName} (v${templateVersion})`,
+    `**Run ID:** ${run.id}`,
+    `**Exported At:** ${createdAt}`,
   ];
   if (options?.sourcesAppendix && options.sourcesAppendix.length > 0) {
-    appendixLines.push("### Web Sources");
+    appendixLines.push("\n### Web Sources");
     appendixLines.push(...options.sourcesAppendix.map((line) => `- ${line}`));
   }
   const appendix = appendixLines.join("\n");
-  const document = `${body}\n\n${appendix}\n`;
+  const document = `${body}${appendix}\n`;
 
   const filePath = path.join(EXPORT_DIR, `run-${run.id}-${exportId}.pdf`);
   const pdfBytes = await renderPdfFromMarkdown(document);

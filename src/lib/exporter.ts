@@ -31,14 +31,15 @@ function extractMarkdownFromFinalReport(finalReport: any): string {
   return "# Report\n\nNo content available.";
 }
 
-export function writeMarkdownExport(run: {
-  id: string;
-  templateSnapshot?: { name?: string; version?: number };
-  finalReport?: string | null;
-}, options?: { sourcesAppendix?: string[] }) {
-  ensureExportDir();
-  const exportId = crypto.randomUUID();
-  const createdAt = new Date().toISOString();
+export function buildMarkdownDocument(
+  run: {
+    id: string;
+    templateSnapshot?: { name?: string; version?: number };
+    finalReport?: string | null;
+  },
+  createdAt: string,
+  options?: { sourcesAppendix?: string[] }
+): string {
   const templateName = run.templateSnapshot?.name || "Template";
   const templateVersion = run.templateSnapshot?.version || "n/a";
 
@@ -55,7 +56,18 @@ export function writeMarkdownExport(run: {
   }
   const appendix = appendixLines.join("\n");
 
-  const document = `${body}\n\n${appendix}\n`;
+  return `${body}\n\n${appendix}\n`;
+}
+
+export function writeMarkdownExport(run: {
+  id: string;
+  templateSnapshot?: { name?: string; version?: number };
+  finalReport?: string | null;
+}, options?: { sourcesAppendix?: string[] }) {
+  ensureExportDir();
+  const exportId = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
+  const document = buildMarkdownDocument(run, createdAt, options);
   const filePath = path.join(EXPORT_DIR, `run-${run.id}-${exportId}.md`);
   fs.writeFileSync(filePath, document, "utf8");
 

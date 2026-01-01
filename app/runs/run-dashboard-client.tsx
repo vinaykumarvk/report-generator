@@ -29,6 +29,12 @@ type Template = {
   sections?: TemplateSection[];
 };
 
+type RunExport = {
+  id: string;
+  format: string;
+  created_at: string;
+};
+
 type SectionOverrideState = {
   enabled: boolean;
   vectorStoreIds: string[];
@@ -61,7 +67,11 @@ export default function RunDashboardClient() {
   const [loadingTemplates, setLoadingTemplates] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionStatus, setActionStatus] = useState<Record<string, string>>({});
+  const [downloadStatus, setDownloadStatus] = useState<Record<string, string>>({});
   const [createError, setCreateError] = useState<string | null>(null);
+  const [exportsByRun, setExportsByRun] = useState<Record<string, RunExport[]>>({});
+  const [expandedExports, setExpandedExports] = useState<Record<string, boolean>>({});
+  const [loadingExports, setLoadingExports] = useState<Record<string, boolean>>({});
 
   const loadRuns = useCallback(async () => {
     try {
@@ -97,6 +107,44 @@ export default function RunDashboardClient() {
       setLoadingTemplates(false);
     }
   }, [selectedTemplateId]);
+
+  const fetchExports = async (runId: string): Promise<RunExport[]> => {
+    const res = await fetch(`/api/report-runs/${runId}/exports`, {
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error("Failed to load exports");
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  };
+
+  const loadExportsForRun = useCallback(async (runId: string) => {
+    if (loadingExports[runId]) return;
+    setLoadingExports((prev) => ({ ...prev, [runId]: true }));
+    try {
+      const list = await fetchExports(runId);
+      setExportsByRun((prev) => ({
+        ...prev,
+        [runId]: list,
+      }));
+    } catch {
+      setExportsByRun((prev) => ({ ...prev, [runId]: [] }));
+    } finally {
+      setLoadingExports((prev) => ({ ...prev, [runId]: false }));
+    }
+  }, [loadingExports]);
+
+  const toggleExports = useCallback(
+    (runId: string) => {
+      setExpandedExports((prev) => ({
+        ...prev,
+        [runId]: !prev[runId],
+      }));
+      if (!exportsByRun[runId]) {
+        loadExportsForRun(runId);
+      }
+    },
+    [exportsByRun, loadExportsForRun]
+  );
 
   async function createRun(startImmediately: boolean) {
     setCreateStatus("Creating run...");
@@ -166,7 +214,7 @@ export default function RunDashboardClient() {
     }
   }
 
-  async function runAction(runId: string, action: "start" | "export") {
+  async function runAction(runId: string, action: "start") {
     setActionStatus((prev) => ({ ...prev, [runId]: "Working..." }));
     try {
       if (action === "start") {
@@ -174,50 +222,6 @@ export default function RunDashboardClient() {
           method: "POST",
         });
         if (!res.ok) throw new Error("Failed to start run");
-      } else if (action === "export") {
-        const res = await fetch(`/api/report-runs/${runId}/export`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ format: "MARKDOWN" }),
-        });
-        if (!res.ok) throw new Error("Failed to enqueue export");
-        
-        const data = await res.json();
-        
-        // Poll for export completion
-        setActionStatus((prev) => ({ ...prev, [runId]: "Exporting..." }));
-        
-        let attempts = 0;
-        const maxAttempts = 60;
-        
-        while (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          const exportsRes = await fetch(`/api/report-runs/${runId}/exports`, {
-            cache: "no-store",
-          });
-          
-          if (exportsRes.ok) {
-            const exports = await exportsRes.json();
-            const completedExport = exports.find((exp: any) => 
-              exp.status === "COMPLETED" && 
-              exp.created_at && 
-              new Date(exp.created_at).getTime() > Date.now() - 120000
-            );
-            
-            if (completedExport) {
-              const downloadUrl = `/api/report-runs/${runId}/exports/${completedExport.id}`;
-              window.open(downloadUrl, '_blank');
-              setActionStatus((prev) => ({ ...prev, [runId]: "Downloaded!" }));
-              await loadRuns();
-              return;
-            }
-          }
-          
-          attempts++;
-        }
-        
-        setActionStatus((prev) => ({ ...prev, [runId]: "Export timeout" }));
       }
       setActionStatus((prev) => ({ ...prev, [runId]: "Done." }));
       await loadRuns();
@@ -233,6 +237,68 @@ export default function RunDashboardClient() {
     loadRuns();
     loadTemplates();
   }, [loadRuns, loadTemplates]);
+
+  function getLatestExport(list: RunExport[], format: string) {
+    const filtered = list.filter((item) => item.format === format);
+    if (!filtered.length) return null;
+    return filtered.reduce((latest, current) => {
+      const latestTime = new Date(latest.created_at).getTime();
+      const currentTime = new Date(current.created_at).getTime();
+      return currentTime > latestTime ? current : latest;
+    }, filtered[0]);
+  }
+
+  async function downloadExport(runId: string, format: "MARKDOWN" | "PDF") {
+    const statusKey = `${runId}:${format}`;
+    setDownloadStatus((prev) => ({ ...prev, [statusKey]: "Preparing..." }));
+
+    let exportsList: RunExport[] = [];
+    try {
+      exportsList = await fetchExports(runId);
+      setExportsByRun((prev) => ({ ...prev, [runId]: exportsList }));
+    } catch {
+      exportsList = [];
+    }
+
+    const existing = getLatestExport(exportsList, format);
+    if (existing) {
+      window.open(`/api/report-runs/${runId}/exports/${existing.id}`, "_blank");
+      setDownloadStatus((prev) => ({ ...prev, [statusKey]: "Ready" }));
+      return;
+    }
+
+    const res = await fetch(`/api/report-runs/${runId}/export`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ format }),
+    });
+    if (!res.ok) {
+      setDownloadStatus((prev) => ({ ...prev, [statusKey]: "Failed to export" }));
+      return;
+    }
+
+    setDownloadStatus((prev) => ({ ...prev, [statusKey]: "Generating..." }));
+    let attempts = 0;
+    const maxAttempts = 80;
+    while (attempts < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      try {
+        exportsList = await fetchExports(runId);
+        setExportsByRun((prev) => ({ ...prev, [runId]: exportsList }));
+      } catch {
+        exportsList = [];
+      }
+      const latest = getLatestExport(exportsList, format);
+      if (latest) {
+        window.open(`/api/report-runs/${runId}/exports/${latest.id}`, "_blank");
+        setDownloadStatus((prev) => ({ ...prev, [statusKey]: "Ready" }));
+        return;
+      }
+      attempts++;
+    }
+
+    setDownloadStatus((prev) => ({ ...prev, [statusKey]: "Timed out" }));
+  }
 
   useEffect(() => {
     const template = templates.find((item) => item.id === selectedTemplateId);
@@ -274,46 +340,28 @@ export default function RunDashboardClient() {
       </div>
 
       {/* Tabs */}
-      <div style={{ borderBottom: "2px solid var(--color-border)", marginBottom: "2rem" }}>
-        <div style={{ display: "flex", gap: "1rem" }}>
-          <button
-            type="button"
-            onClick={() => setActiveTab("create")}
-            style={{
-              padding: "1rem 2rem",
-              background: "none",
-              border: "none",
-              borderBottom: activeTab === "create" ? "3px solid var(--color-accent)" : "3px solid transparent",
-              fontWeight: activeTab === "create" ? "600" : "400",
-              cursor: "pointer",
-              fontSize: "1rem",
-            }}
-          >
-            Create New Run
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("view")}
-            style={{
-              padding: "1rem 2rem",
-              background: "none",
-              border: "none",
-              borderBottom: activeTab === "view" ? "3px solid var(--color-accent)" : "3px solid transparent",
-              fontWeight: activeTab === "view" ? "600" : "400",
-              cursor: "pointer",
-              fontSize: "1rem",
-            }}
-          >
-            View Runs
-          </button>
-        </div>
+      <div className="tabs">
+        <button
+          type="button"
+          onClick={() => setActiveTab("create")}
+          className={`tab-button ${activeTab === "create" ? "active" : ""}`}
+        >
+          New Report
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("view")}
+          className={`tab-button ${activeTab === "view" ? "active" : ""}`}
+        >
+          Generated Reports
+        </button>
       </div>
 
       <div className="content-section">
         {/* CREATE TAB */}
         {activeTab === "create" && (
           <div className="card">
-            <h2>Create a New Run</h2>
+            <h2>New Report</h2>
             <p className="page-description">
               Select a template, set the topic, and optionally override section sources.
             </p>
@@ -504,7 +552,7 @@ export default function RunDashboardClient() {
         {/* VIEW TAB */}
         {activeTab === "view" && (
           <div className="card">
-            <h2>All Runs</h2>
+            <h2>Generated Reports</h2>
 
             {loading && (
               <div className="run-list">
@@ -571,15 +619,13 @@ export default function RunDashboardClient() {
                           Start
                         </button>
                       )}
-                      {run.status === "COMPLETED" && (
-                        <button
-                          type="button"
-                          className="secondary"
-                          onClick={() => runAction(run.id, "export")}
-                        >
-                          Export
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => toggleExports(run.id)}
+                      >
+                        {expandedExports[run.id] ? "Hide Downloads" : "Download"}
+                      </button>
                       <Link className="button secondary" href={`/runs/${run.id}`}>
                         View Details
                       </Link>
@@ -588,6 +634,49 @@ export default function RunDashboardClient() {
                     {actionStatus[run.id] && (
                       <div className="action-status" aria-live="polite">
                         {actionStatus[run.id]}
+                      </div>
+                    )}
+                    {expandedExports[run.id] && (
+                      <div className="exports-panel">
+                        {loadingExports[run.id] && (
+                          <div className="muted">Loading exports...</div>
+                        )}
+                        {!loadingExports[run.id] &&
+                          (exportsByRun[run.id] || []).length === 0 && (
+                            <div className="muted">No exports yet.</div>
+                          )}
+                        {!loadingExports[run.id] &&
+                          (exportsByRun[run.id] || []).length > 0 && (
+                            <div className="exports-list">
+                              {(["MARKDOWN", "PDF"] as const).map((format) => {
+                                const exportItem = (exportsByRun[run.id] || []).find(
+                                  (item) => item.format === format
+                                );
+                                return (
+                                  <button
+                                    key={format}
+                                    type="button"
+                                    className="button secondary export-link"
+                                    onClick={() => downloadExport(run.id, format)}
+                                  >
+                                    {format === "MARKDOWN" ? "Download .md" : "Download .pdf"}
+                                  </button>
+                                );
+                              })}
+                              <div className="export-status">
+                                {downloadStatus[`${run.id}:MARKDOWN`] && (
+                                  <span className="muted">
+                                    .md: {downloadStatus[`${run.id}:MARKDOWN`]}
+                                  </span>
+                                )}
+                                {downloadStatus[`${run.id}:PDF`] && (
+                                  <span className="muted">
+                                    .pdf: {downloadStatus[`${run.id}:PDF`]}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
                       </div>
                     )}
                   </div>

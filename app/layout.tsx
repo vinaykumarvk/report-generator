@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import './globals.css';
-import './components/sidebar.css';
 import './components/page-header.css';
 import './components/theme-toggle.css';
-import Sidebar from './components/sidebar';
+import './components/top-tabs.css';
+import TopTabs from './components/top-tabs';
 
 export const metadata: Metadata = {
   title: 'Report Generator',
@@ -31,8 +31,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
       </head>
       <body>
-        <Sidebar />
-        <div className="app-wrapper with-sidebar">
+        <TopTabs />
+        <div className="app-wrapper">
           {children}
         </div>
       </body>

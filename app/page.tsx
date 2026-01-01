@@ -1,17 +1,17 @@
 const features = [
   {
-    title: 'Reports Studio',
-    description: 'Create and manage report templates with sections, validation, and versioning.',
+    title: 'Report Studio',
+    description: 'Design report templates, sections, and validation rules.',
     href: '/template-studio',
     icon: '📝',
     category: 'Studio'
   },
   {
-    title: 'Runs',
-    description: 'Monitor and manage report generation runs, track progress, and view results.',
+    title: 'Generate Reports',
+    description: 'Start new runs, track progress, and monitor current generation.',
     href: '/runs',
     icon: '🚀',
-    category: 'Execution'
+    category: 'Runs'
   }
 ];
 

@@ -83,6 +83,13 @@ header h1 {
   background-clip: text;
 }
 
+@media (max-width: 1023px) {
+  header {
+    grid-template-columns: 1fr;
+    padding: var(--spacing-lg) var(--spacing-xl);
+  }
+}
+
 header small {
   display: block;
   color: var(--color-text-muted);
@@ -93,10 +100,12 @@ header small {
 
 /* Main Layout */
 main {
-  display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: var(--spacing-xl);
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xl);
+  align-items: stretch;
+  width: 100%;
+  padding: 0;
 }
 
 /* Delete Button Icon */
@@ -342,7 +351,7 @@ textarea {
 /* Inline Form Layouts */
 .inline {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: var(--spacing-lg);
 }
 
@@ -420,7 +429,7 @@ button.secondary:hover {
 /* Dashboard Stats Grid */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--spacing-lg);
   margin-bottom: var(--spacing-xl);
 }
@@ -769,51 +778,14 @@ select:focus-visible {
 
 /* Desktop enhancements */
 @media (min-width: 1440px) {
-  main {
-    grid-template-columns: 360px 1fr;
-    gap: var(--spacing-xl);
-  }
-  
-  .stats-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-  
-  .inline {
-    grid-template-columns: repeat(2, 1fr);
-  }
 }
 
 /* Large desktop */
 @media (min-width: 1280px) and (max-width: 1439px) {
-  main {
-    grid-template-columns: 320px 1fr;
-    gap: var(--spacing-2xl);
-  }
-  
-  .stats-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-  
-  .inline {
-    grid-template-columns: repeat(2, 1fr);
-  }
 }
 
 /* Desktop */
 @media (min-width: 1024px) and (max-width: 1279px) {
-  main {
-    grid-template-columns: 280px 1fr;
-    gap: var(--spacing-xl);
-    padding: var(--spacing-xl);
-  }
-  
-  .stats-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-  
-  .inline {
-    grid-template-columns: repeat(2, 1fr);
-  }
 }
 
 /* Tablet landscape */
@@ -824,9 +796,6 @@ select:focus-visible {
   }
   
   main {
-    grid-template-columns: 1fr;
-    padding: var(--spacing-xl);
-    gap: var(--spacing-xl);
   }
   
   .sidebar {
@@ -834,14 +803,6 @@ select:focus-visible {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: var(--spacing-lg);
-  }
-  
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .inline {
-    grid-template-columns: repeat(2, 1fr);
   }
   
   .template-list {
@@ -879,9 +840,7 @@ select:focus-visible {
   }
   
   main {
-    padding: var(--spacing-lg);
     gap: var(--spacing-lg);
-    grid-template-columns: 1fr;
   }
   
   .sidebar {
@@ -904,7 +863,6 @@ select:focus-visible {
   }
   
   .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
     gap: var(--spacing-md);
   }
   
@@ -921,7 +879,6 @@ select:focus-visible {
   }
   
   .inline {
-    grid-template-columns: 1fr;
     gap: var(--spacing-md);
   }
   
@@ -974,16 +931,11 @@ select:focus-visible {
   }
   
   main {
-    padding: var(--spacing-md);
     gap: var(--spacing-md);
   }
   
   section {
     padding: var(--spacing-md);
-  }
-  
-  .stats-grid {
-    grid-template-columns: 1fr;
   }
   
   .stat-card p {

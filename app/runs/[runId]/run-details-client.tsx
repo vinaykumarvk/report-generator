@@ -33,7 +33,6 @@ type Artifact = {
 type RunExport = {
   id: string;
   format: string;
-  status: string;
   created_at?: string;
   file_path?: string;
 };
@@ -150,7 +149,6 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
         setExportsList(Array.isArray(exports) ? exports : []);
         
         const completedExport = exports.find((exp: any) => 
-          exp.status === "COMPLETED" && 
           exp.format === format &&
           exp.created_at && 
           new Date(exp.created_at).getTime() > Date.now() - 120000
@@ -424,18 +422,14 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
                       <div className="muted">{formatTimestamp(exportItem.created_at)}</div>
                     </div>
                     <div>
-                      <span className={statusClass(exportItem.status)}>{exportItem.status}</span>
-                      {exportItem.status === "COMPLETED" && (
-                        <a 
-                          href={`/api/report-runs/${runId}/exports/${exportItem.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="button secondary"
-                          style={{ marginLeft: "0.5rem" }}
-                        >
-                          Download
-                        </a>
-                      )}
+                      <a 
+                        href={`/api/report-runs/${runId}/exports/${exportItem.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="button secondary"
+                      >
+                        Download
+                      </a>
                     </div>
                   </div>
                 ))}

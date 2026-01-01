@@ -279,25 +279,32 @@ export default function RunDashboardClient() {
 
     setDownloadStatus((prev) => ({ ...prev, [statusKey]: "Generating..." }));
     let attempts = 0;
-    const maxAttempts = 80;
+    const maxAttempts = 60;
     while (attempts < maxAttempts) {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       try {
         exportsList = await fetchExports(runId);
         setExportsByRun((prev) => ({ ...prev, [runId]: exportsList }));
-      } catch {
+        console.log(`Polling attempt ${attempts + 1}: Found ${exportsList.length} exports`, exportsList);
+      } catch (err) {
+        console.error("Error fetching exports:", err);
         exportsList = [];
       }
       const latest = getLatestExport(exportsList, format);
       if (latest) {
+        console.log("Found export:", latest);
         window.open(`/api/report-runs/${runId}/exports/${latest.id}`, "_blank");
-        setDownloadStatus((prev) => ({ ...prev, [statusKey]: "Ready" }));
+        setDownloadStatus((prev) => ({ ...prev, [statusKey]: "Downloaded!" }));
+        setTimeout(() => {
+          setDownloadStatus((prev) => ({ ...prev, [statusKey]: "" }));
+        }, 3000);
         return;
       }
       attempts++;
     }
 
-    setDownloadStatus((prev) => ({ ...prev, [statusKey]: "Timed out" }));
+    console.error(`Export timed out after ${maxAttempts} attempts`);
+    setDownloadStatus((prev) => ({ ...prev, [statusKey]: "Timed out - check Run Details page" }));
   }
 
   useEffect(() => {

@@ -72,6 +72,7 @@ export default function RunDashboardClient() {
   const [exportsByRun, setExportsByRun] = useState<Record<string, RunExport[]>>({});
   const [expandedExports, setExpandedExports] = useState<Record<string, boolean>>({});
   const [loadingExports, setLoadingExports] = useState<Record<string, boolean>>({});
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const loadRuns = useCallback(async () => {
     try {
@@ -132,6 +133,12 @@ export default function RunDashboardClient() {
       setLoadingExports((prev) => ({ ...prev, [runId]: false }));
     }
   }, [loadingExports]);
+
+  async function refreshStatus() {
+    setIsRefreshing(true);
+    await loadRuns();
+    setIsRefreshing(false);
+  }
 
   const toggleExports = useCallback(
     (runId: string) => {
@@ -237,6 +244,21 @@ export default function RunDashboardClient() {
     loadRuns();
     loadTemplates();
   }, [loadRuns, loadTemplates]);
+
+  // Auto-refresh when runs are QUEUED or RUNNING
+  useEffect(() => {
+    const hasActiveRuns = runs.some(
+      (r) => r.status === "QUEUED" || r.status === "RUNNING"
+    );
+    
+    if (!hasActiveRuns) return;
+    
+    const interval = setInterval(() => {
+      loadRuns();
+    }, 10000); // Refresh every 10 seconds
+    
+    return () => clearInterval(interval);
+  }, [runs, loadRuns]);
 
   function getLatestExport(list: RunExport[], format: string) {
     const filtered = list.filter((item) => item.format === format);
@@ -562,15 +584,22 @@ export default function RunDashboardClient() {
             <div className="runs-header">
               <div>
                 <h2>Generated Reports</h2>
-                <p className="muted">Check live status for long-running jobs.</p>
+                <p className="muted">
+                  Check live status for long-running jobs.
+                  {runs.some((r) => r.status === "QUEUED" || r.status === "RUNNING") && (
+                    <span style={{ marginLeft: "0.5rem", color: "var(--color-accent)" }}>
+                      • Auto-refreshing every 10s
+                    </span>
+                  )}
+                </p>
               </div>
               <button
                 type="button"
                 className="secondary"
-                onClick={loadRuns}
-                disabled={loading}
+                onClick={refreshStatus}
+                disabled={isRefreshing}
               >
-                {loading ? "Refreshing..." : "Refresh Status"}
+                {isRefreshing ? "Refreshing..." : "🔄 Refresh Status"}
               </button>
             </div>
 

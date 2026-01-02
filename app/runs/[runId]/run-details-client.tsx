@@ -92,6 +92,7 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
   const [retryInstructions, setRetryInstructions] = useState<Record<string, string>>({});
   const [retryingSection, setRetryingSection] = useState<string | null>(null);
   const [exportingFormat, setExportingFormat] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const loadRun = useCallback(async () => {
     try {
@@ -217,18 +218,23 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
         throw new Error("Failed to retry section");
       }
       
-      alert("Section queued for regeneration!");
       setRetryInstructions((prev) => ({ ...prev, [sectionRunId]: "" }));
       
-      // Reload run to see updated status
-      setTimeout(() => {
-        loadRun();
-      }, 1000);
+      // Immediately reload to show QUEUED status
+      await loadRun();
+      
+      alert("Section queued for regeneration! Status will auto-refresh.");
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to retry section");
     } finally {
       setRetryingSection(null);
     }
+  }
+
+  async function refreshStatus() {
+    setIsRefreshing(true);
+    await loadRun();
+    setIsRefreshing(false);
   }
 
   useEffect(() => {
@@ -240,6 +246,21 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
     if (!selectedSectionId) return;
     loadArtifacts(selectedSectionId);
   }, [loadArtifacts, selectedSectionId]);
+
+  // Auto-refresh when sections are QUEUED or RUNNING
+  useEffect(() => {
+    const hasActiveSections = sections.some(
+      (s) => s.status === "QUEUED" || s.status === "RUNNING"
+    );
+    
+    if (!hasActiveSections) return;
+    
+    const interval = setInterval(() => {
+      loadRun();
+    }, 5000); // Refresh every 5 seconds
+    
+    return () => clearInterval(interval);
+  }, [sections, loadRun]);
 
   const finalArtifact = useMemo(() => {
     return artifacts.find((item) => item.type === "FINAL");
@@ -319,8 +340,28 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
 
         {/* Sections */}
         <div className="card">
-          <h2>Sections</h2>
-          <p className="muted">Click a section to view its output and regenerate if needed.</p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+            <div>
+              <h2 style={{ margin: 0 }}>Sections</h2>
+              <p className="muted" style={{ margin: "0.25rem 0 0 0" }}>
+                Click a section to view its output and regenerate if needed.
+                {sections.some((s) => s.status === "QUEUED" || s.status === "RUNNING") && (
+                  <span style={{ marginLeft: "0.5rem", color: "var(--color-accent)" }}>
+                    • Auto-refreshing every 5s
+                  </span>
+                )}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={refreshStatus}
+              disabled={isRefreshing}
+              className="secondary"
+              style={{ minWidth: "120px" }}
+            >
+              {isRefreshing ? "Refreshing..." : "🔄 Refresh Status"}
+            </button>
+          </div>
           {loadingRun ? (
             <div className="list" aria-busy="true">
               {[0, 1, 2].map((row) => (

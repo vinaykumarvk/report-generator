@@ -203,12 +203,13 @@ export async function listSectionRunsWithArtifacts(
 
 export async function updateSectionRun(
   sectionRunId: string,
-  updates: { status?: string; attemptCount?: number }
+  updates: { status?: string; attemptCount?: number; timingsJson?: unknown }
 ) {
   const supabase = supabaseAdmin();
   const payload: Record<string, unknown> = {};
   if (updates.status) payload.status = updates.status;
   if (updates.attemptCount !== undefined) payload.attempt_count = updates.attemptCount;
+  if (updates.timingsJson !== undefined) payload.timings_json = updates.timingsJson;
   const { error } = await supabase
     .from("section_runs")
     .update(payload)

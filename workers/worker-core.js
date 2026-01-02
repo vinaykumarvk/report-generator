@@ -82,6 +82,9 @@ async function handleRunSection(job) {
   if (!section) throw new Error("Section missing in template snapshot");
 
   const connectors = await listConnectors();
+  
+  // Track timing
+  const startTime = Date.now();
   const updatedSectionRun = await runSection({
     sectionRun: { ...sectionRun, artifacts: [] },
     section,
@@ -91,9 +94,18 @@ async function handleRunSection(job) {
     runInput: run.inputJson || {},
     promptSet: run.promptSetSnapshot || null,
   });
+  const endTime = Date.now();
+  const durationMs = endTime - startTime;
+  
   await updateSectionRun(updatedSectionRun.id, {
     status: updatedSectionRun.status,
     attemptCount: updatedSectionRun.attemptCount,
+    timingsJson: {
+      startTime: new Date(startTime).toISOString(),
+      endTime: new Date(endTime).toISOString(),
+      durationMs,
+      durationSeconds: Math.round(durationMs / 1000),
+    },
   });
   await replaceSectionArtifacts(updatedSectionRun.id, updatedSectionRun.artifacts || []);
   await addRunEvent(run.id, run.workspaceId, "SECTION_STATUS", {

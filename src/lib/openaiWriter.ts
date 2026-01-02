@@ -216,7 +216,7 @@ export async function runWriterPrompt(params: {
         ...(tools ? { tools } : {}),
       }),
     },
-    45000
+    300000 // 5 minutes
   );
 
   if (!res.ok) {

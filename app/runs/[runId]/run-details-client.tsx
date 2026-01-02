@@ -20,6 +20,12 @@ type SectionRun = {
   status?: string;
   template_section_id?: string;
   created_at?: string;
+  timings_json?: {
+    startTime?: string;
+    endTime?: string;
+    durationMs?: number;
+    durationSeconds?: number;
+  };
 };
 
 type Artifact = {
@@ -47,6 +53,14 @@ function formatTimestamp(value?: string | null) {
 function statusClass(status?: string) {
   if (!status) return "badge";
   return `badge status-${status}`;
+}
+
+function formatDuration(durationSeconds?: number) {
+  if (!durationSeconds) return "";
+  if (durationSeconds < 60) return `${durationSeconds}s`;
+  const minutes = Math.floor(durationSeconds / 60);
+  const seconds = durationSeconds % 60;
+  return `${minutes}m ${seconds}s`;
 }
 
 function renderMarkdown(markdown: string) {
@@ -348,7 +362,12 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
                     >
                       <div>
                         <strong>{section.title || "Untitled Section"}</strong>
-                        <div className="muted" style={{ fontSize: "0.75rem" }}>{section.id}</div>
+                        <div className="muted" style={{ fontSize: "0.75rem" }}>
+                          {section.timings_json?.durationSeconds && (
+                            <span>⏱️ {formatDuration(section.timings_json.durationSeconds)} • </span>
+                          )}
+                          {section.id}
+                        </div>
                       </div>
                       <span className={statusClass(section.status)}>
                         {section.status || "UNKNOWN"}
@@ -368,26 +387,38 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
                             }}
                           />
                         ) : (
-                          <div className="muted">No output available yet.</div>
+                          <div className="muted">
+                            {section.status === "FAILED" 
+                              ? "Section failed to generate. Use the regenerate option below to try again." 
+                              : "No output available yet."}
+                          </div>
                         )}
 
-                        <h4 style={{ marginTop: "2rem" }}>Regenerate Section</h4>
-                        <p className="muted">Provide additional instructions to regenerate this section with different guidance.</p>
-                        <textarea
-                          value={instructions}
-                          onChange={(e) => setRetryInstructions((prev) => ({ ...prev, [section.id]: e.target.value }))}
-                          placeholder="e.g., Focus more on financial metrics, add more recent data, simplify the language..."
-                          rows={3}
-                          style={{ width: "100%", marginTop: "0.5rem" }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => retrySection(section.id)}
-                          disabled={!instructions.trim() || retryingSection === section.id}
-                          style={{ marginTop: "0.5rem" }}
-                        >
-                          {retryingSection === section.id ? "Regenerating..." : "Regenerate Section"}
-                        </button>
+                        {(section.status === "COMPLETED" || section.status === "FAILED") && (
+                          <>
+                            <h4 style={{ marginTop: "2rem" }}>Regenerate Section</h4>
+                            <p className="muted">
+                              {section.status === "FAILED" 
+                                ? "This section failed. Provide instructions to regenerate it (e.g., simplify requirements, use different approach)."
+                                : "Provide additional instructions to regenerate this section with different guidance."}
+                            </p>
+                            <textarea
+                              value={instructions}
+                              onChange={(e) => setRetryInstructions((prev) => ({ ...prev, [section.id]: e.target.value }))}
+                              placeholder="e.g., Focus more on financial metrics, add more recent data, simplify the language..."
+                              rows={3}
+                              style={{ width: "100%", marginTop: "0.5rem" }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => retrySection(section.id)}
+                              disabled={!instructions.trim() || retryingSection === section.id}
+                              style={{ marginTop: "0.5rem" }}
+                            >
+                              {retryingSection === section.id ? "Regenerating..." : "Regenerate Section"}
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>

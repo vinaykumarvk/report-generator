@@ -43,7 +43,7 @@ export async function runReviewerPrompt(prompt: string): Promise<string> {
       model: getModel(),
       input: prompt,
     }),
-  }, 30000); // 30 second timeout
+  }, 300000); // 5 minutes
 
   if (!res.ok) {
     const errorText = await res.text();

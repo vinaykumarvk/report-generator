@@ -463,7 +463,19 @@ export function assembleFinalReport(
   });
 
   const reportBody = orderedSections
-    .map((section) => `## ${section.title}\n\n${section.content}`)
+    .map((section) => {
+      // Check if content already starts with the section title as a header
+      const headerRegex = new RegExp(`^##\\s+${section.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
+      const alreadyHasHeader = headerRegex.test(section.content.trim());
+      
+      if (alreadyHasHeader) {
+        // Content already has the header, don't add it again
+        return section.content;
+      } else {
+        // Add the header
+        return `## ${section.title}\n\n${section.content}`;
+      }
+    })
     .join("\n\n");
   const toc = orderedSections.map((section, index) => `- ${index + 1}. ${section.title}`);
   return `# Report\n\n## Table of Contents\n${toc.join("\n")}\n\n${reportBody}`;

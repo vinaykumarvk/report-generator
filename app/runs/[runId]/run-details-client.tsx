@@ -317,7 +317,7 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
               dangerouslySetInnerHTML={{ __html: renderMarkdown(run.final_report_json) }}
             />
           ) : (
-            <div className="muted">No final report available yet. Report is still being generated or hasn't started.</div>
+            <div className="muted">No final report available yet. Report is still being generated or has not started.</div>
           )}
         </div>
 

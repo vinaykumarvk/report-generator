@@ -10,6 +10,7 @@ type VectorStore = {
 type VectorStoreFile = {
   id: string;
   filename: string;
+  bytes?: number;
 };
 
 type VectorStoreSelectorProps = {
@@ -32,7 +33,8 @@ export default function VectorStoreSelector({
   const [expandedStore, setExpandedStore] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingFiles, setLoadingFiles] = useState<Record<string, boolean>>({});
-  const [search, setSearch] = useState("");
+  const [storeSearch, setStoreSearch] = useState("");
+  const [fileSearch, setFileSearch] = useState<Record<string, string>>({});
 
   useEffect(() => {
     loadVectorStores();
@@ -109,9 +111,13 @@ export default function VectorStoreSelector({
     }
   }
 
-  const filteredStores = availableStores.filter((store) =>
-    store.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredStores = availableStores.filter((store) => {
+    if (!storeSearch) return true;
+    return (
+      store.name.toLowerCase().includes(storeSearch.toLowerCase()) ||
+      store.id.toLowerCase().includes(storeSearch.toLowerCase())
+    );
+  });
 
   if (loading) {
     return <div className="muted">Loading vector stores...</div>;
@@ -127,68 +133,191 @@ export default function VectorStoreSelector({
 
   return (
     <div>
+      {/* Search input for vector stores */}
       <input
         type="text"
-        placeholder="🔍 Search vector stores..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        style={{ marginBottom: "0.5rem" }}
+        placeholder="🔍 Search vector stores by name..."
+        value={storeSearch}
+        onChange={(e) => setStoreSearch(e.target.value)}
+        style={{
+          padding: "0.5rem 0.75rem",
+          fontSize: "0.875rem",
+          border: "1px solid rgba(99, 102, 241, 0.3)",
+          borderRadius: "0.375rem",
+          background: "var(--color-bg-input)",
+          color: "var(--color-text-primary)",
+          marginBottom: "0.5rem",
+          width: "100%",
+        }}
       />
 
-      <div style={{ maxHeight: "300px", overflowY: "auto", border: "1px solid var(--color-border)", borderRadius: "0.375rem", padding: "0.5rem" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "0.5rem 0" }}>
         {filteredStores.map((store) => {
           const isSelected = selectedVectorStores.includes(store.id);
           const isExpanded = expandedStore === store.id;
           const files = storeFiles[store.id] || [];
+          const isLoadingFiles = loadingFiles[store.id] || false;
           const selectedFileIds = selectedFiles[store.id] || [];
 
           return (
-            <div key={store.id} style={{ marginBottom: "0.5rem", border: "1px solid var(--color-border)", borderRadius: "0.375rem", padding: "0.75rem", background: isSelected ? "var(--color-accent-light)" : "var(--color-bg-card)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <label style={{ display: "flex", alignItems: "center", cursor: "pointer", flex: 1 }}>
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => toggleStore(store.id)}
-                    style={{ marginRight: "0.5rem" }}
-                  />
-                  <strong>{store.name}</strong>
-                </label>
+            <div
+              key={store.id}
+              style={{
+                border: isSelected ? "2px solid #6366f1" : "1px solid rgba(99, 102, 241, 0.15)",
+                borderRadius: "0.5rem",
+                background: isSelected ? "rgba(99, 102, 241, 0.1)" : "transparent",
+                overflow: "hidden",
+              }}
+            >
+              {/* Main vector store row */}
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: "0.75rem",
+                  padding: "0.75rem",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => toggleStore(store.id)}
+                  style={{ width: "18px", height: "18px", margin: 0, cursor: "pointer", flexShrink: 0 }}
+                />
+                <span
+                  style={{ fontWeight: 600, fontSize: "0.9375rem", flex: 1, cursor: "pointer" }}
+                  onClick={() => toggleStore(store.id)}
+                >
+                  {store.name}
+                </span>
                 {isSelected && (
                   <button
                     type="button"
-                    className="secondary"
                     onClick={() => toggleExpanded(store.id)}
-                    style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}
+                    style={{
+                      padding: "0.375rem 0.75rem",
+                      fontSize: "0.8125rem",
+                      background: isExpanded ? "#6366f1" : "transparent",
+                      color: isExpanded ? "#fff" : "#6366f1",
+                      border: "1px solid #6366f1",
+                      borderRadius: "0.375rem",
+                      cursor: "pointer",
+                      fontWeight: 500,
+                      transition: "all 0.2s ease",
+                    }}
                   >
-                    {isExpanded ? "Hide Files" : "Select Files"}
+                    {isExpanded ? "▼" : "▶"} {isExpanded ? "Hide Files" : "Select Files"}
                   </button>
                 )}
               </div>
 
-              {isExpanded && (
-                <div style={{ marginTop: "0.5rem", paddingLeft: "1.5rem" }}>
-                  {loadingFiles[store.id] ? (
-                    <div className="muted">Loading files...</div>
+              {/* Expanded file list */}
+              {isSelected && isExpanded && (
+                <div
+                  style={{
+                    borderTop: "1px solid rgba(99, 102, 241, 0.2)",
+                    padding: "0.75rem",
+                    background: "rgba(0, 0, 0, 0.2)",
+                  }}
+                >
+                  {isLoadingFiles ? (
+                    <div style={{ fontSize: "0.875rem", opacity: 0.7 }}>Loading files...</div>
                   ) : files.length === 0 ? (
-                    <div className="muted">No files in this store</div>
+                    <div style={{ fontSize: "0.875rem", opacity: 0.7 }}>No files found in this vector store.</div>
                   ) : (
-                    <div style={{ maxHeight: "150px", overflowY: "auto" }}>
-                      {files.map((file) => (
-                        <label
-                          key={file.id}
-                          style={{ display: "block", cursor: "pointer", padding: "0.25rem 0" }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedFileIds.includes(file.id)}
-                            onChange={() => toggleFile(store.id, file.id)}
-                            style={{ marginRight: "0.5rem" }}
-                          />
-                          <span style={{ fontSize: "0.875rem" }}>{file.filename}</span>
-                        </label>
-                      ))}
-                    </div>
+                    <>
+                      <div style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.5rem", opacity: 0.9 }}>
+                        Select Files ({selectedFileIds.length} selected):
+                      </div>
+
+                      {/* Search input for files */}
+                      <input
+                        type="text"
+                        placeholder="🔍 Search files by name..."
+                        value={fileSearch[store.id] || ""}
+                        onChange={(e) => setFileSearch((prev) => ({ ...prev, [store.id]: e.target.value }))}
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem 0.75rem",
+                          fontSize: "0.8125rem",
+                          border: "1px solid rgba(99, 102, 241, 0.3)",
+                          borderRadius: "0.375rem",
+                          background: "rgba(255, 255, 255, 0.05)",
+                          color: "var(--color-text-primary)",
+                          marginBottom: "0.5rem",
+                        }}
+                      />
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem", maxHeight: "300px", overflowY: "auto" }}>
+                        {files
+                          .filter((file) => {
+                            const searchTerm = fileSearch[store.id];
+                            if (!searchTerm) return true;
+                            return (
+                              file.filename.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              file.id.toLowerCase().includes(searchTerm.toLowerCase())
+                            );
+                          })
+                          .map((file) => {
+                            const isFileSelected = selectedFileIds.includes(file.id);
+                            return (
+                              <label
+                                key={file.id}
+                                style={{
+                                  display: "flex",
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  gap: "0.5rem",
+                                  padding: "0.5rem",
+                                  background: isFileSelected ? "rgba(99, 102, 241, 0.15)" : "rgba(255, 255, 255, 0.03)",
+                                  borderRadius: "0.375rem",
+                                  cursor: "pointer",
+                                  fontSize: "0.875rem",
+                                  transition: "background 0.2s ease",
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (!isFileSelected) {
+                                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (!isFileSelected) {
+                                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
+                                  }
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isFileSelected}
+                                  onChange={() => toggleFile(store.id, file.id)}
+                                  style={{ width: "16px", height: "16px", margin: 0, cursor: "pointer", flexShrink: 0 }}
+                                />
+                                <span style={{ flex: 1 }}>{file.filename}</span>
+                                {file.bytes && (
+                                  <span style={{ fontSize: "0.75rem", opacity: 0.6, fontFamily: "monospace" }}>
+                                    {(file.bytes / 1024).toFixed(1)} KB
+                                  </span>
+                                )}
+                              </label>
+                            );
+                          })}
+                      </div>
+
+                      {files.filter((file) => {
+                        const searchTerm = fileSearch[store.id];
+                        if (!searchTerm) return false;
+                        return (
+                          file.filename.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          file.id.toLowerCase().includes(searchTerm.toLowerCase())
+                        );
+                      }).length === 0 &&
+                        fileSearch[store.id] && (
+                          <div style={{ fontSize: "0.8125rem", opacity: 0.6, marginTop: "0.5rem", textAlign: "center" }}>
+                            No files match your search
+                          </div>
+                        )}
+                    </>
                   )}
                 </div>
               )}
@@ -203,4 +332,3 @@ export default function VectorStoreSelector({
     </div>
   );
 }
-

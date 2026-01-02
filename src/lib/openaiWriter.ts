@@ -192,9 +192,8 @@ export async function runWriterPrompt(params: {
                 {
                   type: "file_search",
                   vector_store_ids: fileSearch.vectorStoreIds,
-                  ...(fileSearch.fileIds && fileSearch.fileIds.length > 0
-                    ? { filters: { file_ids: fileSearch.fileIds } }
-                    : {}),
+                  // Note: file-level filtering not supported in Responses API
+                  // fileIds are ignored for now
                 },
               ]
             : []),

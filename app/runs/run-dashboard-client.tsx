@@ -668,21 +668,16 @@ export default function RunDashboardClient() {
                         {!loadingExports[run.id] &&
                           (exportsByRun[run.id] || []).length > 0 && (
                             <div className="exports-list">
-                              {(["MARKDOWN", "PDF"] as const).map((format) => {
-                                const exportItem = (exportsByRun[run.id] || []).find(
-                                  (item) => item.format === format
-                                );
-                                return (
-                                  <button
-                                    key={format}
-                                    type="button"
-                                    className="button secondary export-link"
-                                    onClick={() => downloadExport(run.id, format)}
-                                  >
-                                    {format === "MARKDOWN" ? "Download .md" : "Download .pdf"}
-                                  </button>
-                                );
-                              })}
+                              {(["MARKDOWN", "PDF"] as const).map((format) => (
+                                <button
+                                  key={format}
+                                  type="button"
+                                  className="button secondary export-link"
+                                  onClick={() => downloadExport(run.id, format)}
+                                >
+                                  {format === "MARKDOWN" ? "Download .md" : "Download .pdf"}
+                                </button>
+                              ))}
                               <div className="export-status">
                                 {downloadStatus[`${run.id}:MARKDOWN`] && (
                                   <span className="muted">

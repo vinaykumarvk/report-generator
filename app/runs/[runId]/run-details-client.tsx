@@ -245,10 +245,6 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
     return artifacts.find((item) => item.type === "FINAL");
   }, [artifacts]);
 
-  const selectedSection = useMemo(() => {
-    return sections.find((s) => s.id === selectedSectionId);
-  }, [sections, selectedSectionId]);
-
   return (
     <div className="page-container">
       <div className="page-header-section">

@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
-import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, PDFFont } from "pdf-lib";
 
 const EXPORT_DIR = path.join(process.cwd(), "data", "exports");
 
@@ -214,7 +214,7 @@ async function renderPdfFromMarkdown(markdown: string): Promise<Uint8Array> {
       }
       y -= 5;
     } else if (block.type === "table" && block.rows) {
-      const colWidths = block.rows[0]?.map(() => (width - margin * 2) / block.rows[0].length) || [];
+      const colWidths = block.rows[0]?.map(() => (width - margin * 2) / (block.rows?.[0]?.length || 1)) || [];
       
       for (let rowIndex = 0; rowIndex < block.rows.length; rowIndex++) {
         const row = block.rows[rowIndex];

@@ -14,7 +14,7 @@ type NavItem = {
 
 const navItems = [
   { href: '/', label: 'Home', icon: '🏠' },
-  { href: '/template-studio', label: 'Reports Studio', icon: '📊' },
+  { href: '/reports-studio', label: 'Reports Studio', icon: '📊' },
   { href: '/runs', label: 'Runs', icon: '🚀' },
  ] satisfies NavItem[];
 

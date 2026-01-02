@@ -1,0 +1,103 @@
+/* Vector Store Selector Component Styles */
+
+.vector-store-selector {
+  margin-top: 4px;
+}
+
+.vector-store-selector .search-input {
+  margin-bottom: 4px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+}
+
+.vector-store-grid {
+  display: grid;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.vector-store-card {
+  background: var(--card-bg);
+  border: 2px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.5rem;
+  transition: all 0.2s;
+}
+
+.vector-store-card.selected {
+  border-color: var(--primary-color);
+  background: var(--primary-bg);
+}
+
+.vector-store-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.vector-store-label input[type="checkbox"] {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.vector-store-name {
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.vector-store-actions {
+  margin-top: 4px;
+  padding-top: 4px;
+}
+
+.vector-store-actions .btn-text {
+  font-size: 0.85rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.vector-files-section {
+  margin-top: 4px;
+  padding: 0.5rem;
+  background: var(--hover-bg);
+  border-radius: 4px;
+}
+
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 0.2s;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.file-item:hover {
+  background: var(--card-bg);
+}
+
+.file-item input[type="checkbox"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+

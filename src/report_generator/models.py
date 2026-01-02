@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, Iterable, List, Optional, Union
 
 
 class EvidencePolicy(str, Enum):
@@ -27,31 +28,41 @@ class ArtifactType(str, Enum):
 @dataclass
 class EvidenceItem:
     id: str
-    source: str
-    text: str
+    source: Optional[str] = None
+    text: Optional[str] = None
     link: Optional[str] = None
-from datetime import datetime
-from typing import Dict, List, Optional
-
-
-@dataclass
-class EvidenceItem:
-    id: str
-    section_id: str
-    source_type: str
-    uri: Optional[str]
-    added_at: datetime
-    content: str
+    section_id: Optional[str] = None
+    source_type: Optional[str] = None
+    uri: Optional[str] = None
+    added_at: Optional[datetime] = None
+    content: Optional[str] = None
     tokens: Optional[int] = None
     metadata: Dict[str, str] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if self.content is None and self.text is not None:
+            self.content = self.text
+        if self.source_type is None and self.source is not None:
+            self.source_type = self.source
+        if self.uri is None and self.link is not None:
+            self.uri = self.link
 
 
 @dataclass
 class EvidenceBundle:
-    items: Dict[str, EvidenceItem] = field(default_factory=dict)
+    items: Union[List[EvidenceItem], Dict[str, EvidenceItem]] = field(
+        default_factory=list
+    )
+
+    def __post_init__(self) -> None:
+        if isinstance(self.items, dict):
+            self._items_by_id = dict(self.items)
+            self.items = list(self.items.values())
+        else:
+            self._items_by_id = {item.id: item for item in self.items}
 
     def has(self, evidence_id: str) -> bool:
-        return evidence_id in self.items
+        return evidence_id in self._items_by_id
 
 
 @dataclass
@@ -101,7 +112,6 @@ class Blueprint:
         for ban in self.forbidden:
             phrases.append(ban.lower())
         return phrases
-    items: List[EvidenceItem] = field(default_factory=list)
 
 
 @dataclass

@@ -5,7 +5,7 @@ export type NavItem = {
 };
 
 export const defaultNavItems: NavItem[] = [
-  { href: "/template-studio", label: "Reports Studio" },
+  { href: "/reports-studio", label: "Reports Studio" },
   { href: "/runs", label: "Runs" },
 ];
 

@@ -26,7 +26,7 @@ def write_section(plan: SectionPlan, evidence_bundle: EvidenceBundle, policy: Ev
     for idx, item in enumerate(plan.outline, start=1):
         evidence_ids: List[str] = []
         if policy in POLICIES_REQUIRING_CITATIONS and evidence_bundle.items:
-            evidence_ids = [next(iter(evidence_bundle.items.keys()))]
+            evidence_ids = [evidence_bundle.items[0].id]
         claim_text = f"{item} insight {idx}"
         claims.append(Claim(text=claim_text, evidence_ids=evidence_ids))
         citation_block = " ".join([f"[citation:{eid}]" for eid in evidence_ids])

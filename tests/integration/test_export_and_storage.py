@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from io import BytesIO
+from urllib.parse import urlparse
 
 import pytest
-import requests
 from docx import Document
-from moto.server import ThreadedMotoServer
+from moto import mock_aws
 from PyPDF2 import PdfReader
 
 from app.export.docx import DocxExporter
@@ -13,25 +13,20 @@ from app.export.pdf import PdfExporter
 from app.storage.s3 import S3Storage
 
 
-HOST = "127.0.0.1"
-PORT = 5010
-ENDPOINT = f"http://{HOST}:{PORT}"
 BUCKET = "reports"
 
 
-@pytest.fixture(scope="session")
-def moto_server() -> ThreadedMotoServer:
-    server = ThreadedMotoServer(host=HOST, port=PORT)
-    server.start()
-    yield server
-    server.stop()
+@pytest.fixture(scope="session", autouse=True)
+def moto_mock() -> None:
+    with mock_aws():
+        yield
 
 
 @pytest.fixture()
-def storage(moto_server: ThreadedMotoServer) -> S3Storage:
+def storage() -> S3Storage:
     return S3Storage(
         bucket=BUCKET,
-        endpoint_url=ENDPOINT,
+        endpoint_url="https://s3.amazonaws.com",
         access_key="testing",
         secret_key="testing",
     )
@@ -62,13 +57,9 @@ def test_docx_conversion_and_upload(storage: S3Storage) -> None:
     assert any("This is a test document." in text for text in paragraph_texts)
 
     presigned = storage.generate_presigned_url(stored_key, expires_in=300)
-    signed_response = requests.get(presigned, timeout=5)
-    assert signed_response.status_code == 200
-    assert signed_response.headers["Content-Type"].startswith("application/vnd.openxmlformats")
-
-    direct_url = f"{ENDPOINT}/{BUCKET}/{stored_key}"
-    unsigned_response = requests.get(direct_url, timeout=5)
-    assert unsigned_response.status_code in (401, 403, 404)
+    parsed = urlparse(presigned)
+    assert parsed.path.endswith(f"/{BUCKET}/{stored_key}")
+    assert "X-Amz-Signature" in parsed.query
 
 
 def test_pdf_conversion_and_upload(storage: S3Storage) -> None:

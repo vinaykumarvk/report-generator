@@ -559,7 +559,20 @@ export default function RunDashboardClient() {
         {/* VIEW TAB */}
         {activeTab === "view" && (
           <div className="card">
-            <h2>Generated Reports</h2>
+            <div className="runs-header">
+              <div>
+                <h2>Generated Reports</h2>
+                <p className="muted">Check live status for long-running jobs.</p>
+              </div>
+              <button
+                type="button"
+                className="secondary"
+                onClick={loadRuns}
+                disabled={loading}
+              >
+                {loading ? "Refreshing..." : "Refresh Status"}
+              </button>
+            </div>
 
             {loading && (
               <div className="run-list">

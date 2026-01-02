@@ -2,7 +2,7 @@ const features = [
   {
     title: 'Report Studio',
     description: 'Design report templates, sections, and validation rules.',
-    href: '/template-studio',
+    href: '/reports-studio',
     icon: '📝',
     category: 'Studio'
   },

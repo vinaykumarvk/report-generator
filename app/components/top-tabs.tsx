@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 
 const items = [
-  { href: "/template-studio", label: "Report Studio" },
+  { href: "/reports-studio", label: "Report Studio" },
   { href: "/runs", label: "Generate Reports" },
 ];
 

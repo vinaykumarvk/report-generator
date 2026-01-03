@@ -100,7 +100,7 @@ OUTPUT ONLY THE SUMMARY (no labels, no explanations).`;
           }
         ],
         temperature: 0.5,
-        max_tokens: 300
+        max_completion_tokens: 300
       }),
     },
     60000
@@ -161,7 +161,7 @@ OUTPUT ONLY THE SYNTHESIZED NARRATIVE (no labels, no explanations).`;
           }
         ],
         temperature: 0.6,
-        max_tokens: 600
+        max_completion_tokens: 600
       }),
     },
     60000
@@ -287,7 +287,7 @@ OUTPUT ONLY THE EXECUTIVE SUMMARY (no labels, no explanations).`;
           }
         ],
         temperature: 0.6,
-        max_tokens: 1200
+        max_completion_tokens: 1200
       }),
     },
     60000

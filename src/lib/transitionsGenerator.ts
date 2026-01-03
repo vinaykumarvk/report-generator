@@ -122,7 +122,7 @@ OUTPUT ONLY THE TRANSITION PARAGRAPH (no labels, no explanations).`;
           }
         ],
         temperature: 0.7,
-        max_tokens: 200
+        max_completion_tokens: 200
       }),
     },
     30000

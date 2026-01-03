@@ -19,6 +19,73 @@ function getModel() {
   return process.env.OPENAI_WRITE_MODEL || "gpt-4o-mini";
 }
 
+function extractOutputText(data: any): string {
+  if (typeof data?.output_text === "string") return data.output_text;
+  const output = data?.output;
+  if (!Array.isArray(output)) return "";
+  const parts: string[] = [];
+  for (const item of output) {
+    if (typeof item?.output_text === "string") {
+      parts.push(item.output_text);
+    }
+    if (typeof item?.text === "string") {
+      parts.push(item.text);
+    }
+    if (Array.isArray(item?.content)) {
+      for (const content of item.content) {
+        if (typeof content?.text === "string") {
+          parts.push(content.text);
+        } else if (typeof content?.content === "string") {
+          parts.push(content.content);
+        }
+      }
+    }
+  }
+  return parts.join("");
+}
+
+async function runResponsesPrompt(params: {
+  system: string;
+  prompt: string;
+  maxOutputTokens: number;
+  temperature: number;
+}) {
+  const res = await fetchWithTimeout(
+    `${OPENAI_BASE_URL}/responses`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${getApiKey()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: getModel(),
+        input: [
+          { role: "system", content: params.system },
+          { role: "user", content: params.prompt },
+        ],
+        temperature: params.temperature,
+        max_output_tokens: params.maxOutputTokens,
+      }),
+    },
+    60000
+  );
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Prompt failed (${res.status}): ${errorText}`);
+  }
+
+  const data = await res.json();
+  const content = extractOutputText(data);
+
+  if (!content) {
+    throw new Error("No content in prompt response");
+  }
+
+  return content.trim();
+}
+
 async function fetchWithTimeout(
   url: string,
   options: RequestInit,
@@ -79,49 +146,18 @@ REQUIREMENTS:
 
 OUTPUT ONLY THE SUMMARY (no labels, no explanations).`;
 
-  const res = await fetchWithTimeout(
-    `${OPENAI_BASE_URL}/chat/completions`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${getApiKey()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: getModel(),
-        messages: [
-          {
-            role: "system",
-            content: "You are an expert at distilling complex information into concise, actionable summaries. You focus on key insights and findings."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.5,
-        max_completion_tokens: 300
-      }),
-    },
-    60000
-  );
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Mini-summary generation failed (${res.status}): ${errorText}`);
-  }
-
-  const data = await res.json();
-  const content = data.choices?.[0]?.message?.content;
-  
-  if (!content) {
-    throw new Error("No content in mini-summary response");
-  }
+  const content = await runResponsesPrompt({
+    system:
+      "You are an expert at distilling complex information into concise, actionable summaries. You focus on key insights and findings.",
+    prompt,
+    temperature: 0.5,
+    maxOutputTokens: 300,
+  });
 
   return {
     sectionId: section.id,
     title: section.title,
-    summary: content.trim()
+    summary: content.trim(),
   };
 }
 
@@ -140,44 +176,13 @@ REQUIREMENTS:
 
 OUTPUT ONLY THE SYNTHESIZED NARRATIVE (no labels, no explanations).`;
 
-  const res = await fetchWithTimeout(
-    `${OPENAI_BASE_URL}/chat/completions`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${getApiKey()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: getModel(),
-        messages: [
-          {
-            role: "system",
-            content: "You are an expert at synthesizing multiple pieces of information into cohesive narratives. You identify connections and themes across content."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.6,
-        max_completion_tokens: 600
-      }),
-    },
-    60000
-  );
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Cluster summary generation failed (${res.status}): ${errorText}`);
-  }
-
-  const data = await res.json();
-  const content = data.choices?.[0]?.message?.content;
-  
-  if (!content) {
-    throw new Error("No content in cluster summary response");
-  }
+  const content = await runResponsesPrompt({
+    system:
+      "You are an expert at synthesizing multiple pieces of information into cohesive narratives. You identify connections and themes across content.",
+    prompt,
+    temperature: 0.6,
+    maxOutputTokens: 600,
+  });
 
   return content.trim();
 }
@@ -197,44 +202,13 @@ Example: ["Digital transformation is accelerating", "Cost optimization is critic
 
 OUTPUT ONLY VALID JSON ARRAY.`;
 
-  const res = await fetchWithTimeout(
-    `${OPENAI_BASE_URL}/chat/completions`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${getApiKey()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: getModel(),
-        messages: [
-          {
-            role: "system",
-            content: "You are an expert at identifying patterns and themes across content. Always output valid JSON."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-        response_format: { type: "json_object" }
-      }),
-    },
-    60000
-  );
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Theme extraction failed (${res.status}): ${errorText}`);
-  }
-
-  const data = await res.json();
-  const content = data.choices?.[0]?.message?.content;
-  
-  if (!content) {
-    throw new Error("No content in theme extraction response");
-  }
+  const content = await runResponsesPrompt({
+    system:
+      "You are an expert at identifying patterns and themes across content. Always output valid JSON.",
+    prompt,
+    temperature: 0.7,
+    maxOutputTokens: 300,
+  });
 
   try {
     const parsed = JSON.parse(content);
@@ -266,44 +240,13 @@ REQUIREMENTS:
 
 OUTPUT ONLY THE EXECUTIVE SUMMARY (no labels, no explanations).`;
 
-  const res = await fetchWithTimeout(
-    `${OPENAI_BASE_URL}/chat/completions`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${getApiKey()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: getModel(),
-        messages: [
-          {
-            role: "system",
-            content: "You are an expert executive summary writer. You create compelling, actionable summaries for senior stakeholders that highlight key insights and recommendations."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.6,
-        max_completion_tokens: 1200
-      }),
-    },
-    60000
-  );
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Final executive summary generation failed (${res.status}): ${errorText}`);
-  }
-
-  const data = await res.json();
-  const content = data.choices?.[0]?.message?.content;
-  
-  if (!content) {
-    throw new Error("No content in final executive summary response");
-  }
+  const content = await runResponsesPrompt({
+    system:
+      "You are an expert executive summary writer. You create compelling, actionable summaries for senior stakeholders that highlight key insights and recommendations.",
+    prompt,
+    temperature: 0.6,
+    maxOutputTokens: 1200,
+  });
 
   return content.trim();
 }
@@ -350,4 +293,3 @@ export async function generateHierarchicalExecutiveSummary(
 
   return finalSummary;
 }
-

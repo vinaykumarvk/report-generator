@@ -553,6 +553,17 @@ async function processJob(job) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`❌ Job failed: ${job.id}`, message);
     await failJob(job, message || "Job failed");
+    if (job.runId && job.attemptCount >= job.maxAttempts) {
+      await updateRun(job.runId, {
+        status: "FAILED",
+        completedAt: new Date().toISOString(),
+      });
+      await addRunEvent(job.runId, job.workspaceId, "JOB_FAILED", {
+        jobId: job.id,
+        type: job.type,
+        error: message || "Job failed",
+      });
+    }
     return { status: "failed", jobId: job.id, type: job.type, error: message };
   } finally {
     clearInterval(heartbeatTimer);

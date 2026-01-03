@@ -271,10 +271,19 @@ async function writeSectionWithModel(params: {
     repair?: string;
     synthesis?: string;
   };
+  blueprintGuidance?: string;
 }) {
   if (!hasOpenAIKey()) {
     return writeSection(params.section, params.evidence);
   }
+  
+  // Prepend blueprint guidance to the developer prompt if available
+  const enhancedPromptBundle = { ...params.promptBundle };
+  if (params.blueprintGuidance) {
+    const blueprintSection = `\n\n--- REPORT COHESION BLUEPRINT ---\n${params.blueprintGuidance}\n--- END BLUEPRINT ---\n\n`;
+    enhancedPromptBundle.developer = (enhancedPromptBundle.developer || "") + blueprintSection;
+  }
+  
   return await runWriterPrompt({
     section: {
       title: params.section.title,
@@ -293,7 +302,7 @@ async function writeSectionWithModel(params: {
     fileSearch: params.vectorToolConfig,
     webSearch: params.webToolConfig,
     context: params.runInput,
-    promptBundle: params.promptBundle,
+    promptBundle: enhancedPromptBundle,
   });
 }
 
@@ -323,9 +332,10 @@ export async function runSection(
     profile: GenerationProfile | null;
     runInput: Record<string, unknown>;
     promptSet?: PromptSet | null;
+    blueprintGuidance?: string;
   }
 ) {
-  const { sectionRun, section, template, connectors, profile, runInput } = params;
+  const { sectionRun, section, template, connectors, profile, runInput, blueprintGuidance } = params;
   const promptSection = params.promptSet?.sections?.find(
     (item) => item.id === section.id
   );
@@ -366,6 +376,7 @@ export async function runSection(
         webToolConfig,
         runInput,
         promptBundle,
+        blueprintGuidance,
       })
     : "";
   const claims = buildClaims(draft, evidence);

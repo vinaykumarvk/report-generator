@@ -12,6 +12,31 @@ type Run = {
   completed_at?: string | null;
   final_report_json?: string | null;
   template_version_snapshot_json?: { name?: string };
+  blueprint_json?: {
+    technical?: unknown;
+    cohesion?: {
+      narrativeArc?: string;
+      keyTerminology?: string[];
+      tone?: {
+        formality?: number;
+        perspective?: string;
+        sentenceStructure?: string;
+      };
+      keyClaims?: Record<string, string[]>;
+      crossReferences?: Record<string, string[]>;
+      factualAnchors?: Array<{
+        id: string;
+        value: string;
+        usedIn: string[];
+      }>;
+      prohibitions?: string[];
+    };
+  };
+  transitions_json?: Array<{
+    afterSectionId: string;
+    beforeSectionId: string;
+    content: string;
+  }>;
 };
 
 type SectionRun = {
@@ -324,6 +349,312 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
             <div className="muted">Loading run...</div>
           )}
         </div>
+
+        {/* Blueprint Details */}
+        {run?.blueprint_json?.cohesion && (
+          <div className="card">
+            <h2>📋 Report Blueprint</h2>
+            <p className="muted" style={{ marginTop: "-0.5rem", marginBottom: "1rem" }}>
+              Cohesion guidelines that ensure consistency across all sections
+            </p>
+            
+            <div style={{ display: "grid", gap: "1.5rem" }}>
+              {/* Narrative Arc */}
+              {run.blueprint_json.cohesion.narrativeArc && (
+                <div>
+                  <h3 style={{ fontSize: "1rem", marginBottom: "0.5rem", color: "var(--color-accent)" }}>
+                    📖 Narrative Arc
+                  </h3>
+                  <p style={{ margin: 0, lineHeight: "1.6" }}>
+                    {run.blueprint_json.cohesion.narrativeArc}
+                  </p>
+                </div>
+              )}
+
+              {/* Key Terminology */}
+              {run.blueprint_json.cohesion.keyTerminology && run.blueprint_json.cohesion.keyTerminology.length > 0 && (
+                <div>
+                  <h3 style={{ fontSize: "1rem", marginBottom: "0.5rem", color: "var(--color-accent)" }}>
+                    🔤 Key Terminology
+                  </h3>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                    {run.blueprint_json.cohesion.keyTerminology.map((term, i) => (
+                      <span
+                        key={i}
+                        style={{
+                          padding: "0.25rem 0.75rem",
+                          background: "var(--color-accent-light)",
+                          borderRadius: "1rem",
+                          fontSize: "0.875rem"
+                        }}
+                      >
+                        {term}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tone & Style */}
+              {run.blueprint_json.cohesion.tone && (
+                <div>
+                  <h3 style={{ fontSize: "1rem", marginBottom: "0.5rem", color: "var(--color-accent)" }}>
+                    🎨 Tone & Style
+                  </h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "1rem" }}>
+                    {run.blueprint_json.cohesion.tone.formality && (
+                      <div>
+                        <div className="muted" style={{ fontSize: "0.875rem" }}>Formality</div>
+                        <div style={{ fontWeight: 600 }}>
+                          {run.blueprint_json.cohesion.tone.formality}/5
+                        </div>
+                      </div>
+                    )}
+                    {run.blueprint_json.cohesion.tone.perspective && (
+                      <div>
+                        <div className="muted" style={{ fontSize: "0.875rem" }}>Perspective</div>
+                        <div style={{ fontWeight: 600 }}>
+                          {run.blueprint_json.cohesion.tone.perspective}
+                        </div>
+                      </div>
+                    )}
+                    {run.blueprint_json.cohesion.tone.sentenceStructure && (
+                      <div>
+                        <div className="muted" style={{ fontSize: "0.875rem" }}>Structure</div>
+                        <div style={{ fontWeight: 600 }}>
+                          {run.blueprint_json.cohesion.tone.sentenceStructure}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Factual Anchors */}
+              {run.blueprint_json.cohesion.factualAnchors && run.blueprint_json.cohesion.factualAnchors.length > 0 && (
+                <div>
+                  <h3 style={{ fontSize: "1rem", marginBottom: "0.5rem", color: "var(--color-accent)" }}>
+                    📊 Factual Anchors
+                  </h3>
+                  <div style={{ display: "grid", gap: "0.75rem" }}>
+                    {run.blueprint_json.cohesion.factualAnchors.map((anchor, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          padding: "0.75rem",
+                          background: "var(--color-background-secondary)",
+                          borderRadius: "0.5rem",
+                          borderLeft: "3px solid var(--color-accent)"
+                        }}
+                      >
+                        <div style={{ fontWeight: 600, marginBottom: "0.25rem" }}>
+                          {anchor.id}: {anchor.value}
+                        </div>
+                        <div className="muted" style={{ fontSize: "0.875rem" }}>
+                          Used in: {anchor.usedIn.join(", ")}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Prohibitions */}
+              {run.blueprint_json.cohesion.prohibitions && run.blueprint_json.cohesion.prohibitions.length > 0 && (
+                <div>
+                  <h3 style={{ fontSize: "1rem", marginBottom: "0.5rem", color: "var(--color-accent)" }}>
+                    🚫 Prohibitions
+                  </h3>
+                  <ul style={{ margin: 0, paddingLeft: "1.5rem", lineHeight: "1.8" }}>
+                    {run.blueprint_json.cohesion.prohibitions.map((prohibition, i) => (
+                      <li key={i}>{prohibition}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Transitions */}
+        {run?.transitions_json && run.transitions_json.length > 0 && (
+          <div className="card">
+            <h2>🔗 Section Transitions</h2>
+            <p className="muted" style={{ marginTop: "-0.5rem", marginBottom: "1rem" }}>
+              Smart transitions that create smooth narrative flow between sections
+            </p>
+            <div style={{ display: "grid", gap: "1rem" }}>
+              {run.transitions_json.map((transition, i) => {
+                const afterSection = sections.find(s => s.id === transition.afterSectionId);
+                const beforeSection = sections.find(s => s.id === transition.beforeSectionId);
+                
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      padding: "1rem",
+                      background: "var(--color-background-secondary)",
+                      borderRadius: "0.5rem",
+                      borderLeft: "3px solid var(--color-accent)"
+                    }}
+                  >
+                    <div style={{ marginBottom: "0.5rem", fontSize: "0.875rem", color: "var(--color-accent)", fontWeight: 600 }}>
+                      {afterSection?.title || "Section"} → {beforeSection?.title || "Next Section"}
+                    </div>
+                    <div style={{ lineHeight: "1.6", fontStyle: "italic" }}>
+                      {transition.content}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Phase 1 Progress Indicator */}
+        {run && run.status === "RUNNING" && (
+          <div className="card">
+            <h2>⚙️ Generation Progress</h2>
+            <div style={{ display: "grid", gap: "1rem", marginTop: "1rem" }}>
+              {/* Blueprint */}
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                <div style={{ 
+                  width: "32px", 
+                  height: "32px", 
+                  borderRadius: "50%",
+                  background: run.blueprint_json ? "var(--color-success)" : "var(--color-accent-light)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: "bold",
+                  color: run.blueprint_json ? "white" : "var(--color-accent)"
+                }}>
+                  {run.blueprint_json ? "✓" : "1"}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600 }}>Blueprint Generation</div>
+                  <div className="muted" style={{ fontSize: "0.875rem" }}>
+                    {run.blueprint_json ? "✓ Complete" : "In progress..."}
+                  </div>
+                </div>
+              </div>
+
+              {/* Sections */}
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                <div style={{ 
+                  width: "32px", 
+                  height: "32px", 
+                  borderRadius: "50%",
+                  background: sections.every(s => s.title?.toLowerCase().includes("executive summary") || s.status === "COMPLETED") 
+                    ? "var(--color-success)" 
+                    : sections.some(s => !s.title?.toLowerCase().includes("executive summary") && (s.status === "QUEUED" || s.status === "RUNNING"))
+                    ? "var(--color-accent)"
+                    : "var(--color-accent-light)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: "bold",
+                  color: sections.every(s => s.title?.toLowerCase().includes("executive summary") || s.status === "COMPLETED") ? "white" : "var(--color-accent)"
+                }}>
+                  {sections.every(s => s.title?.toLowerCase().includes("executive summary") || s.status === "COMPLETED") ? "✓" : "2"}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600 }}>Section Generation</div>
+                  <div className="muted" style={{ fontSize: "0.875rem" }}>
+                    {sections.filter(s => !s.title?.toLowerCase().includes("executive summary") && s.status === "COMPLETED").length} / {sections.filter(s => !s.title?.toLowerCase().includes("executive summary")).length} sections complete
+                  </div>
+                </div>
+              </div>
+
+              {/* Transitions */}
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                <div style={{ 
+                  width: "32px", 
+                  height: "32px", 
+                  borderRadius: "50%",
+                  background: run.transitions_json && run.transitions_json.length > 0 ? "var(--color-success)" : "var(--color-accent-light)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: "bold",
+                  color: run.transitions_json && run.transitions_json.length > 0 ? "white" : "var(--color-accent)"
+                }}>
+                  {run.transitions_json && run.transitions_json.length > 0 ? "✓" : "3"}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600 }}>Transitions Generation</div>
+                  <div className="muted" style={{ fontSize: "0.875rem" }}>
+                    {run.transitions_json && run.transitions_json.length > 0 
+                      ? `✓ ${run.transitions_json.length} transitions created` 
+                      : sections.every(s => s.title?.toLowerCase().includes("executive summary") || s.status === "COMPLETED")
+                      ? "In progress..."
+                      : "Waiting for sections..."}
+                  </div>
+                </div>
+              </div>
+
+              {/* Executive Summary */}
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                <div style={{ 
+                  width: "32px", 
+                  height: "32px", 
+                  borderRadius: "50%",
+                  background: sections.find(s => s.title?.toLowerCase().includes("executive summary"))?.status === "COMPLETED"
+                    ? "var(--color-success)"
+                    : sections.find(s => s.title?.toLowerCase().includes("executive summary"))?.status === "RUNNING"
+                    ? "var(--color-accent)"
+                    : "var(--color-accent-light)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: "bold",
+                  color: sections.find(s => s.title?.toLowerCase().includes("executive summary"))?.status === "COMPLETED" ? "white" : "var(--color-accent)"
+                }}>
+                  {sections.find(s => s.title?.toLowerCase().includes("executive summary"))?.status === "COMPLETED" ? "✓" : "4"}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600 }}>Executive Summary Generation</div>
+                  <div className="muted" style={{ fontSize: "0.875rem" }}>
+                    {sections.find(s => s.title?.toLowerCase().includes("executive summary"))?.status === "COMPLETED"
+                      ? "✓ Complete"
+                      : sections.find(s => s.title?.toLowerCase().includes("executive summary"))?.status === "RUNNING"
+                      ? "In progress..."
+                      : run.transitions_json && run.transitions_json.length > 0
+                      ? "In progress..."
+                      : "Waiting for transitions..."}
+                  </div>
+                </div>
+              </div>
+
+              {/* Assembly */}
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                <div style={{ 
+                  width: "32px", 
+                  height: "32px", 
+                  borderRadius: "50%",
+                  background: run.final_report_json ? "var(--color-success)" : "var(--color-accent-light)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: "bold",
+                  color: run.final_report_json ? "white" : "var(--color-accent)"
+                }}>
+                  {run.final_report_json ? "✓" : "5"}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600 }}>Final Assembly</div>
+                  <div className="muted" style={{ fontSize: "0.875rem" }}>
+                    {run.final_report_json 
+                      ? "✓ Complete" 
+                      : sections.every(s => s.status === "COMPLETED")
+                      ? "In progress..."
+                      : "Waiting for all sections..."}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Final Report */}
         <div className="card">

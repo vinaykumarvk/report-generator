@@ -12,7 +12,11 @@ function getModel() {
   return process.env.OPENAI_REVIEW_MODEL || "gpt-4o-mini";
 }
 
-Can you check if the three queued sections are still working or are they stuck?async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 30000): Promise<Response> {
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  timeoutMs = 30000
+): Promise<Response> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 

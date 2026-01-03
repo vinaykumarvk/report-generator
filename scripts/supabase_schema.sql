@@ -166,8 +166,14 @@ create table if not exists exports (
   report_run_id uuid not null references report_runs(id) on delete cascade,
   workspace_id uuid references workspaces(id) on delete set null,
   format text not null,
-  file_path text not null,
-  created_at timestamptz not null default now()
+  status text not null default 'QUEUED',
+  file_path text,
+  storage_url text,
+  file_size bigint,
+  checksum text,
+  error_message text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists audit_logs (

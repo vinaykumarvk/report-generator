@@ -54,10 +54,20 @@ type Database = {
 let supabaseClient: SupabaseClient<Database> | null = null;
 
 /**
- * Get Supabase client instance (singleton)
- * Uses service role key for server-side operations
+ * Get Supabase client instance for SERVER-SIDE operations (singleton)
+ * Uses service role key - NEVER expose this to the client!
+ * 
+ * ⚠️  SECURITY: This client bypasses Row Level Security (RLS)
+ * Only use in API routes and server components
  */
 export function getSupabaseClient() {
+  // Ensure we're on the server
+  if (typeof window !== 'undefined') {
+    throw new Error(
+      'getSupabaseClient() can only be called on the server. Use getSupabaseClientPublic() for client-side operations.'
+    );
+  }
+  
   if (supabaseClient) {
     return supabaseClient;
   }
@@ -67,7 +77,7 @@ export function getSupabaseClient() {
 
   if (!supabaseUrl || !supabaseKey) {
     throw new Error(
-      'Supabase credentials not found. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in your .env file'
+      'Supabase credentials not found. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in your .env file'
     );
   }
 

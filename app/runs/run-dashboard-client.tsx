@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import VectorStoreSelector from "../components/vector-store-selector";
 
 type Run = {
@@ -29,12 +30,6 @@ type Template = {
   sections?: TemplateSection[];
 };
 
-type RunExport = {
-  id: string;
-  format: string;
-  created_at: string;
-};
-
 type SectionOverrideState = {
   enabled: boolean;
   vectorStoreIds: string[];
@@ -54,8 +49,9 @@ function statusClass(status?: string) {
   return `badge status-${status}`;
 }
 
-export default function RunDashboardClient() {
-  const [activeTab, setActiveTab] = useState<"create" | "view">("view");
+export default function RunDashboardClient({ initialTab }: { initialTab?: "create" | "view" }) {
+  const router = useRouter();
+  const [activeTab] = useState<"create" | "view">(initialTab || "view");
   const [runs, setRuns] = useState<Run[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
@@ -67,12 +63,14 @@ export default function RunDashboardClient() {
   const [loadingTemplates, setLoadingTemplates] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionStatus, setActionStatus] = useState<Record<string, string>>({});
-  const [downloadStatus, setDownloadStatus] = useState<Record<string, string>>({});
   const [createError, setCreateError] = useState<string | null>(null);
-  const [exportsByRun, setExportsByRun] = useState<Record<string, RunExport[]>>({});
-  const [expandedExports, setExpandedExports] = useState<Record<string, boolean>>({});
-  const [loadingExports, setLoadingExports] = useState<Record<string, boolean>>({});
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Search, Filter, Sort state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [sortBy, setSortBy] = useState<"created" | "completed" | "template" | "topic">("created");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const loadRuns = useCallback(async () => {
     try {
@@ -109,49 +107,58 @@ export default function RunDashboardClient() {
     }
   }, [selectedTemplateId]);
 
-  const fetchExports = async (runId: string): Promise<RunExport[]> => {
-    const res = await fetch(`/api/report-runs/${runId}/exports`, {
-      cache: "no-store",
-    });
-    if (!res.ok) throw new Error("Failed to load exports");
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
-  };
-
-  const loadExportsForRun = useCallback(async (runId: string) => {
-    if (loadingExports[runId]) return;
-    setLoadingExports((prev) => ({ ...prev, [runId]: true }));
-    try {
-      const list = await fetchExports(runId);
-      setExportsByRun((prev) => ({
-        ...prev,
-        [runId]: list,
-      }));
-    } catch {
-      setExportsByRun((prev) => ({ ...prev, [runId]: [] }));
-    } finally {
-      setLoadingExports((prev) => ({ ...prev, [runId]: false }));
-    }
-  }, [loadingExports]);
-
   async function refreshStatus() {
     setIsRefreshing(true);
     await loadRuns();
     setIsRefreshing(false);
   }
 
-  const toggleExports = useCallback(
-    (runId: string) => {
-      setExpandedExports((prev) => ({
-        ...prev,
-        [runId]: !prev[runId],
-      }));
-      if (!exportsByRun[runId]) {
-        loadExportsForRun(runId);
+  // Filter, search, and sort runs
+  const filteredAndSortedRuns = useCallback(() => {
+    let result = [...runs];
+
+    // 1. Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter((run) => {
+        const templateName = run.template_version_snapshot_json?.name?.toLowerCase() || "";
+        const topic = run.input_json?.topic?.toLowerCase() || "";
+        const runId = run.id.toLowerCase();
+        return templateName.includes(query) || topic.includes(query) || runId.includes(query);
+      });
+    }
+
+    // 2. Apply status filter
+    if (statusFilter !== "ALL") {
+      result = result.filter((run) => run.status === statusFilter);
+    }
+
+    // 3. Apply sorting
+    result.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case "created":
+          comparison = (a.created_at || "").localeCompare(b.created_at || "");
+          break;
+        case "completed":
+          comparison = (a.completed_at || "").localeCompare(b.completed_at || "");
+          break;
+        case "template":
+          comparison = (a.template_version_snapshot_json?.name || "").localeCompare(
+            b.template_version_snapshot_json?.name || ""
+          );
+          break;
+        case "topic":
+          comparison = (a.input_json?.topic || "").localeCompare(b.input_json?.topic || "");
+          break;
       }
-    },
-    [exportsByRun, loadExportsForRun]
-  );
+
+      return sortOrder === "asc" ? comparison : -comparison;
+    });
+
+    return result;
+  }, [runs, searchQuery, statusFilter, sortBy, sortOrder]);
 
   async function createRun(startImmediately: boolean) {
     setCreateStatus("Creating run...");
@@ -204,14 +211,14 @@ export default function RunDashboardClient() {
           method: "POST",
         });
         if (!startRes.ok) throw new Error("Failed to start run");
-        setCreateStatus("Run started! Switching to View Runs...");
+        setCreateStatus("Run started! Switching to Reports Library...");
         setTimeout(() => {
-          setActiveTab("view");
+          router.push("/library");
           loadRuns();
         }, 1500);
       } else {
         setTimeout(() => {
-          setActiveTab("view");
+          router.push("/library");
           loadRuns();
         }, 1500);
       }
@@ -260,75 +267,6 @@ export default function RunDashboardClient() {
     return () => clearInterval(interval);
   }, [runs, loadRuns]);
 
-  function getLatestExport(list: RunExport[], format: string) {
-    const filtered = list.filter((item) => item.format === format);
-    if (!filtered.length) return null;
-    return filtered.reduce((latest, current) => {
-      const latestTime = new Date(latest.created_at).getTime();
-      const currentTime = new Date(current.created_at).getTime();
-      return currentTime > latestTime ? current : latest;
-    }, filtered[0]);
-  }
-
-  async function downloadExport(runId: string, format: "MARKDOWN" | "PDF") {
-    const statusKey = `${runId}:${format}`;
-    setDownloadStatus((prev) => ({ ...prev, [statusKey]: "Preparing..." }));
-
-    let exportsList: RunExport[] = [];
-    try {
-      exportsList = await fetchExports(runId);
-      setExportsByRun((prev) => ({ ...prev, [runId]: exportsList }));
-    } catch {
-      exportsList = [];
-    }
-
-    const existing = getLatestExport(exportsList, format);
-    if (existing) {
-      window.open(`/api/report-runs/${runId}/exports/${existing.id}`, "_blank");
-      setDownloadStatus((prev) => ({ ...prev, [statusKey]: "Ready" }));
-      return;
-    }
-
-    const res = await fetch(`/api/report-runs/${runId}/export`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ format }),
-    });
-    if (!res.ok) {
-      setDownloadStatus((prev) => ({ ...prev, [statusKey]: "Failed to export" }));
-      return;
-    }
-
-    setDownloadStatus((prev) => ({ ...prev, [statusKey]: "Generating..." }));
-    let attempts = 0;
-    const maxAttempts = 60;
-    while (attempts < maxAttempts) {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      try {
-        exportsList = await fetchExports(runId);
-        setExportsByRun((prev) => ({ ...prev, [runId]: exportsList }));
-        console.log(`Polling attempt ${attempts + 1}: Found ${exportsList.length} exports`, exportsList);
-      } catch (err) {
-        console.error("Error fetching exports:", err);
-        exportsList = [];
-      }
-      const latest = getLatestExport(exportsList, format);
-      if (latest) {
-        console.log("Found export:", latest);
-        window.open(`/api/report-runs/${runId}/exports/${latest.id}`, "_blank");
-        setDownloadStatus((prev) => ({ ...prev, [statusKey]: "Downloaded!" }));
-        setTimeout(() => {
-          setDownloadStatus((prev) => ({ ...prev, [statusKey]: "" }));
-        }, 3000);
-        return;
-      }
-      attempts++;
-    }
-
-    console.error(`Export timed out after ${maxAttempts} attempts`);
-    setDownloadStatus((prev) => ({ ...prev, [statusKey]: "Timed out - check Run Details page" }));
-  }
-
   useEffect(() => {
     const template = templates.find((item) => item.id === selectedTemplateId);
     if (!template?.sections) {
@@ -356,36 +294,6 @@ export default function RunDashboardClient() {
 
   return (
     <div className="page-container">
-      <div className="page-header-section">
-        <div className="page-header-content">
-          <h1>Runs</h1>
-          <p className="page-description">Create and manage report runs</p>
-        </div>
-        <div className="page-header-actions">
-          <button className="secondary" onClick={loadRuns} type="button">
-            Refresh
-          </button>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="tabs">
-        <button
-          type="button"
-          onClick={() => setActiveTab("create")}
-          className={`tab-button ${activeTab === "create" ? "active" : ""}`}
-        >
-          New Report
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("view")}
-          className={`tab-button ${activeTab === "view" ? "active" : ""}`}
-        >
-          Generated Reports
-        </button>
-      </div>
-
       <div className="content-section">
         {/* CREATE TAB */}
         {activeTab === "create" && (
@@ -603,6 +511,117 @@ export default function RunDashboardClient() {
               </button>
             </div>
 
+            {/* Search, Filter, Sort Controls */}
+            {!loading && runs.length > 0 && (
+              <div className="filters-section" style={{ 
+                display: "grid", 
+                gridTemplateColumns: "2fr 1fr 1fr 1fr", 
+                gap: "1rem", 
+                marginBottom: "1.5rem",
+                padding: "1rem",
+                background: "rgba(255, 255, 255, 0.02)",
+                borderRadius: "8px",
+                border: "1px solid rgba(255, 255, 255, 0.1)"
+              }}>
+                {/* Search */}
+                <div>
+                  <label htmlFor="search-runs" style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: 500 }}>
+                    Search
+                  </label>
+                  <input
+                    id="search-runs"
+                    type="text"
+                    placeholder="Search by template, topic, or ID..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "0.5rem",
+                      borderRadius: "4px",
+                      border: "1px solid rgba(255, 255, 255, 0.2)",
+                      background: "rgba(0, 0, 0, 0.3)",
+                      color: "inherit"
+                    }}
+                  />
+                </div>
+
+                {/* Status Filter */}
+                <div>
+                  <label htmlFor="filter-status" style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: 500 }}>
+                    Status
+                  </label>
+                  <select
+                    id="filter-status"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "0.5rem",
+                      borderRadius: "4px",
+                      border: "1px solid rgba(255, 255, 255, 0.2)",
+                      background: "rgba(0, 0, 0, 0.3)",
+                      color: "inherit"
+                    }}
+                  >
+                    <option value="ALL">All</option>
+                    <option value="DRAFT">Draft</option>
+                    <option value="QUEUED">Queued</option>
+                    <option value="RUNNING">Running</option>
+                    <option value="COMPLETED">Completed</option>
+                    <option value="FAILED">Failed</option>
+                  </select>
+                </div>
+
+                {/* Sort By */}
+                <div>
+                  <label htmlFor="sort-by" style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: 500 }}>
+                    Sort By
+                  </label>
+                  <select
+                    id="sort-by"
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    style={{
+                      width: "100%",
+                      padding: "0.5rem",
+                      borderRadius: "4px",
+                      border: "1px solid rgba(255, 255, 255, 0.2)",
+                      background: "rgba(0, 0, 0, 0.3)",
+                      color: "inherit"
+                    }}
+                  >
+                    <option value="created">Created Date</option>
+                    <option value="completed">Completed Date</option>
+                    <option value="template">Template Name</option>
+                    <option value="topic">Topic</option>
+                  </select>
+                </div>
+
+                {/* Sort Order */}
+                <div>
+                  <label htmlFor="sort-order" style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: 500 }}>
+                    Order
+                  </label>
+                  <select
+                    id="sort-order"
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(e.target.value as any)}
+                    style={{
+                      width: "100%",
+                      padding: "0.5rem",
+                      borderRadius: "4px",
+                      border: "1px solid rgba(255, 255, 255, 0.2)",
+                      background: "rgba(0, 0, 0, 0.3)",
+                      color: "inherit"
+                    }}
+                  >
+                    <option value="desc">Newest First</option>
+                    <option value="asc">Oldest First</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
             {loading && (
               <div className="run-list">
                 {[0, 1, 2].map((row) => (
@@ -628,15 +647,33 @@ export default function RunDashboardClient() {
                 <div className="empty-state-icon">📊</div>
                 <h3>No Runs Yet</h3>
                 <p>Create your first run to get started</p>
-                <button onClick={() => setActiveTab("create")}>
+                <Link href="/generate" className="button">
                   Create New Run
-                </button>
+                </Link>
               </div>
             )}
 
             {!loading && runs.length > 0 && (
-              <div className="run-list">
-                {runs.map((run) => (
+              <>
+                {filteredAndSortedRuns().length === 0 ? (
+                  <div className="empty-state">
+                    <div className="empty-state-icon">🔍</div>
+                    <h3>No Matching Runs</h3>
+                    <p>Try adjusting your search or filters</p>
+                    <button onClick={() => {
+                      setSearchQuery("");
+                      setStatusFilter("ALL");
+                    }}>
+                      Clear Filters
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="muted" style={{ marginBottom: "1rem", fontSize: "0.875rem" }}>
+                      Showing {filteredAndSortedRuns().length} of {runs.length} runs
+                    </div>
+                    <div className="run-list">
+                      {filteredAndSortedRuns().map((run) => (
                   <div className="run-item" key={run.id}>
                     <div className="run-header">
                       <div>
@@ -668,13 +705,62 @@ export default function RunDashboardClient() {
                           Start
                         </button>
                       )}
-                      <button
-                        type="button"
-                        className="secondary"
-                        onClick={() => toggleExports(run.id)}
-                      >
-                        {expandedExports[run.id] ? "Hide Downloads" : "Download"}
-                      </button>
+                      {run.status === "COMPLETED" && (
+                        <>
+                          <button
+                            type="button"
+                            className="secondary"
+                            onClick={async () => {
+                              const res = await fetch(`/api/report-runs/${run.id}/exports`, { cache: "no-store" });
+                              if (res.ok) {
+                                const exports = await res.json();
+                                const mdExport = exports.find((e: any) => e.format === "MARKDOWN" && e.status === "READY");
+                                if (mdExport) {
+                                  window.open(`/api/report-runs/${run.id}/exports/${mdExport.id}`, '_blank');
+                                } else {
+                                  // Create new export
+                                  const createRes = await fetch(`/api/report-runs/${run.id}/export`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ format: 'MARKDOWN' })
+                                  });
+                                  if (createRes.ok) {
+                                    alert('Export started. Please wait a moment and try again.');
+                                  }
+                                }
+                              }
+                            }}
+                          >
+                            Download .md
+                          </button>
+                          <button
+                            type="button"
+                            className="secondary"
+                            onClick={async () => {
+                              const res = await fetch(`/api/report-runs/${run.id}/exports`, { cache: "no-store" });
+                              if (res.ok) {
+                                const exports = await res.json();
+                                const pdfExport = exports.find((e: any) => e.format === "PDF" && e.status === "READY");
+                                if (pdfExport) {
+                                  window.open(`/api/report-runs/${run.id}/exports/${pdfExport.id}`, '_blank');
+                                } else {
+                                  // Create new export
+                                  const createRes = await fetch(`/api/report-runs/${run.id}/export`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ format: 'PDF' })
+                                  });
+                                  if (createRes.ok) {
+                                    alert('Export started. Please wait a moment and try again.');
+                                  }
+                                }
+                              }
+                            }}
+                          >
+                            Download .pdf
+                          </button>
+                        </>
+                      )}
                       <Link className="button secondary" href={`/runs/${run.id}`}>
                         View Details
                       </Link>
@@ -685,47 +771,12 @@ export default function RunDashboardClient() {
                         {actionStatus[run.id]}
                       </div>
                     )}
-                    {expandedExports[run.id] && (
-                      <div className="exports-panel">
-                        {loadingExports[run.id] && (
-                          <div className="muted">Loading exports...</div>
-                        )}
-                        {!loadingExports[run.id] &&
-                          (exportsByRun[run.id] || []).length === 0 && (
-                            <div className="muted">No exports yet.</div>
-                          )}
-                        {!loadingExports[run.id] &&
-                          (exportsByRun[run.id] || []).length > 0 && (
-                            <div className="exports-list">
-                              {(["MARKDOWN", "PDF"] as const).map((format) => (
-                                <button
-                                  key={format}
-                                  type="button"
-                                  className="button secondary export-link"
-                                  onClick={() => downloadExport(run.id, format)}
-                                >
-                                  {format === "MARKDOWN" ? "Download .md" : "Download .pdf"}
-                                </button>
-                              ))}
-                              <div className="export-status">
-                                {downloadStatus[`${run.id}:MARKDOWN`] && (
-                                  <span className="muted">
-                                    .md: {downloadStatus[`${run.id}:MARKDOWN`]}
-                                  </span>
-                                )}
-                                {downloadStatus[`${run.id}:PDF`] && (
-                                  <span className="muted">
-                                    .pdf: {downloadStatus[`${run.id}:PDF`]}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                      </div>
-                    )}
                   </div>
                 ))}
-              </div>
+                    </div>
+                  </>
+                )}
+              </>
             )}
           </div>
         )}

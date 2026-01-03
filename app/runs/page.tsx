@@ -6,6 +6,10 @@ export const metadata: Metadata = {
   title: "Run Dashboard",
 };
 
-export default function RunsPage() {
-  return <RunDashboardClient />;
+export default function RunsPage({
+  searchParams,
+}: {
+  searchParams: { tab?: string };
+}) {
+  return <RunDashboardClient initialTab={searchParams.tab as "create" | "view" | undefined} />;
 }

@@ -4,7 +4,8 @@ import { usePathname } from "next/navigation";
 
 const items = [
   { href: "/reports-studio", label: "Report Studio" },
-  { href: "/runs", label: "Generate Reports" },
+  { href: "/generate", label: "Generate New" },
+  { href: "/library", label: "Reports Library" },
 ];
 
 function isActive(pathname: string, href: string) {

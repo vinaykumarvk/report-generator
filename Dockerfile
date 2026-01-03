@@ -13,7 +13,7 @@ RUN npm run build
 FROM node:20-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-ENV PORT=8080
+# Note: PORT will be set by Cloud Run at runtime
 COPY --from=builder /app/package.json /app/package-lock.json ./
 COPY --from=builder /app/next.config.mjs ./next.config.mjs
 COPY --from=builder /app/tsconfig.json ./tsconfig.json

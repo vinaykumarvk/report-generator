@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { marked } from "marked";
+import ExportManager from "../../components/export-manager";
 
 type Run = {
   id: string;
@@ -10,7 +11,11 @@ type Run = {
   created_at?: string;
   started_at?: string | null;
   completed_at?: string | null;
-  final_report_json?: string | null;
+  final_report_json?: {
+    content: string;
+    sections: Array<{ id: string; title: string; content: string }>;
+    transitions: Array<{ from: string; to: string; text: string }>;
+  } | null;
   template_version_snapshot_json?: { name?: string };
   blueprint_json?: {
     technical?: unknown;
@@ -61,13 +66,6 @@ type Artifact = {
   created_at?: string;
 };
 
-type RunExport = {
-  id: string;
-  format: string;
-  created_at?: string;
-  file_path?: string;
-};
-
 function formatTimestamp(value?: string | null) {
   if (!value) return "—";
   const date = new Date(value);
@@ -109,15 +107,21 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
   const [sections, setSections] = useState<SectionRun[]>([]);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
-  const [exportsList, setExportsList] = useState<RunExport[]>([]);
   const [loadingRun, setLoadingRun] = useState(true);
-  const [loadingExports, setLoadingExports] = useState(true);
   const [loadingArtifacts, setLoadingArtifacts] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryInstructions, setRetryInstructions] = useState<Record<string, string>>({});
   const [retryingSection, setRetryingSection] = useState<string | null>(null);
-  const [exportingFormat, setExportingFormat] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [expandedSections, setExpandedSections] = useState({
+    finalReport: true,
+    sections: true,
+    exports: true,
+  });
+
+  const toggleSection = (section: keyof typeof expandedSections) => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
 
   const loadRun = useCallback(async () => {
     try {
@@ -138,18 +142,6 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
     }
   }, [runId, selectedSectionId]);
 
-  const loadExports = useCallback(async () => {
-    setLoadingExports(true);
-    const res = await fetch(`/api/report-runs/${runId}/exports`, {
-      cache: "no-store",
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setExportsList(Array.isArray(data) ? data : []);
-    }
-    setLoadingExports(false);
-  }, [runId]);
-
   const loadArtifacts = useCallback(async (sectionRunId: string) => {
     setLoadingArtifacts(true);
     const res = await fetch(`/api/section-runs/${sectionRunId}/artifacts`, {
@@ -161,64 +153,6 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
     }
     setLoadingArtifacts(false);
   }, []);
-
-  async function requestExport(format: string) {
-    setExportingFormat(format);
-    
-    try {
-      const res = await fetch(`/api/report-runs/${runId}/export`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ format }),
-      });
-      
-      if (!res.ok) {
-        alert("Failed to start export");
-        return;
-      }
-      
-      // Poll for export completion
-      let attempts = 0;
-      const maxAttempts = 60;
-      
-      while (attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const exportsRes = await fetch(`/api/report-runs/${runId}/exports`, {
-          cache: "no-store",
-        });
-        
-        if (exportsRes.ok) {
-          const exports = await exportsRes.json();
-          setExportsList(Array.isArray(exports) ? exports : []);
-          
-          const completedExport = exports.find((exp: any) => 
-            exp.format === format &&
-            exp.created_at && 
-            new Date(exp.created_at).getTime() > Date.now() - 120000
-          );
-          
-          if (completedExport) {
-            const downloadUrl = `/api/report-runs/${runId}/exports/${completedExport.id}`;
-            window.open(downloadUrl, '_blank');
-            setExportingFormat(null);
-            await loadExports();
-            return;
-          }
-        }
-        
-        attempts++;
-      }
-      
-      alert("Export is taking longer than expected. Check the Exports section below.");
-      await loadExports();
-    } catch (err) {
-      console.error("Export error:", err);
-      alert("Export failed. Please try again.");
-    } finally {
-      setExportingFormat(null);
-    }
-  }
 
   async function retrySection(sectionRunId: string) {
     const instructions = retryInstructions[sectionRunId] || "";
@@ -264,8 +198,7 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
 
   useEffect(() => {
     loadRun();
-    loadExports();
-  }, [loadExports, loadRun]);
+  }, [loadRun]);
 
   useEffect(() => {
     if (!selectedSectionId) return;
@@ -658,54 +591,94 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
 
         {/* Final Report */}
         <div className="card">
-          <h2>Final Report</h2>
-          {run?.final_report_json ? (
-            <div 
-              className="markdown-output"
-              dangerouslySetInnerHTML={{ __html: renderMarkdown(run.final_report_json) }}
-            />
-          ) : (
-            <div className="muted">No final report available yet. Report is still being generated or has not started.</div>
+          <div 
+            onClick={() => toggleSection('finalReport')}
+            style={{ 
+              display: "flex", 
+              justifyContent: "flex-start", 
+              alignItems: "center",
+              gap: "0.75rem",
+              cursor: "pointer",
+              userSelect: "none"
+            }}
+          >
+            <span style={{ fontSize: "1.5rem", lineHeight: 1 }}>
+              {expandedSections.finalReport ? "−" : "+"}
+            </span>
+            <h2 style={{ margin: 0 }}>Final Report</h2>
+          </div>
+          {expandedSections.finalReport && (
+            <div style={{ marginTop: "1rem" }}>
+              {run?.final_report_json?.content ? (
+                <div 
+                  className="markdown-output"
+                  dangerouslySetInnerHTML={{ __html: renderMarkdown(run.final_report_json.content) }}
+                />
+              ) : (
+                <div className="muted">No final report available yet. Report is still being generated or has not started.</div>
+              )}
+            </div>
           )}
         </div>
 
         {/* Sections */}
         <div className="card">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-            <div>
-              <h2 style={{ margin: 0 }}>Sections</h2>
-              <p className="muted" style={{ margin: "0.25rem 0 0 0" }}>
-                Click a section to view its output and regenerate if needed.
-                {sections.some((s) => s.status === "QUEUED" || s.status === "RUNNING") && (
-                  <span style={{ marginLeft: "0.5rem", color: "var(--color-accent)" }}>
-                    • Auto-refreshing every 5s
-                  </span>
-                )}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={refreshStatus}
-              disabled={isRefreshing}
-              className="secondary"
-              style={{ minWidth: "120px" }}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: expandedSections.sections ? "1rem" : 0 }}>
+            <div 
+              onClick={() => toggleSection('sections')}
+              style={{ 
+                flex: 1,
+                cursor: "pointer",
+                userSelect: "none"
+              }}
             >
-              {isRefreshing ? "Refreshing..." : "🔄 Refresh Status"}
-            </button>
-          </div>
-          {loadingRun ? (
-            <div className="list" aria-busy="true">
-              {[0, 1, 2].map((row) => (
-                <div className="list-item" key={`section-skeleton-${row}`}>
-                  <div>
-                    <div className="skeleton-line" />
-                    <div className="skeleton-line" />
-                  </div>
-                  <div className="skeleton-line" />
-                </div>
-              ))}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                <span style={{ fontSize: "1.5rem", lineHeight: 1 }}>
+                  {expandedSections.sections ? "−" : "+"}
+                </span>
+                <h2 style={{ margin: 0 }}>Sections</h2>
+              </div>
+              {expandedSections.sections && (
+                <p className="muted" style={{ margin: "0.25rem 0 0 0" }}>
+                  Click a section to view its output and regenerate if needed.
+                  {sections.some((s) => s.status === "QUEUED" || s.status === "RUNNING") && (
+                    <span style={{ marginLeft: "0.5rem", color: "var(--color-accent)" }}>
+                      • Auto-refreshing every 5s
+                    </span>
+                  )}
+                </p>
+              )}
             </div>
-          ) : (
+            {expandedSections.sections && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  refreshStatus();
+                }}
+                disabled={isRefreshing}
+                className="secondary"
+                style={{ minWidth: "120px" }}
+              >
+                {isRefreshing ? "Refreshing..." : "🔄 Refresh Status"}
+              </button>
+            )}
+          </div>
+          {expandedSections.sections && (
+            <>
+              {loadingRun ? (
+                <div className="list" aria-busy="true">
+                  {[0, 1, 2].map((row) => (
+                    <div className="list-item" key={`section-skeleton-${row}`}>
+                      <div>
+                        <div className="skeleton-line" />
+                        <div className="skeleton-line" />
+                      </div>
+                      <div className="skeleton-line" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
             <div className="list">
               {sections.map((section) => {
                 const isSelected = selectedSectionId === section.id;
@@ -794,79 +767,37 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
               })}
               {!sections.length && <div className="muted">No sections found.</div>}
             </div>
+              )}
+            </>
           )}
         </div>
 
         {/* Exports */}
         <div className="card">
-          <h2>Exports</h2>
-          <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
-            <button 
-              type="button" 
-              onClick={() => requestExport("MARKDOWN")}
-              disabled={exportingFormat !== null}
-            >
-              {exportingFormat === "MARKDOWN" ? "Exporting..." : "Export Markdown"}
-            </button>
-            <button 
-              type="button" 
-              className="secondary" 
-              onClick={() => requestExport("PDF")}
-              disabled={exportingFormat !== null}
-            >
-              {exportingFormat === "PDF" ? "Exporting..." : "Export PDF"}
-            </button>
-            <button 
-              type="button" 
-              className="secondary" 
-              onClick={() => requestExport("DOCX")}
-              disabled={exportingFormat !== null}
-            >
-              {exportingFormat === "DOCX" ? "Exporting..." : "Export DOCX"}
-            </button>
+          <div 
+            onClick={() => toggleSection('exports')}
+            style={{ 
+              display: "flex", 
+              justifyContent: "flex-start", 
+              alignItems: "center",
+              gap: "0.75rem",
+              cursor: "pointer",
+              userSelect: "none",
+              marginBottom: expandedSections.exports ? "1rem" : 0
+            }}
+          >
+            <span style={{ fontSize: "1.5rem", lineHeight: 1 }}>
+              {expandedSections.exports ? "−" : "+"}
+            </span>
+            <h2 style={{ margin: 0 }}>Exports</h2>
           </div>
-          {exportingFormat && (
-            <div className="muted" style={{ marginBottom: "1rem" }}>
-              ⏳ Generating {exportingFormat} export... This may take a few seconds.
-            </div>
+          {expandedSections.exports && (
+            <ExportManager
+              runId={runId}
+              variant="full"
+              formats={["MARKDOWN", "PDF"]}
+            />
           )}
-          
-          <h4>Export History</h4>
-          <div className="list">
-            {loadingExports ? (
-              [0, 1, 2].map((row) => (
-                <div className="list-item" key={`export-skeleton-${row}`}>
-                  <div>
-                    <div className="skeleton-line" />
-                    <div className="skeleton-line" />
-                  </div>
-                  <div className="skeleton-line" />
-                </div>
-              ))
-            ) : (
-              <>
-                {exportsList.map((exportItem) => (
-                  <div className="list-item" key={exportItem.id}>
-                    <div>
-                      <strong>{exportItem.format}</strong>
-                      <div className="muted">{formatTimestamp(exportItem.created_at)}</div>
-                    </div>
-                    <div>
-                      <a 
-                        href={`/api/report-runs/${runId}/exports/${exportItem.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="button secondary"
-                      >
-                        Download
-                      </a>
-                    </div>
-                  </div>
-                ))}
-                {!exportsList.length && <div className="muted">No exports yet.</div>}
-              </>
-            )}
-          </div>
         </div>
       </div>
     </div>

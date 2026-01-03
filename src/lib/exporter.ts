@@ -10,6 +10,35 @@ function ensureExportDir() {
   }
 }
 
+/**
+ * Generate export filename in format: {topic}_{template-abbrev}_{short-id}_{date}.{ext}
+ * Example: CRR-PRR-Validation_BRD_03c98021_2026-01-03.md
+ */
+export function generateExportFilename(
+  run: {
+    id: string;
+    templateSnapshot?: { name?: string; version?: number };
+    inputJson?: Record<string, unknown>;
+  },
+  extension: string
+): string {
+  const topic = (run.inputJson?.topic as string) || 'Report';
+  const templateName = run.templateSnapshot?.name || 'Template';
+  const shortId = run.id.substring(0, 8);
+  const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  
+  // Sanitize topic and template for filename (remove special chars, replace spaces with hyphens)
+  const sanitizeName = (str: string) => 
+    str.replace(/[^a-zA-Z0-9\s-]/g, '')
+       .replace(/\s+/g, '-')
+       .substring(0, 50); // Limit length
+  
+  const sanitizedTopic = sanitizeName(topic);
+  const sanitizedTemplate = sanitizeName(templateName);
+  
+  return `${sanitizedTopic}_${sanitizedTemplate}_${shortId}_${date}.${extension}`;
+}
+
 function extractMarkdownFromFinalReport(finalReport: any): string {
   if (!finalReport) return "# Report\n\nNo content available.";
   
@@ -63,12 +92,18 @@ export function writeMarkdownExport(run: {
   id: string;
   templateSnapshot?: { name?: string; version?: number };
   finalReport?: string | null;
-}, options?: { sourcesAppendix?: string[] }) {
+  inputJson?: Record<string, unknown>;
+}, options?: { sourcesAppendix?: string[]; exportId?: string }) {
   ensureExportDir();
-  const exportId = crypto.randomUUID();
+  const exportId = options?.exportId || crypto.randomUUID();
   const createdAt = new Date().toISOString();
-  const document = buildMarkdownDocument(run, createdAt, options);
-  const filePath = path.join(EXPORT_DIR, `run-${run.id}-${exportId}.md`);
+  const document = buildMarkdownDocument(run, createdAt, {
+    sourcesAppendix: options?.sourcesAppendix,
+  });
+  
+  const fileName = generateExportFilename(run, 'md');
+  const filePath = path.join(EXPORT_DIR, fileName);
+  
   fs.writeFileSync(filePath, document, "utf8");
 
   return {

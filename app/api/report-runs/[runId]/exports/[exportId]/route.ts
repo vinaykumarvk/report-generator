@@ -19,13 +19,26 @@ export async function GET(
   if (error || !exportRecord) {
     return NextResponse.json({ error: "Export not found" }, { status: 404 });
   }
+  if (exportRecord.status && exportRecord.status !== "READY") {
+    return NextResponse.json(
+      {
+        error: "Export not ready",
+        status: exportRecord.status,
+        message: exportRecord.error_message || null,
+      },
+      { status: 409 }
+    );
+  }
+  if (exportRecord.storage_url) {
+    return NextResponse.redirect(exportRecord.storage_url, 302);
+  }
   const contentType =
     exportRecord.format === "PDF"
       ? "application/pdf"
       : exportRecord.format === "DOCX"
       ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
       : "text/markdown";
-  if (!fs.existsSync(exportRecord.file_path)) {
+  if (!exportRecord.file_path || !fs.existsSync(exportRecord.file_path)) {
     if (exportRecord.format !== "MARKDOWN") {
       return NextResponse.json({ error: "Export file missing" }, { status: 404 });
     }

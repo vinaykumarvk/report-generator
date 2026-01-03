@@ -271,11 +271,12 @@ export async function writePdfExport(
     id: string;
     templateSnapshot?: { name?: string; version?: number };
     finalReport?: string | null;
+    inputJson?: Record<string, unknown>;
   },
-  options?: { sourcesAppendix?: string[] }
+  options?: { sourcesAppendix?: string[]; exportId?: string }
 ) {
   ensureExportDir();
-  const exportId = crypto.randomUUID();
+  const exportId = options?.exportId || crypto.randomUUID();
   const createdAt = new Date().toISOString();
   const templateName = run.templateSnapshot?.name || "Template";
   const templateVersion = run.templateSnapshot?.version || "n/a";
@@ -294,7 +295,11 @@ export async function writePdfExport(
   const appendix = appendixLines.join("\n");
   const document = `${body}${appendix}\n`;
 
-  const filePath = path.join(EXPORT_DIR, `run-${run.id}-${exportId}.pdf`);
+  // Generate filename using shared function
+  const { generateExportFilename } = require('./exporter');
+  const fileName = generateExportFilename(run, 'pdf');
+  const filePath = path.join(EXPORT_DIR, fileName);
+  
   const pdfBytes = await renderPdfFromMarkdown(document);
   fs.writeFileSync(filePath, pdfBytes);
 

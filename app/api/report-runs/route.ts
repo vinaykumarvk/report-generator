@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin, assertNoSupabaseError } from "@/lib/supabaseAdmin";
 import { getDefaultWorkspaceId } from "@/lib/workspace";
 import { getWorkspaceIdFromRequest } from "@/lib/workspaceContext";
+import { createRunSchema, ValidationError } from "@/lib/validation";
 
 export const runtime = "nodejs";
 
@@ -36,22 +37,40 @@ function snapshotPromptSet(promptSet: any) {
 }
 
 export async function POST(request: Request) {
-  const body = await request.json();
-  if (!body?.templateId) {
-    return NextResponse.json(
-      { error: "templateId is required" },
-      { status: 400 }
-    );
-  }
-  const supabase = supabaseAdmin();
-  const { data: template, error: templateError } = (await supabase
-    .from("templates")
-    .select("*, template_sections(*)")
-    .eq("id", body.templateId)
-    .single()) as { data: any; error: any };
-  if (templateError || !template) {
-    return NextResponse.json({ error: "Template not found" }, { status: 404 });
-  }
+  try {
+    // Parse and validate request body
+    const body = await request.json();
+    const result = createRunSchema.safeParse(body);
+    
+    if (!result.success) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid input data',
+            details: result.error.errors.map(err => ({
+              path: err.path.join('.'),
+              message: err.message,
+            })),
+          },
+        },
+        { status: 400 }
+      );
+    }
+    
+    const validated = result.data;
+    const supabase = supabaseAdmin();
+    
+    // Fetch template with validation
+    const { data: template, error: templateError } = (await supabase
+      .from("templates")
+      .select("*, template_sections(*)")
+      .eq("id", validated.templateId)
+      .single()) as { data: any; error: any };
+      
+    if (templateError || !template) {
+      return NextResponse.json({ error: "Template not found" }, { status: 404 });
+    }
 
   let profile: any = null;
   if (body.profileId) {
@@ -123,7 +142,7 @@ export async function POST(request: Request) {
       profile_snapshot: profile || null,
       prompt_set_id: promptSet?.id || null,
       prompt_set_snapshot: snapshotPromptSet(promptSet),
-      input_json: body.inputJson || {},
+      input_json: validated.inputJson || {},
       status: "QUEUED",
     })
     .select("*")
@@ -179,4 +198,17 @@ export async function POST(request: Request) {
     { run, sectionRuns: sectionRuns || [] },
     { status: 201 }
   );
+  } catch (error) {
+    // Handle validation errors
+    if (error instanceof ValidationError) {
+      return NextResponse.json(error.toJSON(), { status: 400 });
+    }
+    
+    // Handle other errors
+    console.error('Error creating run:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
 }

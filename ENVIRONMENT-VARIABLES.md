@@ -23,6 +23,7 @@ These have sensible defaults but can be customized:
 |----------|----------|---------|-------------|
 | `OPENAI_REVIEW_MODEL` | ❌ No | `gpt-4o-mini` | Model used for reviewing/validating outputs |
 | `SUPABASE_DB_PASSWORD` | ❌ No | - | Direct database password (not needed if using Supabase client) |
+| `SUPABASE_EXPORTS_BUCKET` | ❌ No | `exports` | Supabase Storage bucket for report exports |
 | `PORT` | ❌ No | `8080` | Port for health check server (Cloud Run sets this automatically) |
 | `JOB_TRIGGER_MODE` | ❌ No | `db` | Job trigger mode: `db` (polling), `http` (event-driven), `cloud-tasks`, or `none` |
 | `WORKER_TRIGGER_URL` | ❌ No | - | HTTP endpoint for triggering the worker (`/process-job`) |
@@ -106,7 +107,19 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
-### 5. OPENAI_API_KEY
+### 5. SUPABASE_EXPORTS_BUCKET
+**Required:** ❌ No  
+**Default:** `exports`
+
+```bash
+SUPABASE_EXPORTS_BUCKET=exports
+```
+
+**Why it's needed:** Tells the app which Supabase Storage bucket to store exports in.
+
+---
+
+### 6. OPENAI_API_KEY
 **Required:** ✅ Yes  
 **Format:** Starts with `sk-...`
 

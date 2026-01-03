@@ -40,11 +40,12 @@ export async function writeDocxExport(
     id: string;
     templateSnapshot?: { name?: string; version?: number };
     finalReport?: string | null;
+    inputJson?: Record<string, unknown>;
   },
-  options?: { sourcesAppendix?: string[] }
+  options?: { sourcesAppendix?: string[]; exportId?: string }
 ) {
   ensureExportDir();
-  const exportId = crypto.randomUUID();
+  const exportId = options?.exportId || crypto.randomUUID();
   const createdAt = new Date().toISOString();
   const templateName = run.templateSnapshot?.name || "Template";
   const templateVersion = run.templateSnapshot?.version || "n/a";
@@ -63,7 +64,11 @@ export async function writeDocxExport(
   const appendix = appendixLines.join("\n");
   const document = `${body}\n\n${appendix}\n`;
 
-  const filePath = path.join(EXPORT_DIR, `run-${run.id}-${exportId}.docx`);
+  // Generate filename using shared function
+  const { generateExportFilename } = require('./exporter');
+  const fileName = generateExportFilename(run, 'docx');
+  const filePath = path.join(EXPORT_DIR, fileName);
+  
   await runPython({ mode: "docx", content: document, output_path: filePath });
 
   return {

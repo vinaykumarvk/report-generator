@@ -33,9 +33,11 @@ const {
   addAuditLog,
   upsertScore,
   upsertDependencySnapshot,
-  createExport,
+  createExportRecord,
+  updateExportRecord,
   hasAssembleJob,
 } = require("../src/lib/workerStore");
+const { uploadExportFile } = require("../src/lib/exportStorage");
 const crypto = require("crypto");
 
 const HEARTBEAT_INTERVAL_MS = 60000;
@@ -373,7 +375,7 @@ async function handleAssemble(job) {
   await updateRun(run.id, {
     status: "COMPLETED",
     completedAt: new Date().toISOString(),
-    finalReportJson: {
+    finalReport: {
       content: finalReport,
       sections: orderedSections,
       transitions: transitions
@@ -410,74 +412,121 @@ async function handleAssemble(job) {
 }
 
 async function handleExport(job) {
+  console.log("📦 Starting export job...");
   const run = await getRunById(job.runId);
   if (!run) throw new Error("Run not found");
+  console.log("📦 Run found:", run.id);
+  
   const format = job.payloadJson?.format || "MARKDOWN";
-  const sectionRuns = await listSectionRunsWithArtifacts(run.id);
-  const sources = [];
-  sectionRuns.forEach((sectionRun) => {
-    const evidence = (sectionRun.artifacts || []).find(
-      (artifact) => artifact.type === "EVIDENCE"
-    );
-    if (!evidence) return;
-    (evidence.content || []).forEach((item) => {
-      if (item.kind === "web" && item.metadata?.url) {
-        sources.push(item.metadata.url);
-      }
+  const exportId = job.payloadJson?.exportId || crypto.randomUUID();
+  console.log("📦 Export format:", format);
+  
+  try {
+    // Create or update export record with status RUNNING
+    if (job.payloadJson?.exportId) {
+      await updateExportRecord(exportId, { status: "RUNNING", errorMessage: null });
+    } else {
+      await createExportRecord(run.id, run.workspaceId, {
+        id: exportId,
+        format,
+        status: "RUNNING",
+      });
+    }
+    
+    const sectionRuns = await listSectionRunsWithArtifacts(run.id);
+    const sources = [];
+    sectionRuns.forEach((sectionRun) => {
+      const evidence = (sectionRun.artifacts || []).find(
+        (artifact) => artifact.type === "EVIDENCE"
+      );
+      if (!evidence) return;
+      (evidence.content || []).forEach((item) => {
+        if (item.kind === "web" && item.metadata?.url) {
+          sources.push(item.metadata.url);
+        }
+      });
     });
-  });
-  const uniqueSources = Array.from(new Set(sources));
-  if (format === "MARKDOWN") {
-    const exportRecord = writeMarkdownExport(
-      {
-        id: run.id,
-        templateSnapshot: run.templateSnapshot,
-        finalReport: run.finalReport,
-      },
-      { sourcesAppendix: uniqueSources }
-    );
-    await createExport(run.id, run.workspaceId, exportRecord);
+    const uniqueSources = Array.from(new Set(sources));
+    
+    // Extract final report content from the new structure
+    // finalReport is now an object: {content, sections, transitions}
+    const finalReportContent = 
+      (run.finalReport && typeof run.finalReport === 'object' && run.finalReport.content) ||
+      (typeof run.finalReport === 'string' ? run.finalReport : '') ||
+      '';
+    console.log("📦 Final report content length:", finalReportContent.length);
+    
+    if (!finalReportContent) {
+      throw new Error("No final report content available for export");
+    }
+
+    let exportRecord = null;
+    if (format === "MARKDOWN") {
+      console.log("📦 Writing markdown export...");
+      exportRecord = writeMarkdownExport(
+        {
+          id: run.id,
+          templateSnapshot: run.templateSnapshot,
+          finalReport: finalReportContent,
+          inputJson: run.inputJson,
+        },
+        { sourcesAppendix: uniqueSources, exportId }
+      );
+    } else if (format === "DOCX") {
+      const { writeDocxExport } = require("../src/lib/docxExport");
+      exportRecord = await writeDocxExport(
+        {
+          id: run.id,
+          templateSnapshot: run.templateSnapshot,
+          finalReport: finalReportContent,
+          inputJson: run.inputJson,
+        },
+        { sourcesAppendix: uniqueSources, exportId }
+      );
+    } else if (format === "PDF") {
+      const { writePdfExport } = require("../src/lib/pdfExport");
+      exportRecord = await writePdfExport(
+        {
+          id: run.id,
+          templateSnapshot: run.templateSnapshot,
+          finalReport: finalReportContent,
+          inputJson: run.inputJson,
+        },
+        { sourcesAppendix: uniqueSources, exportId }
+      );
+    } else {
+      throw new Error(`Unsupported export format: ${format}`);
+    }
+
+    console.log("📦 Export record created:", JSON.stringify(exportRecord, null, 2));
+    await updateExportRecord(exportId, { filePath: exportRecord.filePath });
+
+    const storageResult = await uploadExportFile({
+      runId: run.id,
+      exportId,
+      format,
+      filePath: exportRecord.filePath,
+    });
+
+    await updateExportRecord(exportId, {
+      status: "READY",
+      filePath: exportRecord.filePath,
+      storageUrl: storageResult.storageUrl,
+      fileSize: storageResult.fileSize,
+      checksum: storageResult.checksum,
+      errorMessage: null,
+    });
+
     await addRunEvent(run.id, run.workspaceId, "EXPORT_READY", {
-      exportId: exportRecord.id,
-      format: exportRecord.format,
+      exportId,
+      format,
     });
-    return;
+    console.log("📦 Export complete!");
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await updateExportRecord(exportId, { status: "FAILED", errorMessage: message });
+    throw err;
   }
-  if (format === "DOCX") {
-    const { writeDocxExport } = require("../src/lib/docxExport");
-    const exportRecord = await writeDocxExport(
-      {
-        id: run.id,
-        templateSnapshot: run.templateSnapshot,
-        finalReport: run.finalReport,
-      },
-      { sourcesAppendix: uniqueSources }
-    );
-    await createExport(run.id, run.workspaceId, exportRecord);
-    await addRunEvent(run.id, run.workspaceId, "EXPORT_READY", {
-      exportId: exportRecord.id,
-      format: exportRecord.format,
-    });
-    return;
-  }
-  if (format === "PDF") {
-    const { writePdfExport } = require("../src/lib/pdfExport");
-    const exportRecord = await writePdfExport(
-      {
-        id: run.id,
-        templateSnapshot: run.templateSnapshot,
-        finalReport: run.finalReport,
-      },
-      { sourcesAppendix: uniqueSources }
-    );
-    await createExport(run.id, run.workspaceId, exportRecord);
-    await addRunEvent(run.id, run.workspaceId, "EXPORT_READY", {
-      exportId: exportRecord.id,
-      format: exportRecord.format,
-    });
-    return;
-  }
-  throw new Error(`Unsupported export format: ${format}`);
 }
 
 async function handleJob(job) {

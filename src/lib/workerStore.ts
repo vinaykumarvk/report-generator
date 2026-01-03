@@ -327,19 +327,56 @@ export async function upsertDependencySnapshot(
   assertNoSupabaseError(error, "Failed to upsert dependency snapshot");
 }
 
-export async function createExport(
+type ExportRecordInput = {
+  id: string;
+  format: string;
+  status?: string;
+  filePath?: string | null;
+  storageUrl?: string | null;
+  fileSize?: number | null;
+  checksum?: string | null;
+  errorMessage?: string | null;
+};
+
+export async function createExportRecord(
   runId: string,
   workspaceId: string | null,
-  exportRecord: { format: string; filePath: string }
+  exportRecord: ExportRecordInput
 ) {
   const supabase = supabaseAdmin();
   const { error } = await supabase.from("exports").insert({
+    id: exportRecord.id,
     report_run_id: runId,
     workspace_id: workspaceId,
     format: exportRecord.format,
-    file_path: exportRecord.filePath,
+    status: exportRecord.status ?? "QUEUED",
+    file_path: exportRecord.filePath ?? null,
+    storage_url: exportRecord.storageUrl ?? null,
+    file_size: exportRecord.fileSize ?? null,
+    checksum: exportRecord.checksum ?? null,
+    error_message: exportRecord.errorMessage ?? null,
   });
   assertNoSupabaseError(error, "Failed to create export");
+}
+
+export async function updateExportRecord(
+  exportId: string,
+  updates: Omit<ExportRecordInput, "id" | "format">
+) {
+  const supabase = supabaseAdmin();
+  const { error } = await supabase
+    .from("exports")
+    .update({
+      status: updates.status,
+      file_path: updates.filePath,
+      storage_url: updates.storageUrl,
+      file_size: updates.fileSize,
+      checksum: updates.checksum,
+      error_message: updates.errorMessage,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", exportId);
+  assertNoSupabaseError(error, "Failed to update export");
 }
 
 export async function hasAssembleJob(runId: string): Promise<boolean> {

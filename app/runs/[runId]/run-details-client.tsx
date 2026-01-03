@@ -73,6 +73,19 @@ function formatTimestamp(value?: string | null) {
   return date.toLocaleString();
 }
 
+function formatShortTimestamp(value?: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function statusClass(status?: string) {
   if (!status) return "badge";
   return `badge status-${status}`;
@@ -667,9 +680,9 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
           {expandedSections.sections && (
             <>
               {loadingRun ? (
-                <div className="list" aria-busy="true">
+                <div className="section-list" aria-busy="true">
                   {[0, 1, 2].map((row) => (
-                    <div className="list-item" key={`section-skeleton-${row}`}>
+                    <div className="section-card" key={`section-skeleton-${row}`}>
                       <div>
                         <div className="skeleton-line" />
                         <div className="skeleton-line" />
@@ -679,35 +692,45 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
                   ))}
                 </div>
               ) : (
-            <div className="list">
+            <div className="section-list">
               {sections.map((section) => {
                 const isSelected = selectedSectionId === section.id;
                 const instructions = retryInstructions[section.id] || "";
+                const shortSectionId = section.id.slice(0, 8);
+                const shortTemplateId = section.template_section_id?.slice(0, 8);
                 
                 return (
-                  <div key={section.id} className="list-item" style={{ flexDirection: "column", alignItems: "stretch" }}>
+                  <div key={section.id} className={`section-card ${isSelected ? "selected" : ""}`}>
                     <button
                       type="button"
-                      onClick={() => setSelectedSectionId(section.id)}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        width: "100%",
-                        background: isSelected ? "var(--color-accent-light)" : "transparent",
-                        border: "none",
-                        padding: "1rem",
-                        cursor: "pointer",
-                        textAlign: "left",
-                      }}
+                      onClick={() =>
+                        setSelectedSectionId((current) => (current === section.id ? null : section.id))
+                      }
+                      className="section-card-header"
                     >
                       <div>
-                        <strong>{section.title || "Untitled Section"}</strong>
-                        <div className="muted" style={{ fontSize: "0.75rem" }}>
-                          {section.timings_json?.durationSeconds && (
-                            <span>⏱️ {formatDuration(section.timings_json.durationSeconds)} • </span>
+                        <div className="section-card-title">
+                          {section.title || "Untitled Section"}
+                        </div>
+                        <div className="section-card-meta">
+                          <span className="section-card-meta-item" title={section.id}>
+                            ID {shortSectionId}
+                          </span>
+                          {shortTemplateId && (
+                            <span className="section-card-meta-item" title={section.template_section_id}>
+                              Template {shortTemplateId}
+                            </span>
                           )}
-                          {section.id}
+                          {section.created_at && (
+                            <span className="section-card-meta-item">
+                              Created {formatShortTimestamp(section.created_at)}
+                            </span>
+                          )}
+                          {section.timings_json?.durationSeconds && (
+                            <span className="section-card-meta-item">
+                              Duration {formatDuration(section.timings_json.durationSeconds)}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <span className={statusClass(section.status)}>
@@ -716,7 +739,7 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
                     </button>
 
                     {isSelected && (
-                      <div style={{ padding: "1rem", borderTop: "1px solid var(--color-border)" }}>
+                      <div className="section-card-body">
                         <h4>Section Output</h4>
                         {loadingArtifacts ? (
                           <div className="skeleton-block" aria-busy="true" />

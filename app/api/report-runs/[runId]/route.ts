@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(
   _request: Request,
@@ -21,5 +23,7 @@ export async function GET(
     .select("*")
     .eq("report_run_id", params.runId)
     .order("created_at", { ascending: true });
-  return NextResponse.json({ run, sectionRuns: sectionRuns || [] });
+  const response = NextResponse.json({ run, sectionRuns: sectionRuns || [] });
+  response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+  return response;
 }

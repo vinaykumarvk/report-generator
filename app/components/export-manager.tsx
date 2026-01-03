@@ -10,6 +10,7 @@ interface ExportItem {
   status?: "QUEUED" | "RUNNING" | "READY" | "FAILED";
   created_at: string;
   error_message?: string | null;
+  storage_url?: string | null;
 }
 
 interface ExportManagerProps {
@@ -32,18 +33,31 @@ function formatExportExtension(format: ExportFormat): string {
   }
 }
 
-async function triggerDownload(url: string, filename: string) {
-  const response = await fetch(url, { cache: "no-store" });
-  if (!response.ok) throw new Error("Download failed");
-  const blob = await response.blob();
-  const blobUrl = window.URL.createObjectURL(blob);
+function openExportLink(url: string, filename: string) {
+  const opened = window.open(url, "_blank", "noopener");
+  if (opened) {
+    return;
+  }
   const link = document.createElement("a");
-  link.href = blobUrl;
+  link.href = url;
+  link.target = "_blank";
+  link.rel = "noopener";
   link.download = filename;
   document.body.appendChild(link);
   link.click();
   link.remove();
-  window.URL.revokeObjectURL(blobUrl);
+}
+
+function selectLatestExport(
+  exportsList: ExportItem[],
+  format: ExportFormat,
+  status?: "READY"
+) {
+  return exportsList
+    .filter((exp) => exp.format === format && (!status || exp.status === status))
+    .sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )[0];
 }
 
 export default function ExportManager({
@@ -65,12 +79,16 @@ export default function ExportManager({
       const res = await fetch(`/api/report-runs/${runId}/exports`, {
         cache: "no-store",
       });
-      if (res.ok) {
-        const data = await res.json();
-        setExports(Array.isArray(data) ? data : []);
+      if (!res.ok) {
+        return [];
       }
+      const data = await res.json();
+      const exportsList = Array.isArray(data) ? data : [];
+      setExports(exportsList);
+      return exportsList;
     } catch (error) {
       console.error("Error fetching exports:", error);
+      return [];
     } finally {
       setLoading(false);
     }
@@ -80,18 +98,6 @@ export default function ExportManager({
   useEffect(() => {
     fetchExports();
   }, [fetchExports]);
-
-  const getLatestExport = useCallback(
-    (format: ExportFormat, status?: "READY") => {
-      return exports
-        .filter((exp) => exp.format === format && (!status || exp.status === status))
-        .sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        )[0];
-    },
-    [exports]
-  );
 
   const requestExport = useCallback(
     async (format: ExportFormat) => {
@@ -103,27 +109,23 @@ export default function ExportManager({
 
       try {
         // Check for existing READY export
-        await fetchExports();
-        const existing = getLatestExport(format, "READY");
+        const latestExports = await fetchExports();
+        const existing = selectLatestExport(latestExports, format, "READY");
         
         if (existing) {
           // Download existing export
-          try {
-            await triggerDownload(
-              `/api/report-runs/${runId}/exports/${existing.id}`,
-              `${runId}.${formatExportExtension(format)}`
-            );
-            setStatusMessages((prev) => ({ ...prev, [statusKey]: "Downloaded" }));
-            if (onExportComplete) onExportComplete(format, existing.id);
-            setExportingFormat(null);
-            return;
-          } catch {
-            // Fall through to create new export
-          }
+          openExportLink(
+            `/api/report-runs/${runId}/exports/${existing.id}`,
+            `${runId}.${formatExportExtension(format)}`
+          );
+          setStatusMessages((prev) => ({ ...prev, [statusKey]: "Downloaded" }));
+          if (onExportComplete) onExportComplete(format, existing.id);
+          setExportingFormat(null);
+          return;
         }
 
         // Check for in-flight export
-        const inFlight = exports.find(
+        const inFlight = latestExports.find(
           (exp) =>
             exp.format === format &&
             exp.status &&
@@ -177,7 +179,7 @@ export default function ExportManager({
 
             if (completedExport?.status === "READY") {
               try {
-                await triggerDownload(
+                openExportLink(
                   `/api/report-runs/${runId}/exports/${completedExport.id}`,
                   `${runId}.${formatExportExtension(format)}`
                 );
@@ -207,7 +209,7 @@ export default function ExportManager({
         setExportingFormat(null);
       }
     },
-    [runId, exports, getLatestExport, fetchExports, onExportStart, onExportComplete, onExportError]
+    [runId, fetchExports, onExportStart, onExportComplete, onExportError]
   );
 
   const formatButtonLabel = (format: ExportFormat) => {
@@ -275,7 +277,35 @@ export default function ExportManager({
           })}
         </div>
       )}
+
+      {variant === "full" && exports.length > 0 && (
+        <div className="exports-list">
+          {formats.map((format) => {
+            const latestReady = selectLatestExport(exports, format, "READY");
+            if (!latestReady) return null;
+            return (
+              <div key={format} className="export-item">
+                <div className="export-item-meta">
+                  <span className="badge">{format}</span>
+                  <span className="muted">Ready</span>
+                </div>
+                <button
+                  type="button"
+                  className="export-link"
+                  onClick={() =>
+                    openExportLink(
+                      `/api/report-runs/${runId}/exports/${latestReady.id}`,
+                      `${runId}.${formatExportExtension(format)}`
+                    )
+                  }
+                >
+                  Open latest
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
-

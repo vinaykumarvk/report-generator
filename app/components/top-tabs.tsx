@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import ThemeToggle from "./theme-toggle";
 
 const items = [
   { href: "/reports-studio", label: "Report Studio" },
@@ -22,17 +23,20 @@ export default function TopTabs() {
         <a className="top-tabs-brand" href="/">
           Report Generator
         </a>
-        <nav className="top-tabs-links">
-          {items.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              className={`top-tab ${isActive(pathname, item.href) ? "active" : ""}`}
-            >
-              {item.label}
-            </a>
-          ))}
-        </nav>
+        <div className="top-tabs-actions">
+          <nav className="top-tabs-links">
+            {items.map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                className={`top-tab ${isActive(pathname, item.href) ? "active" : ""}`}
+              >
+                {item.label}
+              </a>
+            ))}
+          </nav>
+          <ThemeToggle />
+        </div>
       </div>
     </header>
   );

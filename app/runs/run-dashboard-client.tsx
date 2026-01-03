@@ -513,19 +513,10 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
 
             {/* Search, Filter, Sort Controls */}
             {!loading && runs.length > 0 && (
-              <div className="filters-section" style={{ 
-                display: "grid", 
-                gridTemplateColumns: "2fr 1fr 1fr 1fr", 
-                gap: "1rem", 
-                marginBottom: "1.5rem",
-                padding: "1rem",
-                background: "rgba(255, 255, 255, 0.02)",
-                borderRadius: "8px",
-                border: "1px solid rgba(255, 255, 255, 0.1)"
-              }}>
+              <div className="filters-section">
                 {/* Search */}
-                <div>
-                  <label htmlFor="search-runs" style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: 500 }}>
+                <div className="filter-field">
+                  <label htmlFor="search-runs" className="filter-label">
                     Search
                   </label>
                   <input
@@ -534,34 +525,20 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
                     placeholder="Search by template, topic, or ID..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "0.5rem",
-                      borderRadius: "4px",
-                      border: "1px solid rgba(255, 255, 255, 0.2)",
-                      background: "rgba(0, 0, 0, 0.3)",
-                      color: "inherit"
-                    }}
+                    className="filter-input"
                   />
                 </div>
 
                 {/* Status Filter */}
-                <div>
-                  <label htmlFor="filter-status" style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: 500 }}>
+                <div className="filter-field">
+                  <label htmlFor="filter-status" className="filter-label">
                     Status
                   </label>
                   <select
                     id="filter-status"
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "0.5rem",
-                      borderRadius: "4px",
-                      border: "1px solid rgba(255, 255, 255, 0.2)",
-                      background: "rgba(0, 0, 0, 0.3)",
-                      color: "inherit"
-                    }}
+                    className="filter-select"
                   >
                     <option value="ALL">All</option>
                     <option value="DRAFT">Draft</option>
@@ -573,22 +550,15 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
                 </div>
 
                 {/* Sort By */}
-                <div>
-                  <label htmlFor="sort-by" style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: 500 }}>
+                <div className="filter-field">
+                  <label htmlFor="sort-by" className="filter-label">
                     Sort By
                   </label>
                   <select
                     id="sort-by"
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
-                    style={{
-                      width: "100%",
-                      padding: "0.5rem",
-                      borderRadius: "4px",
-                      border: "1px solid rgba(255, 255, 255, 0.2)",
-                      background: "rgba(0, 0, 0, 0.3)",
-                      color: "inherit"
-                    }}
+                    className="filter-select"
                   >
                     <option value="created">Created Date</option>
                     <option value="completed">Completed Date</option>
@@ -598,22 +568,15 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
                 </div>
 
                 {/* Sort Order */}
-                <div>
-                  <label htmlFor="sort-order" style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: 500 }}>
+                <div className="filter-field">
+                  <label htmlFor="sort-order" className="filter-label">
                     Order
                   </label>
                   <select
                     id="sort-order"
                     value={sortOrder}
                     onChange={(e) => setSortOrder(e.target.value as any)}
-                    style={{
-                      width: "100%",
-                      padding: "0.5rem",
-                      borderRadius: "4px",
-                      border: "1px solid rgba(255, 255, 255, 0.2)",
-                      background: "rgba(0, 0, 0, 0.3)",
-                      color: "inherit"
-                    }}
+                    className="filter-select"
                   >
                     <option value="desc">Newest First</option>
                     <option value="asc">Oldest First</option>

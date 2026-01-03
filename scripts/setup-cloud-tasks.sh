@@ -177,6 +177,7 @@ echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━�
 echo -e "${YELLOW}📋 ENVIRONMENT VARIABLES FOR WORKER SERVICE:${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
+echo "JOB_TRIGGER_MODE=cloud-tasks"
 echo "WORKER_TRIGGER_SECRET=${TRIGGER_SECRET}"
 echo ""
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -211,4 +212,3 @@ echo ""
 echo -e "${YELLOW}💾 Save these environment variables securely!${NC}"
 echo -e "${YELLOW}   Especially: WORKER_TRIGGER_SECRET=${TRIGGER_SECRET}${NC}"
 echo ""
-

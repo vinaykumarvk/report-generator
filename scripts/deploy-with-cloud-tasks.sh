@@ -113,6 +113,7 @@ gcloud run deploy $WORKER_SERVICE_NAME \
   --cpu=2 \
   --timeout=3600 \
   --set-env-vars "SERVICE_MODE=worker,\
+JOB_TRIGGER_MODE=cloud-tasks,\
 WORKER_TRIGGER_SECRET=${WORKER_TRIGGER_SECRET},\
 NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL},\
 SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY},\
@@ -222,4 +223,3 @@ echo -e "   ${YELLOW}./scripts/test-cloud-tasks.sh${NC}"
 echo ""
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
-

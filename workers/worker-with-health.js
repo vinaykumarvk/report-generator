@@ -12,7 +12,12 @@ const WORKER_ID = `worker-${Date.now()}`;
 
 const triggerMode = String(process.env.JOB_TRIGGER_MODE || "db").toLowerCase();
 const triggerSecret = String(process.env.WORKER_TRIGGER_SECRET || "");
-const pollingEnabled = triggerMode !== "http" || process.env.WORKER_POLLING_ENABLED === "true";
+const pollingEnabled =
+  triggerMode === "db" || process.env.WORKER_POLLING_ENABLED === "true";
+
+if ((triggerMode === "http" || triggerMode === "cloud-tasks" || triggerMode === "tasks") && !triggerSecret) {
+  throw new Error("WORKER_TRIGGER_SECRET is required for HTTP/Cloud Tasks trigger modes.");
+}
 
 if (pollingEnabled) {
   console.log("🚀 Starting worker polling loop...");

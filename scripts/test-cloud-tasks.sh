@@ -116,6 +116,27 @@ if [ $MISSING_VARS -eq 1 ]; then
 fi
 echo ""
 
+# Test 4b: Check worker service environment variables
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BLUE}Test 4b: Checking worker service configuration${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+
+WORKER_ENV=$(gcloud run services describe $WORKER_SERVICE_NAME \
+  --region=$LOCATION \
+  --project=$PROJECT_ID \
+  --format='value(spec.template.spec.containers[0].env)' 2>/dev/null || echo "")
+
+for VAR in JOB_TRIGGER_MODE WORKER_TRIGGER_SECRET; do
+  if echo "$WORKER_ENV" | grep -q "$VAR"; then
+    echo -e "   ${GREEN}✅ ${VAR}${NC}"
+  else
+    echo -e "   ${RED}❌ ${VAR} (missing)${NC}"
+    MISSING_VARS=1
+  fi
+done
+echo ""
+
 # Test 5: Check queue stats
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${BLUE}Test 5: Checking queue statistics${NC}"
@@ -178,4 +199,3 @@ else
   echo -e "${YELLOW}💡 Fix the issues above before testing${NC}"
 fi
 echo ""
-

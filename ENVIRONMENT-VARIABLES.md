@@ -119,7 +119,19 @@ SUPABASE_EXPORTS_BUCKET=exports
 
 ---
 
-### 6. OPENAI_API_KEY
+### 6. JOB_TRIGGER_MODE
+**Required:** ❌ No  
+**Default:** `db`
+
+```bash
+JOB_TRIGGER_MODE=cloud-tasks
+```
+
+**Why it's needed:** Controls whether the worker polls the DB (`db`) or waits for HTTP/Cloud Tasks triggers. When set to `cloud-tasks` or `http`, polling is disabled unless `WORKER_POLLING_ENABLED=true`.
+
+---
+
+### 7. OPENAI_API_KEY
 **Required:** ✅ Yes  
 **Format:** Starts with `sk-...`
 

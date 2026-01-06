@@ -1,8 +1,26 @@
+const fs = require("fs");
+const path = require("path");
 const dotenv = require("dotenv");
 const { createClient } = require("@supabase/supabase-js");
 const { notifyJobQueued } = require("./jobTrigger");
 
-dotenv.config();
+const envPath =
+  process.env.DOTENV_CONFIG_PATH ||
+  (fs.existsSync(path.join(process.cwd(), ".env.local"))
+    ? path.join(process.cwd(), ".env.local")
+    : path.join(process.cwd(), ".env"));
+dotenv.config({ path: envPath });
+if (!process.env.SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  console.warn(`[DBQueue] Supabase URL missing after loading env from ${envPath}`);
+} else {
+  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  try {
+    const hostname = new URL(url).hostname;
+    console.log(`[DBQueue] Using Supabase host: ${hostname} (env: ${path.basename(envPath)})`);
+  } catch (err) {
+    console.log(`[DBQueue] Using Supabase URL (env: ${path.basename(envPath)})`);
+  }
+}
 
 const LOCK_SECONDS = 5 * 60;
 
@@ -99,6 +117,22 @@ async function claimNextJob(workerId) {
 
 async function claimJobById(jobId, workerId) {
   const now = nowIso();
+  // First check if job is claimable (not locked or lock expired)
+  const { data: checkJob } = await supabase
+    .from("jobs")
+    .select("id, status, lock_expires_at, scheduled_at")
+    .eq("id", jobId)
+    .single();
+  
+  if (!checkJob) return null;
+  if (checkJob.status !== "QUEUED") return null;
+  if (new Date(checkJob.scheduled_at) > new Date(now)) return null;
+  
+  // Check if lock is expired or null
+  const lockExpired = !checkJob.lock_expires_at || new Date(checkJob.lock_expires_at) <= new Date(now);
+  if (!lockExpired) return null;
+  
+  // Now claim the job
   const { data, error } = await supabase
     .from("jobs")
     .update({
@@ -110,8 +144,6 @@ async function claimJobById(jobId, workerId) {
     })
     .eq("id", jobId)
     .eq("status", "QUEUED")
-    .lte("scheduled_at", now)
-    .or(`lock_expires_at.is.null,lock_expires_at.lte.${now}`)
     .select("*")
     .single();
   if (error) {

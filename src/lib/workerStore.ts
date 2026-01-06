@@ -12,6 +12,7 @@ type RunRecord = {
   completedAt: string | null;
   blueprint: any | null;
   finalReport: any | null;
+  transitionsJson: any | null;
 };
 
 type SectionRunRecord = {
@@ -91,6 +92,7 @@ function mapRun(raw: any): RunRecord {
     completedAt: raw.completed_at ?? null,
     blueprint: raw.blueprint_json ?? null,
     finalReport: raw.final_report_json ?? null,
+    transitionsJson: raw.transitions_json ?? null,
   };
 }
 
@@ -137,6 +139,7 @@ export async function updateRun(
     completedAt?: string | null;
     blueprint?: unknown | null;
     finalReport?: unknown | null;
+    transitionsJson?: unknown | null;
   }
 ) {
   const supabase = supabaseAdmin();
@@ -146,6 +149,7 @@ export async function updateRun(
   if (updates.completedAt !== undefined) payload.completed_at = updates.completedAt;
   if (updates.blueprint !== undefined) payload.blueprint_json = updates.blueprint;
   if (updates.finalReport !== undefined) payload.final_report_json = updates.finalReport;
+  if (updates.transitionsJson !== undefined) payload.transitions_json = updates.transitionsJson;
   const { error } = await supabase.from("report_runs").update(payload).eq("id", runId);
   assertNoSupabaseError(error, "Failed to update run");
 }

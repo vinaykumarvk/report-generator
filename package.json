@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
-    "worker": "node workers/worker.js"
+    "worker": "node workers/worker.js",
+    "worker:local": "./scripts/start-worker-local.sh"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.89.0",

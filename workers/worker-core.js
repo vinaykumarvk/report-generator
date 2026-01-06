@@ -3,7 +3,16 @@ require("ts-node").register({
   compilerOptions: { module: "commonjs", moduleResolution: "node" },
 });
 require("tsconfig-paths/register");
-require("dotenv").config();
+const fs = require("fs");
+const path = require("path");
+const dotenv = require("dotenv");
+
+const envPath =
+  process.env.DOTENV_CONFIG_PATH ||
+  (fs.existsSync(path.join(process.cwd(), ".env.local"))
+    ? path.join(process.cwd(), ".env.local")
+    : path.join(process.cwd(), ".env"));
+dotenv.config({ path: envPath });
 
 const {
   enqueueJob,
@@ -96,7 +105,7 @@ async function handleGenerateBlueprint(job) {
 
   // Store both blueprints
   await updateRun(run.id, {
-    blueprintJson: {
+    blueprint: {
       technical: technicalBlueprint,
       cohesion: cohesionBlueprint
     }
@@ -144,7 +153,7 @@ async function handleRunSection(job) {
   
   // Get cohesion blueprint from job payload or run
   const cohesionBlueprint = job.payloadJson?.cohesionBlueprint || 
-                            (run.blueprintJson && run.blueprintJson.cohesion);
+                            (run.blueprint && run.blueprint.cohesion);
   
   // Format blueprint guidance for this specific section
   let blueprintGuidance = "";
@@ -246,7 +255,7 @@ async function handleGenerateTransitions(job) {
     });
 
   // Get tone and terminology from blueprint
-  const cohesionBlueprint = run.blueprintJson && run.blueprintJson.cohesion;
+  const cohesionBlueprint = run.blueprint && run.blueprint.cohesion;
   const options = {};
   if (cohesionBlueprint) {
     options.tone = cohesionBlueprint.tone ? 
@@ -395,8 +404,8 @@ async function handleAssemble(job) {
       return [sectionRun.templateSectionId, outputFingerprint(content)];
     })
   );
-  const blueprintJson = run.blueprintJson || {};
-  const technicalBlueprint = blueprintJson.technical || run.blueprint || {};
+  const blueprintJson = run.blueprint || {};
+  const technicalBlueprint = blueprintJson.technical || {};
   const dependencySnapshot = {
     templateId: template.id,
     blueprintAssumptions: (technicalBlueprint && technicalBlueprint.assumptions) || [],

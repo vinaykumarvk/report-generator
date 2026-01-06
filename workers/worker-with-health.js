@@ -2,12 +2,22 @@
  * Worker with HTTP Health Check and optional HTTP job trigger.
  */
 
-require("dotenv").config();
+const fs = require("fs");
+const path = require("path");
+const dotenv = require("dotenv");
+
+const envPath =
+  process.env.DOTENV_CONFIG_PATH ||
+  (fs.existsSync(path.join(process.cwd(), ".env.local"))
+    ? path.join(process.cwd(), ".env.local")
+    : path.join(process.cwd(), ".env"));
+dotenv.config({ path: envPath });
 
 const http = require("http");
 const { processJobOnce, startPolling } = require("./worker-core");
 
 const PORT = process.env.PORT || 8080;
+const HOST = process.env.HOST || (process.env.NODE_ENV === "production" ? "0.0.0.0" : "127.0.0.1");
 const WORKER_ID = `worker-${Date.now()}`;
 
 const triggerMode = String(process.env.JOB_TRIGGER_MODE || "db").toLowerCase();
@@ -91,8 +101,8 @@ const server = http.createServer(async (req, res) => {
   res.end(JSON.stringify({ error: "Not found" }));
 });
 
-server.listen(PORT, () => {
-  console.log(`✅ Health check server listening on port ${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`✅ Health check server listening on ${HOST}:${PORT}`);
 });
 
 process.on("SIGTERM", () => {
@@ -110,3 +120,4 @@ process.on("SIGINT", () => {
     process.exit(0);
   });
 });
+

@@ -469,7 +469,18 @@ export default function ReportsStudioClient() {
       const res = await fetch("/api/writing-styles");
       if (res.ok) {
         const data = await res.json();
-        setWritingStyles(data.writing_styles || []);
+        const styles = Array.isArray(data)
+          ? data
+          : Array.isArray(data.writing_styles)
+          ? data.writing_styles
+          : Array.isArray(data.writingStyles)
+          ? data.writingStyles
+          : Array.isArray(data.data)
+          ? data.data
+          : Array.isArray(data.data?.writing_styles)
+          ? data.data.writing_styles
+          : [];
+        setWritingStyles(styles);
       }
     } catch (error) {
       console.error("Failed to load writing styles:", error);

@@ -12,6 +12,7 @@ describe("POST /api/report-runs", () => {
     const res = await POST(req);
     expect(res.status).toBe(400);
     const data = await res.json();
-    expect(data.error).toBe("templateId is required");
+    expect(data.error?.code).toBe("VALIDATION_ERROR");
+    expect(data.error?.details?.some((detail: { path: string }) => detail.path === "templateId")).toBe(true);
   });
 });

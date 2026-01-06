@@ -7,3 +7,5 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_report_runs_workspace_status_created
 -- Verify:
 -- SELECT indexname FROM pg_indexes WHERE indexname = 'idx_report_runs_workspace_status_created';
 
+
+

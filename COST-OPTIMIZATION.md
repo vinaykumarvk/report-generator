@@ -413,3 +413,5 @@ gcloud run services update report-generator-worker \
 
 **My recommendation:** Start with scale-to-zero, monitor usage, then decide if event-driven is worth the implementation effort.
 
+
+

@@ -7,3 +7,5 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_section_runs_report_run
 -- Verify:
 -- SELECT indexname FROM pg_indexes WHERE indexname = 'idx_section_runs_report_run';
 
+
+

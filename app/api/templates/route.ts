@@ -4,6 +4,7 @@ import { getDefaultWorkspaceId } from "@/lib/workspace";
 import { getWorkspaceIdFromRequest } from "@/lib/workspaceContext";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   const workspaceId = await getWorkspaceIdFromRequest(request);
@@ -59,6 +60,7 @@ export async function GET(request: NextRequest) {
         evidencePolicy: s.evidence_policy,
         writingStyle: s.writing_style,
         sourceMode: s.source_mode || 'inherit',
+        customConnectorIds: s.vector_policy_json?.connectorIds || [],
         targetLengthMin: s.target_length_min,
         targetLengthMax: s.target_length_max,
         status: s.status,

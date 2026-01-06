@@ -30,6 +30,7 @@ type Section = {
   targetLengthMax?: number;
   sourceMode?: "inherit" | "custom";
   customConnectorIds?: string[];
+  vectorPolicyJson?: { connectorIds?: string[] } | null;
   isCollapsed?: boolean;
 };
 
@@ -245,12 +246,17 @@ export default function ReportsStudioClient() {
       }
 
       // Merge connectors into editFormData
+      const orderedSections = (editFormData.sections || []).map((section, idx) => ({
+        ...section,
+        order: idx + 1,
+        vectorPolicyJson:
+          section.sourceMode === "custom" && section.customConnectorIds?.length
+            ? { connectorIds: section.customConnectorIds }
+            : null,
+      }));
       const dataToSave = {
         ...editFormData,
-        sections: (editFormData.sections || []).map((section, idx) => ({
-          ...section,
-          order: idx + 1,
-        })),
+        sections: orderedSections,
         connectors: updatedConnectors,
       };
 
@@ -259,6 +265,37 @@ export default function ReportsStudioClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dataToSave),
       });
+
+      if (!res.ok) {
+        throw new Error("Failed to update template");
+      }
+
+      const newSections = orderedSections.filter(
+        (section) => !section.id || section.id.startsWith("temp-")
+      );
+      for (const section of newSections) {
+        const createRes = await fetch(`/api/templates/${editingTemplateId}/sections`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: section.title,
+            purpose: section.purpose,
+            order: section.order,
+            outputFormat: section.outputFormat,
+            evidencePolicy: section.evidencePolicy,
+            targetLengthMin: section.targetLengthMin,
+            targetLengthMax: section.targetLengthMax,
+            sourceMode: section.sourceMode,
+            writingStyle: section.writingStyle,
+            vectorPolicyJson: section.vectorPolicyJson,
+            customConnectorIds: section.customConnectorIds,
+            status: "ACTIVE",
+          }),
+        });
+        if (!createRes.ok) {
+          throw new Error("Failed to create section");
+        }
+      }
 
       if (res.ok) {
         alert("Template updated successfully!");
@@ -324,6 +361,7 @@ export default function ReportsStudioClient() {
           jurisdiction: editFormData.jurisdiction || "",
           formats: editFormData.formats || ["markdown"],
           status: editFormData.status || "ACTIVE",
+          connectors: updatedConnectors,
         }),
       });
 
@@ -334,13 +372,16 @@ export default function ReportsStudioClient() {
       const orderedSections = (editFormData.sections || []).map((section, idx) => ({
         ...section,
         order: idx + 1,
+        vectorPolicyJson:
+          section.sourceMode === "custom" && section.customConnectorIds?.length
+            ? { connectorIds: section.customConnectorIds }
+            : null,
       }));
       for (const section of orderedSections) {
-        await fetch("/api/template-sections", {
+        await fetch(`/api/templates/${template.id}/sections`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            templateId: template.id,
             title: section.title,
             purpose: section.purpose,
             order: section.order,
@@ -350,6 +391,7 @@ export default function ReportsStudioClient() {
             targetLengthMax: section.targetLengthMax,
             sourceMode: section.sourceMode,
             writingStyle: section.writingStyle,
+            vectorPolicyJson: section.vectorPolicyJson,
             customConnectorIds: section.customConnectorIds,
             status: "ACTIVE",
           }),
@@ -451,6 +493,16 @@ export default function ReportsStudioClient() {
     } catch (error) {
       console.error("Failed to load vector stores:", error);
     }
+  }
+
+  function formatCustomSources(ids?: string[]) {
+    if (!ids || ids.length === 0) return "None";
+    return ids
+      .map((id) => {
+        const store = availableVectorStores.find((vs) => vs.id === id);
+        return store ? store.name : id;
+      })
+      .join(", ");
   }
 
   function handleConnectorTypeToggle(type: string) {
@@ -559,6 +611,34 @@ export default function ReportsStudioClient() {
 
     setLoading(true);
     try {
+      // Build connectors array from selected sources
+      const updatedConnectors: any[] = [];
+
+      if (selectedConnectorTypes.includes("VECTOR")) {
+        for (const storeId of selectedVectorStores) {
+          const store = availableVectorStores.find(s => s.id === storeId);
+          if (store) {
+            const fileIds = selectedFiles[storeId] || [];
+            updatedConnectors.push({
+              type: "VECTOR",
+              name: store.name,
+              metadata: {
+                vectorStoreId: store.id,
+                fileIds: fileIds,
+              },
+            });
+          }
+        }
+      }
+
+      if (selectedConnectorTypes.includes("WEB_SEARCH")) {
+        updatedConnectors.push({
+          type: "WEB_SEARCH",
+          name: "Web Search",
+          metadata: {},
+        });
+      }
+
       // Step 1: Create template
       const templateRes = await fetch("/api/templates", {
         method: "POST",
@@ -572,6 +652,7 @@ export default function ReportsStudioClient() {
           jurisdiction,
           formats,
           status: "ACTIVE",
+          connectors: updatedConnectors,
         }),
       });
 
@@ -582,14 +663,17 @@ export default function ReportsStudioClient() {
       const orderedSections = sections.map((section, idx) => ({
         ...section,
         order: idx + 1,
+        vectorPolicyJson:
+          section.sourceMode === "custom" && section.customConnectorIds?.length
+            ? { connectorIds: section.customConnectorIds }
+            : null,
       }));
       setSections(orderedSections);
       for (const section of orderedSections) {
-        await fetch("/api/template-sections", {
+        await fetch(`/api/templates/${template.id}/sections`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            templateId: template.id,
             title: section.title,
             purpose: section.purpose,
             order: section.order,
@@ -597,6 +681,9 @@ export default function ReportsStudioClient() {
             evidencePolicy: section.evidencePolicy,
             targetLengthMin: section.targetLengthMin,
             targetLengthMax: section.targetLengthMax,
+            sourceMode: section.sourceMode,
+            writingStyle: section.writingStyle,
+            vectorPolicyJson: section.vectorPolicyJson,
             status: "ACTIVE",
           }),
         });
@@ -901,6 +988,9 @@ export default function ReportsStudioClient() {
                             {section.writingStyle && (
                               <span> • Style: {writingStyles.find(s => s.id === section.writingStyle)?.name || section.writingStyle}</span>
                             )}
+                            {section.sourceMode === "custom" && (
+                              <span> • Custom Sources: {formatCustomSources(section.customConnectorIds)}</span>
+                            )}
                           </p>
                         </div>
                       </div>
@@ -1067,6 +1157,9 @@ export default function ReportsStudioClient() {
                         <div className="form-group-compact">
                           <div className="custom-source-selector-wrapper">
                             <h4 className="custom-source-title">Custom Sources for this Section</h4>
+                            <p className="custom-source-summary">
+                              Selected: {formatCustomSources(section.customConnectorIds)}
+                            </p>
                             <VectorStoreSelector
                               selectedVectorStores={section.customConnectorIds || []}
                               onVectorStoreChange={(storeIds) => updateSection(index, "customConnectorIds", storeIds)}
@@ -1513,6 +1606,16 @@ export default function ReportsStudioClient() {
                                           </select>
                                         </div>
                                       </div>
+                                      {section.sourceMode === "custom" && (
+                                        <div className="form-group-compact">
+                                          <div className="custom-source-selector-wrapper">
+                                            <h4 className="custom-source-title">Custom Sources for this Section</h4>
+                                            <p className="custom-source-summary">
+                                              Selected: {formatCustomSources(section.customConnectorIds)}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      )}
                                       
                                       {/* Writing Style Dropdown */}
                                       <div className="form-group-compact">
@@ -1567,6 +1670,11 @@ export default function ReportsStudioClient() {
                                         <span>Writing Style: {writingStyles.find(s => s.id === section.writingStyle)?.name || section.writingStyle}</span>
                                       )}
                                     </div>
+                                    {section.sourceMode === "custom" && (
+                                      <div className="section-detail-meta">
+                                        <span>Custom Sources: {formatCustomSources(section.customConnectorIds)}</span>
+                                      </div>
+                                    )}
                                   </div>
                                 ))}
                               </div>

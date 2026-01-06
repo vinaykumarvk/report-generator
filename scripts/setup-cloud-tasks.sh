@@ -212,3 +212,5 @@ echo ""
 echo -e "${YELLOW}💾 Save these environment variables securely!${NC}"
 echo -e "${YELLOW}   Especially: WORKER_TRIGGER_SECRET=${TRIGGER_SECRET}${NC}"
 echo ""
+
+

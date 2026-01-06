@@ -63,30 +63,28 @@ describe("POST /api/report-runs/:runId/export", () => {
   });
 
   it("returns 400 for invalid format", async () => {
-    mockRunSingle.mockResolvedValueOnce({
-      data: { id: "run-1", workspace_id: "workspace-1" },
-      error: null,
-    });
-
-    const req = new Request("http://localhost/api/report-runs/run-1/export", {
+    const runId = "550e8400-e29b-41d4-a716-446655440000";
+    const req = new Request(`http://localhost/api/report-runs/${runId}/export`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ format: "INVALID" }),
     });
 
-    const res = await POST(req, { params: { runId: "run-1" } });
+    const res = await POST(req, { params: { runId } });
     expect(res.status).toBe(400);
     const data = await res.json();
-    expect(data.error).toContain("format must be");
+    expect(data.error?.code).toBe("VALIDATION_ERROR");
+    expect(data.error?.details?.some((detail: { path: string }) => detail.path === "format")).toBe(true);
   });
 
   it("returns jobId and exportId for valid request", async () => {
+    const runId = "550e8400-e29b-41d4-a716-446655440000";
     // Mock UUID generation to return a valid UUID
     const randomSpy = jest
       .spyOn(crypto, "randomUUID")
-      .mockReturnValueOnce("550e8400-e29b-41d4-a716-446655440000" as `${string}-${string}-${string}-${string}-${string}`);
+      .mockReturnValueOnce("a77c4a94-8e31-43ad-9c1f-5f42d2f3fd15" as `${string}-${string}-${string}-${string}-${string}`);
     mockRunSingle.mockResolvedValueOnce({
-      data: { id: "run-1", workspace_id: "workspace-1" },
+      data: { id: runId, workspace_id: "workspace-1" },
       error: null,
     });
     mockExportInsert.mockResolvedValueOnce({ error: null });
@@ -94,7 +92,7 @@ describe("POST /api/report-runs/:runId/export", () => {
       data: {
         id: "job-123",
         type: "EXPORT",
-        run_id: "run-1",
+        run_id: runId,
         section_run_id: null,
         workspace_id: "workspace-1",
       },
@@ -102,17 +100,17 @@ describe("POST /api/report-runs/:runId/export", () => {
     });
     mockRunEventInsert.mockResolvedValueOnce({ error: null });
 
-    const req = new Request("http://localhost/api/report-runs/run-1/export", {
+    const req = new Request(`http://localhost/api/report-runs/${runId}/export`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ format: "MARKDOWN" }),
     });
 
-    const res = await POST(req, { params: { runId: "run-1" } });
+    const res = await POST(req, { params: { runId } });
     expect(res.status).toBe(202);
     const data = await res.json();
     expect(data.jobId).toBe("job-123");
-    expect(data.exportId).toBe("export-123");
+    expect(data.exportId).toBe("a77c4a94-8e31-43ad-9c1f-5f42d2f3fd15");
     randomSpy.mockRestore();
   });
 });

@@ -18,3 +18,5 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_jobs_status_created
 -- Then verify it worked:
 -- SELECT indexname FROM pg_indexes WHERE indexname = 'idx_jobs_status_created';
 
+
+

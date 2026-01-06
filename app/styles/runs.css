@@ -263,6 +263,12 @@
   color: var(--text-secondary);
 }
 
+.run-status-note {
+  font-size: 0.875rem;
+  color: var(--text-tertiary);
+  margin-top: var(--space-2);
+}
+
 .status-COMPLETED {
   background: var(--success-bg);
   color: var(--success);

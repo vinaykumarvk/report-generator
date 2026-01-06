@@ -163,3 +163,5 @@ echo -e "${YELLOW}💾 SAVE THIS SECRET:${NC}"
 echo -e "   WORKER_TRIGGER_SECRET=${TRIGGER_SECRET}"
 echo ""
 
+
+

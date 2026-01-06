@@ -358,3 +358,5 @@ gcloud run services delete report-generator-worker --region europe-west1
 - **Deployment Guide**: See `DEPLOYMENT.md`
 - **Production Fix Guide**: See `PRODUCTION-FIX.md`
 
+
+

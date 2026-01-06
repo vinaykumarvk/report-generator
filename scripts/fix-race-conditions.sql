@@ -213,3 +213,5 @@ GRANT EXECUTE ON FUNCTION cleanup_stale_jobs(INTEGER) TO authenticated, service_
 -- Test cleanup of stale jobs (jobs claimed > 30 min ago)
 -- SELECT cleanup_stale_jobs(30);
 
+
+

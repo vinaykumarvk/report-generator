@@ -38,6 +38,7 @@ export async function GET(
       evidencePolicy: s.evidence_policy,
       writingStyle: s.writing_style,
       sourceMode: s.source_mode || 'inherit',
+      customConnectorIds: s.vector_policy_json?.connectorIds || [],
       targetLengthMin: s.target_length_min,
       targetLengthMax: s.target_length_max,
       status: s.status,
@@ -150,8 +151,36 @@ export async function PUT(
 
   // Update sections if provided
   if (Array.isArray(body.sections)) {
+    const keepSectionIds = body.sections
+      .map((section: any) => section.id)
+      .filter((id: any) => typeof id === "string" && id.length > 0);
+
+    const { data: existingSections, error: listSectionsError } = await supabase
+      .from("template_sections")
+      .select("id")
+      .eq("template_id", params.templateId);
+    assertNoSupabaseError(listSectionsError, "Failed to load template sections");
+
+    const existingIds = (existingSections || []).map((section: any) => section.id);
+    const toDelete = existingIds.filter((id: string) => !keepSectionIds.includes(id));
+
+    if (toDelete.length > 0) {
+      const { error: deleteSectionsError } = await supabase
+        .from("template_sections")
+        .delete()
+        .eq("template_id", params.templateId)
+        .in("id", toDelete);
+      assertNoSupabaseError(deleteSectionsError, "Failed to delete template sections");
+    }
+
     for (const section of body.sections) {
       if (section.id) {
+        const nextVectorPolicyJson =
+          section.vectorPolicyJson ??
+          (section.sourceMode === "custom"
+            ? { connectorIds: Array.isArray(section.customConnectorIds) ? section.customConnectorIds : [] }
+            : null);
+
         // Update existing section
         await supabase
           .from("template_sections")
@@ -165,6 +194,7 @@ export async function PUT(
             target_length_min: section.targetLengthMin,
             target_length_max: section.targetLengthMax,
             order: section.order,
+            vector_policy_json: nextVectorPolicyJson,
           })
           .eq("id", section.id)
           .eq("template_id", params.templateId);

@@ -297,3 +297,5 @@ CREATE TABLE jobs (
 
 The worker is **already discoverable** by the web service because they both connect to the same database!
 
+
+

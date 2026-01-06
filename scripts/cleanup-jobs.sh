@@ -26,3 +26,5 @@ fi
 # Run the Node.js script
 node scripts/cleanup-jobs.js "$@"
 
+
+

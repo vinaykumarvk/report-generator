@@ -94,3 +94,5 @@ SELECT COUNT(*) FROM pg_indexes WHERE indexname LIKE 'idx_%';
 
 See: `scripts/INDEX-APPLICATION-GUIDE.md` for detailed instructions.
 
+
+

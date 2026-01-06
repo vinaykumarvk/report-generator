@@ -68,3 +68,5 @@ WHERE schemaname = 'public'
 AND indexname LIKE 'idx_%'
 ORDER BY tablename, indexname;
 
+
+

@@ -107,3 +107,5 @@ GRANT EXECUTE ON FUNCTION claim_next_job(TEXT, INTEGER) TO authenticated, servic
 -- SELECT id, status, locked_by FROM jobs WHERE status = 'RUNNING';
 -- Should show jobs locked by different workers
 
+
+

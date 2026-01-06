@@ -162,3 +162,5 @@ gcloud run services update report-generator-worker --region europe-west1
 
 **Ready to deploy?** Follow steps above or see `CRITICAL-FIXES-SUMMARY.md` for full details.
 
+
+

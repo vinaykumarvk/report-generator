@@ -336,3 +336,5 @@ gcloud run services update report-generator \
 - `ARCHITECTURE.md` - How services communicate
 - Cloud Run Docs: https://cloud.google.com/run/docs/about-instance-autoscaling
 
+
+

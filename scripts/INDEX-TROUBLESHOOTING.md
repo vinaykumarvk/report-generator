@@ -173,3 +173,5 @@ After running the index script:
 
 **Still stuck?** Share the exact error message and I'll create a custom fix for your schema.
 
+
+

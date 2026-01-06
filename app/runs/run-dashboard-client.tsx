@@ -9,6 +9,7 @@ type Run = {
   id: string;
   status?: string;
   created_at?: string;
+  started_at?: string | null;
   completed_at?: string | null;
   template_version_snapshot_json?: { name?: string };
   template_id?: string;
@@ -21,6 +22,22 @@ type TemplateSection = {
   purpose?: string;
   outputFormat?: string;
   evidencePolicy?: string;
+  sourceMode?: "inherit" | "custom";
+  customConnectorIds?: string[];
+};
+
+type TemplateConnector = {
+  type: string;
+  name: string;
+  metadata?: {
+    vectorStoreId?: string;
+    fileIds?: string[];
+  };
+};
+
+type VectorStore = {
+  id: string;
+  name: string;
 };
 
 type Template = {
@@ -28,6 +45,7 @@ type Template = {
   name: string;
   description?: string;
   sections?: TemplateSection[];
+  connectors?: TemplateConnector[];
 };
 
 type SectionOverrideState = {
@@ -49,6 +67,63 @@ function statusClass(status?: string) {
   return `badge status-${status}`;
 }
 
+function formatTemplateSources(template?: Template) {
+  // Defensive: check both connectors and sources_json
+  const connectors = template?.connectors || [];
+  const sourcesJson = (template as any)?.sources_json;
+  
+  // If connectors is empty but sources_json exists, use that
+  let effectiveConnectors = connectors;
+  if (connectors.length === 0 && Array.isArray(sourcesJson) && sourcesJson.length > 0) {
+    effectiveConnectors = sourcesJson;
+  }
+  
+  if (effectiveConnectors.length === 0) return "None";
+  const vectorNames = effectiveConnectors
+    .filter((connector) => connector.type === "VECTOR")
+    .map((connector) => connector.name)
+    .filter(Boolean);
+  const hasWeb = effectiveConnectors.some((connector) => connector.type === "WEB_SEARCH");
+  const parts = [];
+  if (vectorNames.length > 0) {
+    parts.push(`Vector: ${vectorNames.join(", ")}`);
+  }
+  if (hasWeb) {
+    parts.push("Web Search");
+  }
+  return parts.join(" • ");
+}
+
+function resolveVectorStoreName(id: string, vectorStores: VectorStore[], template?: Template) {
+  const known = vectorStores.find((store) => store.id === id);
+  if (known) return known.name;
+  if (!template?.connectors?.length) return id;
+  const match = template.connectors.find(
+    (connector) =>
+      connector.type === "VECTOR" && connector.metadata?.vectorStoreId === id
+  );
+  return match?.name || id;
+}
+
+function formatSectionSources(
+  section: TemplateSection,
+  vectorStores: VectorStore[],
+  template?: Template
+) {
+  if (!template) {
+    return "Template not loaded";
+  }
+  
+  if (section.sourceMode === "custom") {
+    const ids = section.customConnectorIds || [];
+    if (ids.length === 0) return "Custom: None";
+    return `Custom: ${ids.map((id) => resolveVectorStoreName(id, vectorStores, template)).join(", ")}`;
+  }
+  
+  const inherited = formatTemplateSources(template);
+  return `Inherited: ${inherited}`;
+}
+
 export default function RunDashboardClient({ initialTab }: { initialTab?: "create" | "view" }) {
   const router = useRouter();
   const [activeTab] = useState<"create" | "view">(initialTab || "view");
@@ -61,6 +136,7 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
   const [sectionOverrides, setSectionOverrides] = useState<Record<string, SectionOverrideState>>({});
   const [loading, setLoading] = useState(true);
   const [loadingTemplates, setLoadingTemplates] = useState(true);
+  const [availableVectorStores, setAvailableVectorStores] = useState<VectorStore[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [actionStatus, setActionStatus] = useState<Record<string, string>>({});
   const [createError, setCreateError] = useState<string | null>(null);
@@ -96,9 +172,20 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
       const res = await fetch("/api/templates", { cache: "no-store" });
       if (!res.ok) throw new Error("Failed to load templates");
       const data = await res.json();
-      setTemplates(Array.isArray(data) ? data : []);
-      if (!selectedTemplateId && Array.isArray(data) && data.length > 0) {
-        setSelectedTemplateId(data[0].id);
+      const templatesArray = Array.isArray(data) ? data : [];
+      
+      // Debug: Log template data to verify connectors are present
+      const solutionsTemplate = templatesArray.find(t => 
+        t.name && t.name.toLowerCase().includes('solutions')
+      );
+      if (solutionsTemplate) {
+        console.log('[Debug] Solutions template connectors:', solutionsTemplate.connectors?.length || 0);
+        console.log('[Debug] Solutions template sources_json:', solutionsTemplate.sources_json?.length || 0);
+      }
+      
+      setTemplates(templatesArray);
+      if (!selectedTemplateId && templatesArray.length > 0) {
+        setSelectedTemplateId(templatesArray[0].id);
       }
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : "Failed to load templates");
@@ -252,20 +339,35 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
     loadTemplates();
   }, [loadRuns, loadTemplates]);
 
-  // Auto-refresh when runs are QUEUED or RUNNING
   useEffect(() => {
-    const hasActiveRuns = runs.some(
-      (r) => r.status === "QUEUED" || r.status === "RUNNING"
-    );
-    
-    if (!hasActiveRuns) return;
-    
-    const interval = setInterval(() => {
-      loadRuns();
-    }, 10000); // Refresh every 10 seconds
-    
-    return () => clearInterval(interval);
-  }, [runs, loadRuns]);
+    if (activeTab !== "create") return;
+    const loadVectorStores = async () => {
+      try {
+        const res = await fetch("/api/openai/vector-stores");
+        if (!res.ok) return;
+        const data = await res.json();
+        const stores = Array.isArray(data) ? data : (data.data || []);
+        setAvailableVectorStores(stores);
+      } catch (err) {
+        console.warn("Failed to load vector stores for display", err);
+      }
+    };
+    loadVectorStores();
+  }, [activeTab]);
+
+  // Auto-refresh when runs are QUEUED or RUNNING
+  function formatElapsed(run: Run) {
+    const start = run.started_at || run.created_at;
+    if (!start) return "—";
+    const elapsedMs = Date.now() - new Date(start).getTime();
+    if (!Number.isFinite(elapsedMs) || elapsedMs < 0) return "—";
+    const minutes = Math.floor(elapsedMs / 60000);
+    const seconds = Math.floor((elapsedMs % 60000) / 1000);
+    if (minutes > 0) {
+      return `${minutes}m ${seconds.toString().padStart(2, "0")}s`;
+    }
+    return `${seconds}s`;
+  }
 
   useEffect(() => {
     const template = templates.find((item) => item.id === selectedTemplateId);
@@ -277,9 +379,11 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
       const next: Record<string, SectionOverrideState> = {};
       template.sections?.forEach((section) => {
         const existing = prev[section.id];
+        const defaultVectorStoreIds =
+          section.sourceMode === "custom" ? section.customConnectorIds || [] : [];
         next[section.id] = {
           enabled: existing?.enabled ?? false,
-          vectorStoreIds: existing?.vectorStoreIds ?? [],
+          vectorStoreIds: existing?.vectorStoreIds ?? defaultVectorStoreIds,
           vectorFileIds: existing?.vectorFileIds ?? {},
           webSearchEnabled:
             existing?.webSearchEnabled ??
@@ -291,6 +395,15 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
   }, [selectedTemplateId, templates]);
 
   const selectedTemplate = templates.find((item) => item.id === selectedTemplateId);
+  
+  // Debug: Log selected template state (only in development)
+  useEffect(() => {
+    if (selectedTemplate && process.env.NODE_ENV === 'development') {
+      console.log('[Debug] Selected template connectors:', selectedTemplate.connectors?.length || 0);
+      console.log('[Debug] Selected template sources_json:', (selectedTemplate as any).sources_json?.length || 0);
+      console.log('[Debug] formatTemplateSources result:', formatTemplateSources(selectedTemplate));
+    }
+  }, [selectedTemplate]);
 
   return (
     <div className="page-container">
@@ -349,6 +462,11 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
             <div className="mt-6">
               <h3>Section Source Overrides (Optional)</h3>
               <p className="muted">Override default sources for specific sections if needed.</p>
+              {selectedTemplate && (
+                <div className="muted mt-2">
+                  Template sources: {formatTemplateSources(selectedTemplate)}
+                </div>
+              )}
               {!selectedTemplate?.sections?.length && (
                 <div className="muted">Select a template to configure sources.</div>
               )}
@@ -361,6 +479,23 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
                         <strong>{section.title}</strong>
                         <div className="muted">
                           Default policy: {section.evidencePolicy || "LLM_ONLY"}
+                        </div>
+                        <div className="muted">
+                          {selectedTemplate 
+                            ? (() => {
+                                const sources = formatSectionSources(section, availableVectorStores, selectedTemplate);
+                                // Debug in console if sources show "None"
+                                if (sources.includes("None") && process.env.NODE_ENV === 'development') {
+                                  console.warn('[Debug] Sources showing None:', {
+                                    templateId: selectedTemplate.id,
+                                    connectors: selectedTemplate.connectors?.length || 0,
+                                    sources_json: (selectedTemplate as any).sources_json?.length || 0,
+                                    sectionSourceMode: section.sourceMode
+                                  });
+                                }
+                                return sources;
+                              })()
+                            : "Loading template..."}
                         </div>
                       </div>
                       <label className="flex items-center">
@@ -492,23 +627,8 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
             <div className="runs-header">
               <div>
                 <h2>Generated Reports</h2>
-                <p className="muted">
-                  Check live status for long-running jobs.
-                  {runs.some((r) => r.status === "QUEUED" || r.status === "RUNNING") && (
-                    <span style={{ marginLeft: "0.5rem", color: "var(--color-accent)" }}>
-                      • Auto-refreshing every 10s
-                    </span>
-                  )}
-                </p>
+                <p className="muted">Check live status for long-running jobs.</p>
               </div>
-              <button
-                type="button"
-                className="secondary"
-                onClick={refreshStatus}
-                disabled={isRefreshing}
-              >
-                {isRefreshing ? "Refreshing..." : "🔄 Refresh Status"}
-              </button>
             </div>
 
             {/* Search, Filter, Sort Controls */}
@@ -660,12 +780,28 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
                         <span className="run-meta-label">Completed</span>
                         <span className="run-meta-value">{formatTimestamp(run.completed_at)}</span>
                       </div>
+                      {run.status === "RUNNING" && (
+                        <div className="run-meta-item">
+                          <span className="run-meta-label">Elapsed</span>
+                          <span className="run-meta-value">{formatElapsed(run)}</span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="run-actions">
                       {run.status === "DRAFT" && (
                         <button type="button" onClick={() => runAction(run.id, "start")}>
                           Start
+                        </button>
+                      )}
+                      {run.status === "RUNNING" && (
+                        <button
+                          type="button"
+                          className="secondary"
+                          onClick={refreshStatus}
+                          disabled={isRefreshing}
+                        >
+                          {isRefreshing ? "Refreshing..." : "Refresh Status"}
                         </button>
                       )}
                       {run.status === "COMPLETED" && (
@@ -728,6 +864,12 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
                         View Details
                       </Link>
                     </div>
+
+                    {run.status === "RUNNING" && (
+                      <div className="run-status-note">
+                        This report usually completes in about 5–15 minutes. You can come back later and refresh the page.
+                      </div>
+                    )}
 
                     {actionStatus[run.id] && (
                       <div className="action-status" aria-live="polite">

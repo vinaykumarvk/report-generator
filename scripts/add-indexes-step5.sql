@@ -7,3 +7,5 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_templates_workspace
 -- Verify:
 -- SELECT indexname FROM pg_indexes WHERE indexname = 'idx_templates_workspace';
 
+
+

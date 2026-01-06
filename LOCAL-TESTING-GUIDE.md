@@ -365,3 +365,5 @@ If you encounter any issues, check:
 2. Next.js logs: Check terminal where `npm run dev` is running
 3. Database: Use Supabase dashboard to inspect `exports` and `jobs` tables
 
+
+

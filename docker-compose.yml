@@ -51,6 +51,20 @@ services:
     volumes:
       - ./ops/storage/create-bucket.sh:/init/create-bucket.sh:ro
 
+  worker:
+    build: .
+    environment:
+      SERVICE_MODE: worker
+      PORT: 8080
+    env_file:
+      - .env.local
+    ports:
+      - '8080:8080'
+    depends_on:
+      - db
+      - redis
+      - storage
+
 volumes:
   db-data:
   redis-data:

@@ -47,3 +47,5 @@ echo "🔍 Verify with:"
 echo "  psql \$SUPABASE_DB_URL -c '\\d+ jobs'"
 echo "  psql \$SUPABASE_DB_URL -c 'SELECT indexname FROM pg_indexes WHERE tablename = '\''jobs'\'';'"
 
+
+

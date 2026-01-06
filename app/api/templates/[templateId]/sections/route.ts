@@ -18,6 +18,11 @@ export async function POST(
   }
 
   const body = await request.json();
+  const vectorPolicyJson =
+    body.vectorPolicyJson ??
+    (body.sourceMode === "custom"
+      ? { connectorIds: Array.isArray(body.customConnectorIds) ? body.customConnectorIds : [] }
+      : null);
   const { data: section, error: createError } = await supabase
     .from("template_sections")
     .insert({
@@ -26,6 +31,8 @@ export async function POST(
       order: typeof body.order === "number" ? body.order : 1,
       purpose: body.purpose || null,
       output_format: body.outputFormat || "NARRATIVE",
+      writing_style: body.writingStyle || null,
+      source_mode: body.sourceMode || "inherit",
       target_length_min: Number.isFinite(body.targetLengthMin)
         ? body.targetLengthMin
         : null,
@@ -34,7 +41,7 @@ export async function POST(
         : null,
       dependencies: Array.isArray(body.dependencies) ? body.dependencies : [],
       evidence_policy: body.evidencePolicy || null,
-      vector_policy_json: body.vectorPolicyJson || null,
+      vector_policy_json: vectorPolicyJson,
       web_policy_json: body.webPolicyJson || null,
       quality_gates_json: body.qualityGatesJson || null,
       prompt: body.prompt || null,

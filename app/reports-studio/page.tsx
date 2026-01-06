@@ -8,3 +8,5 @@ export const metadata: Metadata = {
 export default function ReportsStudioPage() {
   return <ReportsStudioClient />;
 }
+
+

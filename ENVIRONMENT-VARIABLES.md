@@ -475,3 +475,5 @@ Look for:
 **Not needed:**
 - SUPABASE_DB_PASSWORD (not used by the app)
 - PORT (Cloud Run sets this automatically)
+
+

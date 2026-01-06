@@ -380,3 +380,5 @@ For these requirements, database queue is the **right choice**! 🎯
 - [Queue vs Direct Call Trade-offs](https://aws.amazon.com/message-queue/)
 - [Event-Driven Architecture](https://cloud.google.com/eventarc/docs/overview)
 
+
+

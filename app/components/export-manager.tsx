@@ -33,19 +33,31 @@ function formatExportExtension(format: ExportFormat): string {
   }
 }
 
-function openExportLink(url: string, filename: string) {
-  const opened = window.open(url, "_blank", "noopener");
-  if (opened) {
-    return;
+async function openExportLink(url: string, filename: string) {
+  // Use fetch + blob for proper download handling
+  // This works better with redirects and ensures files download instead of opening
+  try {
+    const response = await fetch(url, { method: 'GET', redirect: 'follow' });
+    if (!response.ok) {
+      throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+    }
+    
+    // Get the final URL (after any redirects)
+    const finalUrl = response.url;
+    const blob = await fetch(finalUrl).then(r => r.blob());
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(blobUrl);
+  } catch (error) {
+    console.error('Download error:', error);
+    // Fallback to window.open if fetch fails
+    window.open(url, "_blank", "noopener");
   }
-  const link = document.createElement("a");
-  link.href = url;
-  link.target = "_blank";
-  link.rel = "noopener";
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
 }
 
 function selectLatestExport(

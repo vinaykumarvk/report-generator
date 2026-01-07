@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Search } from "lucide-react";
 
 type VectorStore = {
   id: string;
@@ -136,7 +137,7 @@ export default function VectorStoreSelector({
       {/* Search input for vector stores */}
       <input
         type="text"
-        placeholder="🔍 Search vector stores by name..."
+        placeholder="Search vector stores by name..."
         value={storeSearch}
         onChange={(e) => setStoreSearch(e.target.value)}
         style={{
@@ -234,7 +235,7 @@ export default function VectorStoreSelector({
                       {/* Search input for files */}
                       <input
                         type="text"
-                        placeholder="🔍 Search files by name..."
+                        placeholder="Search files by name..."
                         value={fileSearch[store.id] || ""}
                         onChange={(e) => setFileSearch((prev) => ({ ...prev, [store.id]: e.target.value }))}
                         style={{

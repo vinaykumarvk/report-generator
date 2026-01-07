@@ -1311,7 +1311,7 @@ export default function ReportsStudioClient() {
               {selectedConnectorTypes.includes("WEB_SEARCH") && (
                 <div className="form-group-compact">
                   <p className="info-message">
-                    ✓ Web search will be enabled for this report
+                    <Check className="inline-icon" size={14} /> Web search will be enabled for this report
                   </p>
                 </div>
               )}
@@ -1795,7 +1795,7 @@ export default function ReportsStudioClient() {
                         aria-label="Delete template"
                         title="Delete"
                       >
-                        🗑️
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </div>
@@ -2370,8 +2370,8 @@ export default function ReportsStudioClient() {
                             </div>
                           )}
                           <div className="saved-template-meta">
-                            <span>📄 {template.sections?.length || 0} Sections</span>
-                            <span>🔌 {template.connectors?.length || 0} Sources</span>
+                            <span><File className="inline-icon" size={14} /> {template.sections?.length || 0} Sections</span>
+                            <span><Plug className="inline-icon" size={14} /> {template.connectors?.length || 0} Sources</span>
                           </div>
                         </div>
                         
@@ -2945,7 +2945,7 @@ export default function ReportsStudioClient() {
 
           {!loading && filteredTemplates.length === 0 && (
             <div className="empty-state">
-              <div className="empty-state-icon">📄</div>
+              <div className="empty-state-icon"><File size={48} /></div>
               <h3>No Templates Found</h3>
               <p>
                 {searchTerm 

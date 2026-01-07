@@ -23,5 +23,6 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/workers ./workers
 COPY --from=builder /app/src ./src
+COPY --from=builder /app/data ./data
 EXPOSE 8080
 CMD ["npm", "run", "start"]

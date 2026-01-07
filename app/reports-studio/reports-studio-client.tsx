@@ -466,9 +466,12 @@ export default function ReportsStudioClient() {
 
   async function loadWritingStyles() {
     try {
+      console.log("Loading writing styles...");
       const res = await fetch("/api/writing-styles");
+      console.log("Writing styles API response status:", res.status);
       if (res.ok) {
         const data = await res.json();
+        console.log("Writing styles API response data:", data);
         const styles = Array.isArray(data)
           ? data
           : Array.isArray(data.writing_styles)
@@ -480,7 +483,14 @@ export default function ReportsStudioClient() {
           : Array.isArray(data.data?.writing_styles)
           ? data.data.writing_styles
           : [];
+        console.log("Extracted writing styles:", styles.length, "styles");
+        if (styles.length > 0) {
+          console.log("First style:", styles[0]);
+        }
         setWritingStyles(styles);
+      } else {
+        const errorText = await res.text();
+        console.error("Writing styles API error:", res.status, errorText);
       }
     } catch (error) {
       console.error("Failed to load writing styles:", error);

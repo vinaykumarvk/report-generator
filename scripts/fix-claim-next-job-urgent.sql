@@ -1,5 +1,5 @@
--- Comprehensive Fix for claim_next_job Function
--- This script implements all recommended improvements
+-- URGENT FIX: claim_next_job function with resolved ambiguity
+-- This fixes the "column reference status is ambiguous" error
 
 DROP FUNCTION IF EXISTS claim_next_job(TEXT, INTEGER);
 
@@ -7,14 +7,13 @@ CREATE OR REPLACE FUNCTION claim_next_job(
   worker_id TEXT,
   lease_seconds INTEGER DEFAULT 300
 )
-RETURNS SETOF jobs 
+RETURNS SETOF jobs
 LANGUAGE plpgsql
 AS $$
 DECLARE
   now_ts TIMESTAMPTZ := NOW();
   lock_expires TIMESTAMPTZ := now_ts + (lease_seconds || ' seconds')::INTERVAL;
   job_record jobs%ROWTYPE;
-  was_reclaimed BOOLEAN := FALSE;
   previous_worker TEXT;
 BEGIN
   -- First, try to find and reclaim a RUNNING job with expired lock
@@ -31,7 +30,6 @@ BEGIN
 
   -- If found an expired RUNNING job, reclaim it
   IF FOUND THEN
-    was_reclaimed := TRUE;
     previous_worker := job_record.locked_by;
     
     -- Check if max_attempts exceeded
@@ -147,125 +145,5 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION reap_expired_jobs(
-  max_age_minutes INTEGER DEFAULT 60
-)
-RETURNS TABLE (
-  jobs_reclaimed INTEGER,
-  jobs_failed INTEGER,
-  details JSONB
-)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-  now_ts TIMESTAMPTZ := NOW();
-  age_threshold TIMESTAMPTZ := now_ts - (max_age_minutes || ' minutes')::INTERVAL;
-  reclaimed_count INTEGER := 0;
-  failed_count INTEGER := 0;
-  job_details JSONB := '[]'::JSONB;
-  job_record jobs%ROWTYPE;
-BEGIN
-  -- Find RUNNING jobs with expired locks that are older than threshold
-  FOR job_record IN
-    SELECT j.*
-      FROM jobs j
-     WHERE j.status = 'RUNNING'
-       AND j.lock_expires_at < now_ts
-       AND j.updated_at < age_threshold
-       AND j.scheduled_at <= now_ts
-     ORDER BY j.updated_at ASC
-     FOR UPDATE SKIP LOCKED
-  LOOP
-    -- Check if max_attempts exceeded
-    IF (job_record.attempt_count IS NOT NULL AND job_record.attempt_count >= job_record.max_attempts) THEN
-      -- Mark as FAILED
-      UPDATE jobs
-         SET status = 'FAILED',
-             updated_at = now_ts,
-             last_error = COALESCE(last_error, '') || E'\n' || 
-                         format('Job exceeded max_attempts (%s) and was marked FAILED by reaper at %s', 
-                                job_record.max_attempts, now_ts)
-       WHERE jobs.id = job_record.id;
-      
-      failed_count := failed_count + 1;
-      
-      -- Emit audit event
-      INSERT INTO audit_logs (workspace_id, action_type, target_type, target_id, details_json)
-      VALUES (
-        job_record.workspace_id,
-        'JOB_FAILED_MAX_ATTEMPTS_REAPER',
-        'Job',
-        job_record.id,
-        jsonb_build_object(
-          'type', job_record.type,
-          'run_id', job_record.run_id,
-          'attempt_count', job_record.attempt_count,
-          'max_attempts', job_record.max_attempts,
-          'previous_worker', job_record.locked_by,
-          'reaped_at', now_ts
-        )
-      );
-      
-      -- Add to details
-      job_details := job_details || jsonb_build_object(
-        'action', 'failed',
-        'job_id', job_record.id,
-        'type', job_record.type,
-        'run_id', job_record.run_id
-      );
-    ELSE
-      -- Reset to QUEUED for reclaim
-      UPDATE jobs
-         SET status = 'QUEUED',
-             locked_by = NULL,
-             locked_at = NULL,
-             lock_expires_at = NULL,
-             updated_at = now_ts
-       WHERE jobs.id = job_record.id;
-      
-      reclaimed_count := reclaimed_count + 1;
-      
-      -- Emit audit event
-      INSERT INTO audit_logs (workspace_id, action_type, target_type, target_id, details_json)
-      VALUES (
-        job_record.workspace_id,
-        'JOB_REQUEUED_BY_REAPER',
-        'Job',
-        job_record.id,
-        jsonb_build_object(
-          'type', job_record.type,
-          'run_id', job_record.run_id,
-          'previous_worker', job_record.locked_by,
-          'reaped_at', now_ts
-        )
-      );
-      
-      -- Add to details
-      job_details := job_details || jsonb_build_object(
-        'action', 'requeued',
-        'job_id', job_record.id,
-        'type', job_record.type,
-        'run_id', job_record.run_id
-      );
-    END IF;
-  END LOOP;
-
-  RETURN QUERY SELECT 
-    reclaimed_count,
-    failed_count,
-    jsonb_build_object(
-      'reclaimed', reclaimed_count,
-      'failed', failed_count,
-      'jobs', job_details,
-      'reaped_at', now_ts
-    );
-END;
-$$;
-
 GRANT EXECUTE ON FUNCTION claim_next_job(TEXT, INTEGER) TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION reap_expired_jobs(INTEGER) TO authenticated, service_role;
-
-CREATE INDEX IF NOT EXISTS idx_jobs_expired_running 
-  ON jobs(status, lock_expires_at, scheduled_at, updated_at) 
-  WHERE status = 'RUNNING';
 

@@ -294,7 +294,7 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
         {/* Blueprint Details */}
         {run?.blueprint_json?.cohesion && (
           <div className="card">
-            <h2>📋 Report Blueprint</h2>
+            <h2><Clipboard className="inline-icon" size={20} /> Report Blueprint</h2>
             <p className="muted" style={{ marginTop: "-0.5rem", marginBottom: "1rem" }}>
               Cohesion guidelines that ensure consistency across all sections
             </p>

@@ -64,6 +64,7 @@ export default function ReportsStudioClient() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"master" | "regular">("master");
   const [createPanelsOpen, setCreatePanelsOpen] = useState({
     objectives: true,
     sources: true,
@@ -213,6 +214,7 @@ export default function ReportsStudioClient() {
   function cancelEditingTemplate() {
     setEditingTemplateId(null);
     setEditFormData({});
+    setIsMaster(false);
     // Clear source-related state
     setSelectedConnectorTypes([]);
     setSelectedVectorStores([]);
@@ -283,7 +285,8 @@ export default function ReportsStudioClient() {
       });
 
       if (!res.ok) {
-        throw new Error("Failed to update template");
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || "Failed to update template");
       }
 
       const newSections = orderedSections.filter(
@@ -1273,10 +1276,25 @@ export default function ReportsStudioClient() {
             />
           </div>
 
-          {/* Master Templates Section */}
-          {masterTemplates.length > 0 && (
+          {/* Tabs Navigation */}
+          <div className="templates-tabs">
+            <button
+              className={`tab-button ${activeTab === "master" ? "active" : ""}`}
+              onClick={() => setActiveTab("master")}
+            >
+              ⭐ Master Templates ({masterTemplates.length})
+            </button>
+            <button
+              className={`tab-button ${activeTab === "regular" ? "active" : ""}`}
+              onClick={() => setActiveTab("regular")}
+            >
+              📋 Regular Templates ({regularTemplates.length})
+            </button>
+          </div>
+
+          {/* Master Templates Tab */}
+          {activeTab === "master" && masterTemplates.length > 0 && (
             <div className="templates-section">
-              <h2 className="templates-section-title">⭐ Master Templates</h2>
               <div className="saved-templates-list">
                 {masterTemplates.map((template) => {
               const isExpanded = expandedTemplateId === template.id;
@@ -1783,10 +1801,15 @@ export default function ReportsStudioClient() {
             </div>
           )}
 
-          {/* Regular Templates Section */}
-          {regularTemplates.length > 0 && (
+          {activeTab === "master" && masterTemplates.length === 0 && (
+            <div className="empty-state">
+              <p>No master templates found.</p>
+            </div>
+          )}
+
+          {/* Regular Templates Tab */}
+          {activeTab === "regular" && regularTemplates.length > 0 && (
             <div className="templates-section">
-              <h2 className="templates-section-title">📋 Regular Templates</h2>
               <div className="saved-templates-list">
                 {regularTemplates.map((template) => {
                   const isExpanded = expandedTemplateId === template.id;
@@ -1872,6 +1895,12 @@ export default function ReportsStudioClient() {
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {activeTab === "regular" && regularTemplates.length === 0 && (
+            <div className="empty-state">
+              <p>No regular templates found.</p>
             </div>
           )}
 

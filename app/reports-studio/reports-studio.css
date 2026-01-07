@@ -4,6 +4,37 @@
   margin-top: 2rem;
 }
 
+/* Templates Tabs */
+.templates-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid var(--border-primary);
+}
+
+.tab-button {
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+
+.tab-button.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--primary-color);
+  font-weight: 600;
+}
+
 /* Templates Section Grouping */
 .templates-section {
   margin-bottom: 2rem;

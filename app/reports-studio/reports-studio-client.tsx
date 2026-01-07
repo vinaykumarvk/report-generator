@@ -3,7 +3,9 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import VectorStoreSelector from "./components/vector-store-selector";
 import ConfirmationDialog from "../components/confirmation-dialog";
+import StatusChip from "../components/status-chip";
 import "../components/confirmation-dialog.css";
+import "../components/status-chip.css";
 import "./reports-studio.css";
 
 type Template = {
@@ -103,6 +105,18 @@ export default function ReportsStudioClient() {
     message: "",
     onConfirm: () => {},
   });
+
+  // Status chip state for micro-feedback
+  const [statusChip, setStatusChip] = useState<{
+    message: string;
+    variant: "success" | "error" | "info" | "warning";
+  } | null>(null);
+
+  // Helper function to show status chip
+  const showStatusChip = (message: string, variant: "success" | "error" | "info" | "warning" = "success") => {
+    setStatusChip({ message, variant });
+    setTimeout(() => setStatusChip(null), 3000);
+  };
 
   // Form states - Objectives
   const [name, setName] = useState("");
@@ -467,7 +481,7 @@ export default function ReportsStudioClient() {
       }
 
       if (res.ok) {
-        alert("Template updated successfully!");
+        showStatusChip("Template updated successfully!", "success");
         setEditingTemplateId(null);
         setEditFormData({});
         setEditErrors({});
@@ -478,7 +492,7 @@ export default function ReportsStudioClient() {
         loadTemplates();
       }
     } catch (error: any) {
-      alert(error.message);
+      showStatusChip(error.message || "Failed to update template", "error");
     }
   }
 
@@ -590,10 +604,10 @@ export default function ReportsStudioClient() {
         }
       }
 
-      alert("Template saved as new copy!");
+      showStatusChip("Template saved as new copy!", "success");
       loadTemplates();
     } catch (error: any) {
-      alert(error.message);
+      showStatusChip(error.message || "Failed to save template", "error");
     }
   }
 
@@ -609,11 +623,11 @@ export default function ReportsStudioClient() {
       });
 
       if (res.ok) {
-        alert("Template cloned successfully!");
+        showStatusChip("Template cloned successfully!", "success");
         loadTemplates();
       }
     } catch (error: any) {
-      alert(error.message);
+      showStatusChip(error.message || "Failed to clone template", "error");
     }
   }
 
@@ -636,13 +650,13 @@ export default function ReportsStudioClient() {
           if (res.ok) {
             setExpandedTemplateId(null);
             loadTemplates();
-            // Show success message (could be enhanced with toast)
+            showStatusChip("Template deleted successfully!", "success");
           } else {
             const error = await res.json().catch(() => ({ error: "Failed to delete template" }));
-            alert(error.error || "Failed to delete template");
+            showStatusChip(error.error || "Failed to delete template", "error");
           }
         } catch (error: any) {
-          alert(error.message || "Failed to delete template");
+          showStatusChip(error.message || "Failed to delete template", "error");
         }
       },
     });
@@ -968,11 +982,11 @@ export default function ReportsStudioClient() {
         });
       }
 
-      alert("Report template created successfully!");
+      showStatusChip("Report template created successfully!", "success");
       resetForm();
       loadTemplates();
     } catch (error: any) {
-      alert(error.message);
+      showStatusChip(error.message || "Failed to create template", "error");
     } finally {
       setLoading(false);
     }
@@ -1019,6 +1033,18 @@ export default function ReportsStudioClient() {
         <div role="alert" className="offline-indicator" aria-live="assertive">
           <span>⚠️ You are currently offline. Some features may be limited.</span>
           <span className="offline-timestamp">Data may be cached.</span>
+        </div>
+      )}
+      
+      {/* Status Chip for Micro-Feedback */}
+      {statusChip && (
+        <div className="status-chip-container" style={{ position: "fixed", top: "1rem", right: "1rem", zIndex: 1000 }}>
+          <StatusChip
+            message={statusChip.message}
+            variant={statusChip.variant}
+            duration={3000}
+            onDismiss={() => setStatusChip(null)}
+          />
         </div>
       )}
       
@@ -1205,7 +1231,16 @@ export default function ReportsStudioClient() {
             {/* SECTION 2: SOURCES */}
             <div className="form-section panel-card">
               <div className="panel-header">
-                <h2 className="form-section-title">2. Sources</h2>
+                <div className="panel-header-content">
+                  <h2 className="form-section-title">
+                    <span className="section-number">2</span>
+                    <span>Sources</span>
+                    {(selectedConnectorTypes.length > 0 || selectedVectorStores.length > 0) && (
+                      <span className="section-completion-check" aria-label="Section completed">✓</span>
+                    )}
+                  </h2>
+                  <span className="section-progress">Step 2 of 3</span>
+                </div>
                 <button
                   className="btn-icon"
                   type="button"
@@ -1277,7 +1312,16 @@ export default function ReportsStudioClient() {
             {/* SECTION 3: SECTIONS */}
             <div className="form-section panel-card">
               <div className="form-section-header-compact panel-header">
-                <h2 className="form-section-title">3. Sections</h2>
+                <div className="panel-header-content">
+                  <h2 className="form-section-title">
+                    <span className="section-number">3</span>
+                    <span>Sections</span>
+                    {sections.length > 0 && sections.every(s => s.title && !createSectionErrors[s.id || `index-${sections.indexOf(s)}`]?.title) && (
+                      <span className="section-completion-check" aria-label="Section completed">✓</span>
+                    )}
+                  </h2>
+                  <span className="section-progress">Step 3 of 3</span>
+                </div>
                 <div className="panel-header-actions">
                   <button className="btn-secondary" type="button" onClick={addSection}>
                     + Add Section

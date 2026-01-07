@@ -1887,8 +1887,425 @@ export default function ReportsStudioClient() {
 
                       {isExpanded && (
                         <div className="saved-template-expanded">
-                          {/* Copy the expanded content structure from master templates above */}
-                          {/* For brevity, using the same structure - sections will be rendered the same way */}
+                          {/* 1. OBJECTIVES */}
+                          <div className="expanded-section panel-card">
+                            <div className="panel-header">
+                              <h4 className="expanded-section-title">1. Objectives {isEditing ? "(Editing)" : "(Read-only)"}</h4>
+                              {isEditing && (
+                                <button
+                                  className="btn-icon"
+                                  type="button"
+                                  onClick={() =>
+                                    setEditPanelsOpen((prev) => ({
+                                      ...prev,
+                                      objectives: !prev.objectives,
+                                    }))
+                                  }
+                                  title={editPanelsOpen.objectives ? "Collapse" : "Expand"}
+                                >
+                                  {editPanelsOpen.objectives ? "▲" : "▼"}
+                                </button>
+                              )}
+                            </div>
+                            {(!isEditing || editPanelsOpen.objectives) && (
+                              <div className="expanded-section-content panel-body">
+                              {isEditing ? (
+                                <>
+                                  <div className="form-group-compact">
+                                    <input
+                                      type="text"
+                                      value={editFormData.name || ""}
+                                      onChange={(e) => setEditFormData({...editFormData, name: e.target.value})}
+                                      placeholder="Report Name *"
+                                    />
+                                  </div>
+                                  <div className="form-group-compact">
+                                    <textarea
+                                      value={editFormData.description || ""}
+                                      onChange={(e) => setEditFormData({...editFormData, description: e.target.value})}
+                                      placeholder="Description"
+                                      rows={3}
+                                    />
+                                  </div>
+                                  <div className="form-group-compact">
+                                    <div className="two-column-row">
+                                      <input
+                                        type="text"
+                                        value={editFormData.audience || ""}
+                                        onChange={(e) => setEditFormData({...editFormData, audience: e.target.value})}
+                                        placeholder="Audience"
+                                      />
+                                      <input
+                                        type="text"
+                                        value={editFormData.tone || ""}
+                                        onChange={(e) => setEditFormData({...editFormData, tone: e.target.value})}
+                                        placeholder="Tone"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="form-group-compact">
+                                    <div className="two-column-row">
+                                      <input
+                                        type="text"
+                                        value={editFormData.domain || ""}
+                                        onChange={(e) => setEditFormData({...editFormData, domain: e.target.value})}
+                                        placeholder="Domain"
+                                      />
+                                      <input
+                                        type="text"
+                                        value={editFormData.jurisdiction || ""}
+                                        onChange={(e) => setEditFormData({...editFormData, jurisdiction: e.target.value})}
+                                        placeholder="Jurisdiction"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="form-group-compact">
+                                    <label className="checkbox-label-inline-compact">
+                                      <input
+                                        type="checkbox"
+                                        checked={isMaster}
+                                        onChange={(e) => setIsMaster(e.target.checked)}
+                                      />
+                                      Master Template
+                                    </label>
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="read-only-fields">
+                                  <div className="read-only-row"><strong>Report Name:</strong> {template.name}</div>
+                                  {template.description && <div className="read-only-row"><strong>Description:</strong> {template.description}</div>}
+                                  <div className="read-only-row">
+                                    {template.audience && <span><strong>Audience:</strong> {template.audience}</span>}
+                                    {template.tone && <span><strong>Tone:</strong> {template.tone}</span>}
+                                  </div>
+                                  <div className="read-only-row">
+                                    {template.domain && <span><strong>Domain:</strong> {template.domain}</span>}
+                                    {template.jurisdiction && <span><strong>Jurisdiction:</strong> {template.jurisdiction}</span>}
+                                  </div>
+                                  {template.formats && template.formats.length > 0 && (
+                                    <div className="read-only-row">
+                                      <strong>Formats:</strong> {template.formats.map(f => f.toUpperCase()).join(", ")}
+                                    </div>
+                                  )}
+                                  {template.isMaster && (
+                                    <div className="read-only-row">
+                                      <strong>⭐ Master Template</strong>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* 2. SOURCES */}
+                          <div className="expanded-section panel-card">
+                            <div className="panel-header">
+                              <h4 className="expanded-section-title">2. Sources</h4>
+                              {isEditing && (
+                                <button
+                                  className="btn-icon"
+                                  type="button"
+                                  onClick={() =>
+                                    setEditPanelsOpen((prev) => ({
+                                      ...prev,
+                                      sources: !prev.sources,
+                                    }))
+                                  }
+                                  title={editPanelsOpen.sources ? "Collapse" : "Expand"}
+                                >
+                                  {editPanelsOpen.sources ? "▲" : "▼"}
+                                </button>
+                              )}
+                            </div>
+                            {(!isEditing || editPanelsOpen.sources) && (
+                              <div className="expanded-section-content panel-body">
+                              {isEditing ? (
+                                // EDIT MODE - Show editable sources
+                                <div className="form-section-compact">
+                                  {/* Source Types - Compact Inline */}
+                                  <div className="form-group-compact">
+                                    <div className="source-types-row">
+                                      <span className="source-types-label">Source Types:</span>
+                                      <label className="checkbox-label-inline-compact">
+                                        <input
+                                          type="checkbox"
+                                          checked={selectedConnectorTypes.includes("VECTOR")}
+                                          onChange={() => handleConnectorTypeToggle("VECTOR")}
+                                        />
+                                        Vector Stores
+                                      </label>
+                                      <label className="checkbox-label-inline-compact">
+                                        <input
+                                          type="checkbox"
+                                          checked={selectedConnectorTypes.includes("WEB_SEARCH")}
+                                          onChange={() => handleConnectorTypeToggle("WEB_SEARCH")}
+                                        />
+                                        Web Search
+                                      </label>
+                                    </div>
+                                  </div>
+
+                                  {/* VECTOR STORES */}
+                                  {selectedConnectorTypes.includes("VECTOR") && (
+                                    <div className="form-group-compact">
+                                      <VectorStoreSelector
+                                        selectedVectorStores={selectedVectorStores}
+                                        onVectorStoreChange={setSelectedVectorStores}
+                                        selectedFiles={selectedFiles}
+                                        onFileChange={(storeId, fileIds) => {
+                                          setSelectedFiles((prev) => ({ ...prev, [storeId]: fileIds }));
+                                        }}
+                                        maxStores={2}
+                                      />
+                                    </div>
+                                  )}
+
+                                  {/* WEB SEARCH */}
+                                  {selectedConnectorTypes.includes("WEB_SEARCH") && (
+                                    <div className="form-group-compact">
+                                      <p className="info-message">
+                                        ✓ Web search will be enabled for this report
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                // READ-ONLY MODE - Show configured sources
+                                template.connectors && template.connectors.length > 0 ? (
+                                  <div className="read-only-fields">
+                                    {template.connectors.map((conn) => (
+                                      <div key={conn.id} className="read-only-row">
+                                        ✓ {conn.type}: {conn.name}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="empty-message">No sources configured</p>
+                                )
+                              )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* 3. SECTIONS */}
+                          <div className="expanded-section panel-card">
+                            <div className="expanded-section-header panel-header">
+                              <h4 className="expanded-section-title">3. Sections</h4>
+                              {isEditing && (
+                                <div className="panel-header-actions">
+                                  <button className="btn-secondary" type="button" onClick={addEditSection}>
+                                    + Add Section
+                                  </button>
+                                  <button
+                                    className="btn-icon"
+                                    type="button"
+                                    onClick={() =>
+                                      setEditPanelsOpen((prev) => ({
+                                        ...prev,
+                                        sections: !prev.sections,
+                                      }))
+                                    }
+                                    title={editPanelsOpen.sections ? "Collapse" : "Expand"}
+                                  >
+                                    {editPanelsOpen.sections ? "▲" : "▼"}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                            {(!isEditing || editPanelsOpen.sections) && (
+                              <div className="expanded-section-content panel-body">
+                              {isEditing ? (
+                                // EDIT MODE - Show editable sections
+                                editFormData.sections && editFormData.sections.length > 0 ? (
+                                  <div className="sections-list-editable">
+                                    {editFormData.sections.map((section, idx) => (
+                                      <div key={section.id || idx} className="section-edit-card">
+                                        <div className="section-edit-header">
+                                          <strong>Section {idx + 1}</strong>
+                                          <div className="section-edit-actions">
+                                            <button
+                                              className="btn-icon"
+                                              onClick={() => moveEditSection(idx, "up")}
+                                              title="Move Up"
+                                              disabled={idx === 0}
+                                            >
+                                              ⬆️
+                                            </button>
+                                            <button
+                                              className="btn-icon"
+                                              onClick={() => moveEditSection(idx, "down")}
+                                              title="Move Down"
+                                              disabled={idx === (editFormData.sections?.length || 0) - 1}
+                                            >
+                                              ⬇️
+                                            </button>
+                                            <button
+                                              className="btn-icon-danger"
+                                              onClick={() => deleteEditSection(idx)}
+                                              title="Delete Section"
+                                            >
+                                              🗑️
+                                            </button>
+                                          </div>
+                                        </div>
+                                        <div className="section-edit-fields">
+                                          <div className="form-group-compact">
+                                            <input
+                                              type="text"
+                                              value={section.title || ""}
+                                              onChange={(e) => {
+                                                const updatedSections = [...(editFormData.sections || [])];
+                                                updatedSections[idx] = {...updatedSections[idx], title: e.target.value};
+                                                setEditFormData({...editFormData, sections: updatedSections});
+                                              }}
+                                              placeholder="Section Title *"
+                                            />
+                                          </div>
+                                          <div className="form-group-compact">
+                                            <textarea
+                                              value={section.purpose || ""}
+                                              onChange={(e) => {
+                                                const updatedSections = [...(editFormData.sections || [])];
+                                                updatedSections[idx] = {...updatedSections[idx], purpose: e.target.value};
+                                                setEditFormData({...editFormData, sections: updatedSections});
+                                              }}
+                                              placeholder="Purpose"
+                                              rows={2}
+                                            />
+                                          </div>
+                                          <div className="form-group-compact">
+                                            <label className="form-label-compact">Length & Source - min/max words, source</label>
+                                            <div className="form-row-inline">
+                                              <input
+                                                type="number"
+                                                value={section.targetLengthMin || ""}
+                                                onChange={(e) => {
+                                                  const updatedSections = [...(editFormData.sections || [])];
+                                                  updatedSections[idx] = {...updatedSections[idx], targetLengthMin: parseInt(e.target.value) || 0};
+                                                  setEditFormData({...editFormData, sections: updatedSections});
+                                                }}
+                                                placeholder="Min words"
+                                              />
+                                              <input
+                                                type="number"
+                                                value={section.targetLengthMax || ""}
+                                                onChange={(e) => {
+                                                  const updatedSections = [...(editFormData.sections || [])];
+                                                  updatedSections[idx] = {...updatedSections[idx], targetLengthMax: parseInt(e.target.value) || 0};
+                                                  setEditFormData({...editFormData, sections: updatedSections});
+                                                }}
+                                                placeholder="Max words"
+                                              />
+                                              <select
+                                                value={section.sourceMode || ""}
+                                                onChange={(e) => {
+                                                  const updatedSections = [...(editFormData.sections || [])];
+                                                  updatedSections[idx] = {...updatedSections[idx], sourceMode: e.target.value as "inherit" | "custom"};
+                                                  setEditFormData({...editFormData, sections: updatedSections});
+                                                }}
+                                                className={!section.sourceMode ? "placeholder-select" : ""}
+                                              >
+                                                <option value="" disabled>Source</option>
+                                                <option value="inherit">Same as Report</option>
+                                                <option value="custom">Custom Source</option>
+                                              </select>
+                                            </div>
+                                          </div>
+                                          {section.sourceMode === "custom" && (
+                                            <div className="form-group-compact">
+                                              <div className="custom-source-selector-wrapper">
+                                                <h4 className="custom-source-title">Custom Sources for this Section</h4>
+                                                <p className="custom-source-summary">
+                                                  Selected: {formatCustomSources(section.customConnectorIds)}
+                                                </p>
+                                              </div>
+                                            </div>
+                                          )}
+                                          
+                                          {/* Writing Style Dropdown */}
+                                          <div className="form-group-compact">
+                                            <label className="form-label-compact">Writing Style</label>
+                                            <select
+                                              value={section.writingStyle || ""}
+                                              onChange={(e) => {
+                                                const updatedSections = [...(editFormData.sections || [])];
+                                                updatedSections[idx] = {...updatedSections[idx], writingStyle: e.target.value};
+                                                setEditFormData({...editFormData, sections: updatedSections});
+                                              }}
+                                              className={`writing-style-select ${!section.writingStyle ? "placeholder-select" : ""}`}
+                                            >
+                                              <option value="" disabled>Writing Style</option>
+                                              {writingStyles.map((style) => (
+                                                <option key={style.id} value={style.id}>
+                                                  {style.name}
+                                                </option>
+                                              ))}
+                                            </select>
+                                            {section.writingStyle && (
+                                              <div className="writing-style-description">
+                                                {writingStyles.find(s => s.id === section.writingStyle)?.description}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="empty-message">No sections added</p>
+                                )
+                              ) : (
+                                // READ-ONLY MODE - Show section details
+                                template.sections && template.sections.length > 0 ? (
+                                  <div className="sections-list-compact">
+                                    {template.sections.map((section, idx) => (
+                                      <div key={section.id || idx} className="section-item-detailed">
+                                        <div className="section-detail-header">
+                                          <strong>📄 {section.title}</strong>
+                                          <span className="section-meta-compact">
+                                            {section.targetLengthMin}-{section.targetLengthMax} words
+                                          </span>
+                                        </div>
+                                        {section.purpose && (
+                                          <div className="section-detail-purpose">{section.purpose}</div>
+                                        )}
+                                        <div className="section-detail-meta">
+                                          <span>Source: {section.sourceMode === 'inherit' ? 'Same as Report' : section.sourceMode === 'custom' ? 'Custom Source' : 'N/A'}</span>
+                                          {section.writingStyle && (
+                                            <span>Writing Style: {writingStyles.find(s => s.id === section.writingStyle)?.name || section.writingStyle}</span>
+                                          )}
+                                        </div>
+                                        {section.sourceMode === "custom" && (
+                                          <div className="section-detail-meta">
+                                            <span>Custom Sources: {formatCustomSources(section.customConnectorIds)}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="empty-message">No sections added</p>
+                                )
+                              )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* ACTION BUTTONS */}
+                          {isEditing && (
+                            <div className="expanded-actions">
+                              <button className="btn-secondary" onClick={cancelEditingTemplate}>
+                                Cancel
+                              </button>
+                              <button className="btn-secondary" onClick={saveTemplateAs}>
+                                Save As
+                              </button>
+                              <button className="btn-primary" onClick={saveTemplateEdits}>
+                                Save
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

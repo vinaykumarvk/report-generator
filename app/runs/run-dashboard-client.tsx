@@ -415,15 +415,6 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
   }, [selectedTemplateId, templates]);
 
   const selectedTemplate = templates.find((item) => item.id === selectedTemplateId);
-  
-  // Debug: Log selected template state (only in development)
-  useEffect(() => {
-    if (selectedTemplate && process.env.NODE_ENV === 'development') {
-      console.log('[Debug] Selected template connectors:', selectedTemplate.connectors?.length || 0);
-      console.log('[Debug] Selected template sources_json:', (selectedTemplate as any).sources_json?.length || 0);
-      console.log('[Debug] formatTemplateSources result:', formatTemplateSources(selectedTemplate));
-    }
-  }, [selectedTemplate]);
 
   return (
     <div className="page-container">

@@ -1,5 +1,12 @@
 /* Reports Studio Styles */
 
+/* Inline Icons - Lucide Icons */
+.inline-icon {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-right: 0.25rem;
+}
+
 /* Prevent horizontal scroll on mobile */
 .page-container {
   overflow-x: hidden;

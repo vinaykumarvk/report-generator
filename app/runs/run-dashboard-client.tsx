@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AlertTriangle, BarChart, Search } from "lucide-react";
 import VectorStoreSelector from "../components/vector-store-selector";
 
 type Run = {
@@ -610,7 +611,7 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
 
             {createError && (
               <div className="empty-state mt-4">
-                <div className="empty-state-icon">⚠️</div>
+                <div className="empty-state-icon"><AlertTriangle size={48} /></div>
                 <p>{createError}</p>
               </div>
             )}
@@ -737,7 +738,7 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
 
             {error && (
               <div className="empty-state">
-                <div className="empty-state-icon">⚠️</div>
+                <div className="empty-state-icon"><AlertTriangle size={48} /></div>
                 <h3>Error Loading Runs</h3>
                 <p>{error}</p>
                 <button onClick={loadRuns}>Try Again</button>
@@ -746,7 +747,7 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
 
             {!loading && !runs.length && !error && (
               <div className="empty-state">
-                <div className="empty-state-icon">📊</div>
+                <div className="empty-state-icon"><BarChart size={48} /></div>
                 <h3>No Reports Yet</h3>
                 <p>Get started by creating your first report. Reports are generated using templates and can include multiple sections with AI-powered content.</p>
                 <div className="empty-state-cta">
@@ -761,7 +762,7 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
               <>
                 {filteredAndSortedRuns().length === 0 ? (
                   <div className="empty-state">
-                    <div className="empty-state-icon">🔍</div>
+                    <div className="empty-state-icon"><Search size={48} /></div>
                     <h3>No Matching Reports</h3>
                     <p>No reports match your current search or filter criteria. Try adjusting your filters or search terms to find what you're looking for.</p>
                     <div className="empty-state-cta">

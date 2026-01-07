@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import { FileText, File, Users, Plug, Trash2, ChevronUp, ChevronDown, Check, AlertTriangle, Clipboard, BarChart } from "lucide-react";
 import VectorStoreSelector from "./components/vector-store-selector";
 import ConfirmationDialog from "../components/confirmation-dialog";
 import StatusChip from "../components/status-chip";
@@ -1031,7 +1032,7 @@ export default function ReportsStudioClient() {
       {/* Offline Indicator */}
       {isOffline && (
         <div role="alert" className="offline-indicator" aria-live="assertive">
-          <span>⚠️ You are currently offline. Some features may be limited.</span>
+          <span><AlertTriangle className="inline-icon" size={16} /> You are currently offline. Some features may be limited.</span>
           <span className="offline-timestamp">Data may be cached.</span>
         </div>
       )}
@@ -1072,7 +1073,7 @@ export default function ReportsStudioClient() {
             className={`tab-button ${activeTab === "regular" ? "active" : ""}`}
             onClick={() => setActiveTab("regular")}
           >
-            📋 Regular Templates ({regularTemplates.length})
+            <Clipboard className="inline-icon" size={16} /> Regular Templates ({regularTemplates.length})
           </button>
         </div>
         <button className="btn-primary" onClick={() => setShowForm(!showForm)}>
@@ -1092,7 +1093,7 @@ export default function ReportsStudioClient() {
                     <span className="section-number">1</span>
                     <span>Objectives</span>
                     {name && !createErrors.name && (
-                      <span className="section-completion-check" aria-label="Section completed">✓</span>
+                      <span className="section-completion-check" aria-label="Section completed"><Check size={12} /></span>
                     )}
                   </h2>
                   <span className="section-progress">Step 1 of 3</span>
@@ -1245,7 +1246,7 @@ export default function ReportsStudioClient() {
                     <span className="section-number">2</span>
                     <span>Sources</span>
                     {(selectedConnectorTypes.length > 0 || selectedVectorStores.length > 0) && (
-                      <span className="section-completion-check" aria-label="Section completed">✓</span>
+                      <span className="section-completion-check" aria-label="Section completed"><Check size={12} /></span>
                     )}
                   </h2>
                   <span className="section-progress">Step 2 of 3</span>
@@ -1326,7 +1327,7 @@ export default function ReportsStudioClient() {
                     <span className="section-number">3</span>
                     <span>Sections</span>
                     {sections.length > 0 && sections.every(s => s.title && !createSectionErrors[s.id || `index-${sections.indexOf(s)}`]?.title) && (
-                      <span className="section-completion-check" aria-label="Section completed">✓</span>
+                      <span className="section-completion-check" aria-label="Section completed"><Check size={12} /></span>
                     )}
                   </h2>
                   <span className="section-progress">Step 3 of 3</span>
@@ -1364,7 +1365,7 @@ export default function ReportsStudioClient() {
                   {section.isCollapsed ? (
                     <div className="section-collapsed-view" onClick={() => toggleSectionCollapse(index)}>
                       <div className="section-collapsed-header">
-                        <span className="section-icon">📄</span>
+                        <span className="section-icon"><File size={18} /></span>
                         <div className="section-collapsed-info">
                           <h4>{section.title || `Section ${index + 1}`}</h4>
                           <p className="section-collapsed-meta">
@@ -1389,7 +1390,7 @@ export default function ReportsStudioClient() {
                           title="Move Up"
                           disabled={index === 0}
                         >
-                          ⬆️
+                          <ChevronUp size={16} />
                         </button>
                         <button
                           className="btn-icon"
@@ -1401,7 +1402,7 @@ export default function ReportsStudioClient() {
                           title="Move Down"
                           disabled={index === sections.length - 1}
                         >
-                          ⬇️
+                          <ChevronDown size={16} />
                         </button>
                         <button 
                           className="btn-icon-expand" 
@@ -1423,7 +1424,7 @@ export default function ReportsStudioClient() {
                           aria-label="Delete section"
                           title="Delete Section"
                         >
-                          🗑️
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </div>
@@ -1440,7 +1441,7 @@ export default function ReportsStudioClient() {
                           title="Move Up"
                           disabled={index === 0}
                         >
-                          ⬆️
+                          <ChevronUp size={16} />
                         </button>
                         <button
                           className="btn-icon"
@@ -1449,7 +1450,7 @@ export default function ReportsStudioClient() {
                           title="Move Down"
                           disabled={index === sections.length - 1}
                         >
-                          ⬇️
+                          <ChevronDown size={16} />
                         </button>
                         <button 
                           className="btn-icon-collapse" 
@@ -1465,7 +1466,7 @@ export default function ReportsStudioClient() {
                             aria-label="Delete section"
                             title="Delete Section"
                           >
-                            🗑️
+                            <Trash2 size={16} />
                           </button>
                         </div>
                       </div>
@@ -1652,7 +1653,7 @@ export default function ReportsStudioClient() {
                           className="btn-secondary" 
                           onClick={() => toggleSectionCollapse(index)}
                         >
-                          ✓ Save & Collapse
+                          <Check className="inline-icon" size={14} /> Save & Collapse
                         </button>
                       </div>
                     </>
@@ -1729,14 +1730,14 @@ export default function ReportsStudioClient() {
                   >
                     <div className="saved-template-info">
                       <h3 className="saved-template-title">
-                        📊 {template.name}
+                        <BarChart className="inline-icon" size={18} /> {template.name}
                       </h3>
                       {template.description && (
                         <p className="saved-template-description">{template.description}</p>
                       )}
                       {template.audience && (
                         <div className="saved-template-meta">
-                          <span>👥 {template.audience}</span>
+                          <span><Users className="inline-icon" size={14} /> {template.audience}</span>
                           {template.createdAt && (
                             <span className="template-timestamp" title={`Created: ${new Date(template.createdAt).toLocaleString()}`}>
                               Created {formatRelativeTime(template.createdAt)}
@@ -1745,8 +1746,8 @@ export default function ReportsStudioClient() {
                         </div>
                       )}
                       <div className="saved-template-meta">
-                        <span>📄 {template.sections?.length || 0} Sections</span>
-                        <span>🔌 {template.connectors?.length || 0} Sources</span>
+                        <span><File className="inline-icon" size={14} /> {template.sections?.length || 0} Sections</span>
+                        <span><Plug className="inline-icon" size={14} /> {template.connectors?.length || 0} Sources</span>
                       </div>
                     </div>
                     
@@ -1783,7 +1784,7 @@ export default function ReportsStudioClient() {
                         aria-label="Clone template"
                         title="Clone"
                       >
-                        📋
+                        <Clipboard size={16} />
                       </button>
                       <button
                         className="btn-icon-danger"
@@ -1998,7 +1999,7 @@ export default function ReportsStudioClient() {
                               {selectedConnectorTypes.includes("WEB_SEARCH") && (
                                 <div className="form-group-compact">
                                   <p className="info-message">
-                                    ✓ Web search will be enabled for this report
+                                    <Check className="inline-icon" size={14} /> Web search will be enabled for this report
                                   </p>
                                 </div>
                               )}
@@ -2009,7 +2010,7 @@ export default function ReportsStudioClient() {
                               <div className="read-only-fields">
                                 {template.connectors.map((conn) => (
                                   <div key={conn.id} className="read-only-row">
-                                    ✓ {conn.type}: {conn.name}
+                                    <Check className="inline-icon" size={14} /> {conn.type}: {conn.name}
                                   </div>
                                 ))}
                               </div>
@@ -2065,7 +2066,7 @@ export default function ReportsStudioClient() {
                                           title="Move Up"
                                           disabled={idx === 0}
                                         >
-                                          ⬆️
+                                          <ChevronUp size={16} />
                                         </button>
                                         <button
                                           className="btn-icon"
@@ -2074,7 +2075,7 @@ export default function ReportsStudioClient() {
                                           title="Move Down"
                                           disabled={idx === (editFormData.sections?.length || 0) - 1}
                                         >
-                                          ⬇️
+                                          <ChevronDown size={16} />
                                         </button>
                                         <button
                                           className="btn-icon-danger"
@@ -2082,7 +2083,7 @@ export default function ReportsStudioClient() {
                                           aria-label="Delete section"
                                           title="Delete Section"
                                         >
-                                          🗑️
+                                          <Trash2 size={16} />
                                         </button>
                                       </div>
                                     </div>
@@ -2282,7 +2283,7 @@ export default function ReportsStudioClient() {
                                 {template.sections.map((section, idx) => (
                                   <div key={section.id || idx} className="section-item-detailed">
                                     <div className="section-detail-header">
-                                      <strong>📄 {section.title}</strong>
+                                      <strong><File className="inline-icon" size={14} /> {section.title}</strong>
                                       <span className="section-meta-compact">
                                         {section.targetLengthMin}-{section.targetLengthMax} words
                                       </span>
@@ -2358,14 +2359,14 @@ export default function ReportsStudioClient() {
                       >
                         <div className="saved-template-info">
                           <h3 className="saved-template-title">
-                            📊 {template.name}
+                            <BarChart className="inline-icon" size={18} /> {template.name}
                           </h3>
                           {template.description && (
                             <p className="saved-template-description">{template.description}</p>
                           )}
                           {template.audience && (
                             <div className="saved-template-meta">
-                              <span>👥 {template.audience}</span>
+                              <span><Users className="inline-icon" size={14} /> {template.audience}</span>
                             </div>
                           )}
                           <div className="saved-template-meta">
@@ -2407,7 +2408,7 @@ export default function ReportsStudioClient() {
                             aria-label="Clone template"
                             title="Clone"
                           >
-                            📋
+                            <Clipboard size={16} />
                           </button>
                           <button
                             className="btn-icon-danger"
@@ -2418,7 +2419,7 @@ export default function ReportsStudioClient() {
                             aria-label="Delete template"
                             title="Delete"
                           >
-                            🗑️
+                            <Trash2 size={16} />
                           </button>
                         </div>
                       </div>
@@ -2621,7 +2622,7 @@ export default function ReportsStudioClient() {
                                   {selectedConnectorTypes.includes("WEB_SEARCH") && (
                                     <div className="form-group-compact">
                                       <p className="info-message">
-                                        ✓ Web search will be enabled for this report
+                                        <Check className="inline-icon" size={14} /> Web search will be enabled for this report
                                       </p>
                                     </div>
                                   )}
@@ -2632,7 +2633,7 @@ export default function ReportsStudioClient() {
                                   <div className="read-only-fields">
                                     {template.connectors.map((conn) => (
                                       <div key={conn.id} className="read-only-row">
-                                        ✓ {conn.type}: {conn.name}
+                                        <Check className="inline-icon" size={14} /> {conn.type}: {conn.name}
                                       </div>
                                     ))}
                                   </div>
@@ -2688,7 +2689,7 @@ export default function ReportsStudioClient() {
                                               title="Move Up"
                                               disabled={idx === 0}
                                             >
-                                              ⬆️
+                                              <ChevronUp size={16} />
                                             </button>
                                             <button
                                               className="btn-icon"
@@ -2697,7 +2698,7 @@ export default function ReportsStudioClient() {
                                               title="Move Down"
                                               disabled={idx === (editFormData.sections?.length || 0) - 1}
                                             >
-                                              ⬇️
+                                              <ChevronDown size={16} />
                                             </button>
                                             <button
                                               className="btn-icon-danger"
@@ -2705,7 +2706,7 @@ export default function ReportsStudioClient() {
                                               aria-label="Delete section"
                                               title="Delete Section"
                                             >
-                                              🗑️
+                                              <Trash2 size={16} />
                                             </button>
                                           </div>
                                         </div>
@@ -2883,7 +2884,7 @@ export default function ReportsStudioClient() {
                                     {template.sections.map((section, idx) => (
                                       <div key={section.id || idx} className="section-item-detailed">
                                         <div className="section-detail-header">
-                                          <strong>📄 {section.title}</strong>
+                                          <strong><File className="inline-icon" size={14} /> {section.title}</strong>
                                           <span className="section-meta-compact">
                                             {section.targetLengthMin}-{section.targetLengthMax} words
                                           </span>

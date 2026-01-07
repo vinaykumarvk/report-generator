@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Check, X, Info, AlertTriangle } from "lucide-react";
 import "./status-chip.css";
 
 type StatusChipProps = {
@@ -41,10 +42,10 @@ export default function StatusChip({
       aria-atomic="true"
     >
       <span className="status-chip-icon">
-        {variant === "success" && "✓"}
-        {variant === "error" && "✕"}
-        {variant === "info" && "ℹ"}
-        {variant === "warning" && "⚠"}
+        {variant === "success" && <Check size={14} />}
+        {variant === "error" && <X size={14} />}
+        {variant === "info" && <Info size={14} />}
+        {variant === "warning" && <AlertTriangle size={14} />}
       </span>
       <span className="status-chip-message">{message}</span>
       {duration === 0 && onDismiss && (
@@ -56,7 +57,7 @@ export default function StatusChip({
           }}
           aria-label="Dismiss notification"
         >
-          ✕
+          <X size={14} />
         </button>
       )}
     </div>

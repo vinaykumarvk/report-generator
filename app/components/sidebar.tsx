@@ -4,18 +4,19 @@ import { useState } from 'react';
 import Link from 'next/link';
 import type { Route } from 'next';
 import { usePathname } from 'next/navigation';
+import { Home, BarChart, Rocket } from 'lucide-react';
 import ThemeToggle from './theme-toggle';
 
 type NavItem = {
   href: Route;
   label: string;
-  icon?: string;
+  icon?: React.ReactNode;
 };
 
 const navItems = [
-  { href: '/', label: 'Home', icon: '🏠' },
-  { href: '/reports-studio', label: 'Reports Studio', icon: '📊' },
-  { href: '/runs', label: 'Runs', icon: '🚀' },
+  { href: '/', label: 'Home', icon: <Home size={20} /> },
+  { href: '/reports-studio', label: 'Reports Studio', icon: <BarChart size={20} /> },
+  { href: '/runs', label: 'Runs', icon: <Rocket size={20} /> },
  ] satisfies NavItem[];
 
 export default function Sidebar() {
@@ -52,7 +53,7 @@ export default function Sidebar() {
       <aside className={`sidebar-nav ${isOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <Link href="/" className="sidebar-brand" onClick={closeSidebar}>
-            <span className="brand-icon">📊</span>
+            <span className="brand-icon"><BarChart size={24} /></span>
             <span className="brand-text">Report Generator</span>
           </Link>
         </div>

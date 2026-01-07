@@ -249,7 +249,7 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
         {error && (
           <div className="card">
             <div className="empty-state">
-              <div className="empty-state-icon">⚠️</div>
+              <div className="empty-state-icon"><AlertTriangle size={48} /></div>
               <p>{error}</p>
             </div>
           </div>
@@ -374,7 +374,7 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
               {run.blueprint_json.cohesion.factualAnchors && run.blueprint_json.cohesion.factualAnchors.length > 0 && (
                 <div>
                   <h3 style={{ fontSize: "1rem", marginBottom: "0.5rem", color: "var(--color-accent)" }}>
-                    📊 Factual Anchors
+                    <BarChart className="inline-icon" size={18} /> Factual Anchors
                   </h3>
                   <div style={{ display: "grid", gap: "0.75rem" }}>
                     {run.blueprint_json.cohesion.factualAnchors.map((anchor, i) => (
@@ -435,12 +435,12 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
                   fontWeight: "bold",
                   color: run.blueprint_json ? "white" : "var(--color-accent)"
                 }}>
-                  {run.blueprint_json ? "✓" : "1"}
+                  {run.blueprint_json ? <Check size={16} /> : "1"}
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>Blueprint Generation</div>
                   <div className="muted" style={{ fontSize: "0.875rem" }}>
-                    {run.blueprint_json ? "✓ Complete" : "In progress..."}
+                    {run.blueprint_json ? <><Check size={14} className="inline-icon" /> Complete</> : "In progress..."}
                   </div>
                 </div>
               </div>
@@ -462,7 +462,7 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
                   fontWeight: "bold",
                   color: sections.every(s => s.title?.toLowerCase().includes("executive summary") || s.status === "COMPLETED") ? "white" : "var(--color-accent)"
                 }}>
-                  {sections.every(s => s.title?.toLowerCase().includes("executive summary") || s.status === "COMPLETED") ? "✓" : "2"}
+                  {sections.every(s => s.title?.toLowerCase().includes("executive summary") || s.status === "COMPLETED") ? <Check size={16} /> : "2"}
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>Section Generation</div>
@@ -489,7 +489,7 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
                   fontWeight: "bold",
                   color: sections.find(s => s.title?.toLowerCase().includes("executive summary"))?.status === "COMPLETED" ? "white" : "var(--color-accent)"
                 }}>
-                  {sections.find(s => s.title?.toLowerCase().includes("executive summary"))?.status === "COMPLETED" ? "✓" : "4"}
+                  {sections.find(s => s.title?.toLowerCase().includes("executive summary"))?.status === "COMPLETED" ? <Check size={16} /> : "4"}
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>Executive Summary Generation</div>
@@ -518,7 +518,7 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
                   fontWeight: "bold",
                   color: run.final_report_json ? "white" : "var(--color-accent)"
                 }}>
-                  {run.final_report_json ? "✓" : "5"}
+                  {run.final_report_json ? <Check size={16} /> : "5"}
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>Final Assembly</div>

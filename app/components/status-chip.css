@@ -24,9 +24,10 @@
 }
 
 .status-chip-icon {
-  font-weight: 700;
-  font-size: 0.875rem;
+  display: inline-flex;
+  align-items: center;
   line-height: 1;
+  flex-shrink: 0;
 }
 
 .status-chip-message {

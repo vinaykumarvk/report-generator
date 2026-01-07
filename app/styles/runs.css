@@ -1,5 +1,12 @@
 /* Run Dashboard - Professional Design */
 
+/* Inline Icons - Lucide Icons */
+.inline-icon {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-right: 0.25rem;
+}
+
 /* Page Header */
 .page-header {
   background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-tertiary) 100%);

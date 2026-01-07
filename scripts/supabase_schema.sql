@@ -250,6 +250,11 @@ create index if not exists idx_jobs_run on jobs(run_id);
 create index if not exists idx_jobs_section on jobs(section_run_id);
 create index if not exists idx_jobs_lock_expiry on jobs(lock_expires_at);
 
+-- NOTE: The claim_next_job function has been moved to fix-claim-next-job-comprehensive.sql
+-- This is the enhanced version that handles expired RUNNING jobs.
+-- For production, use the comprehensive fix script.
+-- This placeholder is kept for reference only.
+
 create or replace function claim_next_job(worker_id text, lease_seconds int default 300)
 returns setof jobs
 language plpgsql
@@ -257,6 +262,13 @@ as $$
 declare
   job_record jobs%rowtype;
 begin
+  -- This is a placeholder. Use fix-claim-next-job-comprehensive.sql for the full implementation.
+  -- The comprehensive version handles:
+  -- 1. Reclaiming RUNNING jobs with expired locks
+  -- 2. Marking jobs as FAILED when max_attempts exceeded
+  -- 3. Emitting audit events
+  -- 4. Including scheduled_at checks
+  
   select *
     into job_record
     from jobs

@@ -147,3 +147,28 @@ $$;
 
 GRANT EXECUTE ON FUNCTION claim_next_job(TEXT, INTEGER) TO authenticated, service_role;
 
+-- Diagnostics for run 852d164b-61a5-4840-b2b1-33d8d55ec26e
+SELECT
+  id,
+  type,
+  status,
+  created_at,
+  updated_at,
+  locked_by,
+  locked_at,
+  lock_expires_at,
+  attempt_count,
+  max_attempts,
+  last_error
+FROM jobs
+WHERE run_id = '852d164b-61a5-4840-b2b1-33d8d55ec26e'
+ORDER BY created_at;
+
+SELECT
+  id,
+  status,
+  created_at,
+  started_at,
+  completed_at
+FROM report_runs
+WHERE id = '852d164b-61a5-4840-b2b1-33d8d55ec26e';

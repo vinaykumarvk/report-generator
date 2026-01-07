@@ -27,9 +27,14 @@ export async function GET(
     return NextResponse.json({ error: "Template not found" }, { status: 404 });
   }
   
-  // Map sections to camelCase for frontend
+  // Map sections to camelCase for frontend, sorted by order
   if (template.template_sections) {
-    template.sections = template.template_sections.map((s: any) => ({
+    const sortedSections = [...template.template_sections].sort((a: any, b: any) => {
+      const orderA = a.order ?? 0;
+      const orderB = b.order ?? 0;
+      return orderA - orderB;
+    });
+    template.sections = sortedSections.map((s: any) => ({
       id: s.id,
       title: s.title,
       purpose: s.purpose,
@@ -45,6 +50,9 @@ export async function GET(
     }));
     delete template.template_sections;
   }
+  
+  // Map is_master to isMaster
+  template.isMaster = template.is_master === true;
   
   // Map sources_json to connectors for frontend
   if (template.sources_json) {
@@ -137,6 +145,7 @@ export async function PUT(
       active_prompt_set_id: activePromptSetId,
       sources_json: Array.isArray(body.connectors) ? body.connectors : (template.sources_json || []),
       history_json: history,
+      is_master: body.isMaster !== undefined ? body.isMaster === true : template.is_master,
     })
     .eq("id", params.templateId)
     .select("*")
@@ -173,7 +182,14 @@ export async function PUT(
       assertNoSupabaseError(deleteSectionsError, "Failed to delete template sections");
     }
 
-    for (const section of body.sections) {
+    // Sort sections by order before updating to ensure correct sequence
+    const sortedSections = [...body.sections].sort((a: any, b: any) => {
+      const orderA = a.order ?? 0;
+      const orderB = b.order ?? 0;
+      return orderA - orderB;
+    });
+    
+    for (const section of sortedSections) {
       if (section.id) {
         const nextVectorPolicyJson =
           section.vectorPolicyJson ??
@@ -181,7 +197,7 @@ export async function PUT(
             ? { connectorIds: Array.isArray(section.customConnectorIds) ? section.customConnectorIds : [] }
             : null);
 
-        // Update existing section
+        // Update existing section with correct order
         await supabase
           .from("template_sections")
           .update({

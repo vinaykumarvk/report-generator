@@ -4,6 +4,20 @@
   margin-top: 2rem;
 }
 
+/* Templates Section Grouping */
+.templates-section {
+  margin-bottom: 2rem;
+}
+
+.templates-section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--border-primary);
+}
+
 /* Section editing and display styles */
 .sections-list-editable {
   display: flex;

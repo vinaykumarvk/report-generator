@@ -49,9 +49,14 @@ export async function GET(request: NextRequest) {
       connectors: Array.isArray(template.sources_json) ? template.sources_json : [],
     };
     
-    // Map sections to camelCase for frontend
+    // Map sections to camelCase for frontend, sorted by order
     if (template.template_sections) {
-      mappedTemplate.sections = template.template_sections.map((s: any) => ({
+      const sortedSections = [...template.template_sections].sort((a: any, b: any) => {
+        const orderA = a.order ?? 0;
+        const orderB = b.order ?? 0;
+        return orderA - orderB;
+      });
+      mappedTemplate.sections = sortedSections.map((s: any) => ({
         id: s.id,
         title: s.title,
         purpose: s.purpose,
@@ -69,6 +74,9 @@ export async function GET(request: NextRequest) {
     } else {
       mappedTemplate.sections = [];
     }
+    
+    // Map is_master to isMaster
+    mappedTemplate.isMaster = template.is_master === true;
     
     return mappedTemplate;
   });
@@ -118,6 +126,7 @@ export async function POST(request: Request) {
       formats: Array.isArray(body.formats) ? body.formats : [],
       sources_json: Array.isArray(body.connectors) ? body.connectors : [],
       history_json: history,
+      is_master: body.isMaster === true,
     })
     .select("*")
     .single();

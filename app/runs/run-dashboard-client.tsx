@@ -815,7 +815,25 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
                                 const exports = await res.json();
                                 const mdExport = exports.find((e: any) => e.format === "MARKDOWN" && e.status === "READY");
                                 if (mdExport) {
-                                  window.open(`/api/report-runs/${run.id}/exports/${mdExport.id}`, '_blank');
+                                  // Use fetch + blob for proper download
+                                  try {
+                                    const downloadRes = await fetch(`/api/report-runs/${run.id}/exports/${mdExport.id}`);
+                                    if (downloadRes.ok || downloadRes.redirected) {
+                                      const finalUrl = downloadRes.redirected ? downloadRes.url : downloadRes.url;
+                                      const blob = await fetch(finalUrl).then(r => r.blob());
+                                      const blobUrl = window.URL.createObjectURL(blob);
+                                      const link = document.createElement("a");
+                                      link.href = blobUrl;
+                                      link.download = `${run.id}.md`;
+                                      document.body.appendChild(link);
+                                      link.click();
+                                      link.remove();
+                                      window.URL.revokeObjectURL(blobUrl);
+                                    }
+                                  } catch (err) {
+                                    console.error('Download error:', err);
+                                    window.open(`/api/report-runs/${run.id}/exports/${mdExport.id}`, '_blank');
+                                  }
                                 } else {
                                   // Create new export
                                   const createRes = await fetch(`/api/report-runs/${run.id}/export`, {
@@ -841,7 +859,25 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
                                 const exports = await res.json();
                                 const pdfExport = exports.find((e: any) => e.format === "PDF" && e.status === "READY");
                                 if (pdfExport) {
-                                  window.open(`/api/report-runs/${run.id}/exports/${pdfExport.id}`, '_blank');
+                                  // Use fetch + blob for proper download
+                                  try {
+                                    const downloadRes = await fetch(`/api/report-runs/${run.id}/exports/${pdfExport.id}`);
+                                    if (downloadRes.ok || downloadRes.redirected) {
+                                      const finalUrl = downloadRes.redirected ? downloadRes.url : downloadRes.url;
+                                      const blob = await fetch(finalUrl).then(r => r.blob());
+                                      const blobUrl = window.URL.createObjectURL(blob);
+                                      const link = document.createElement("a");
+                                      link.href = blobUrl;
+                                      link.download = `${run.id}.pdf`;
+                                      document.body.appendChild(link);
+                                      link.click();
+                                      link.remove();
+                                      window.URL.revokeObjectURL(blobUrl);
+                                    }
+                                  } catch (err) {
+                                    console.error('Download error:', err);
+                                    window.open(`/api/report-runs/${run.id}/exports/${pdfExport.id}`, '_blank');
+                                  }
                                 } else {
                                   // Create new export
                                   const createRes = await fetch(`/api/report-runs/${run.id}/export`, {

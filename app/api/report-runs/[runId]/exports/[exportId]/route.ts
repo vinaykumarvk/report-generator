@@ -33,10 +33,12 @@ export async function GET(
   if (exportRecord.storage_url) {
     try {
       const url = new URL(exportRecord.storage_url);
-      // Valid URL - redirect to storage
-      // Add logging for production debugging
+      // Valid URL - redirect to storage with proper headers for download
       console.log(`[Download] Redirecting to storage_url for export ${params.exportId}: ${exportRecord.storage_url}`);
-      return NextResponse.redirect(exportRecord.storage_url, 302);
+      const response = NextResponse.redirect(exportRecord.storage_url, 302);
+      // Add download hint header (browsers may ignore this on redirect, but it helps)
+      response.headers.set('X-Download-Filename', `${params.exportId}.${exportRecord.format.toLowerCase()}`);
+      return response;
     } catch (urlError) {
       // Invalid URL, fall through to file_path
       console.warn(`[Download] Invalid storage_url for export ${params.exportId}:`, exportRecord.storage_url);

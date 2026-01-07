@@ -2891,8 +2891,24 @@ export default function ReportsStudioClient() {
 
           {!loading && filteredTemplates.length === 0 && (
             <div className="empty-state">
-              <p>No report templates found</p>
-              <p>Click &quot;+ New Report&quot; to create your first template</p>
+              <div className="empty-state-icon">📄</div>
+              <h3>No Templates Found</h3>
+              <p>
+                {searchTerm 
+                  ? "No templates match your search. Try a different search term or clear the search to see all templates."
+                  : "Templates define the structure and content sources for your reports. Create your first template to get started."}
+              </p>
+              {!searchTerm && (
+                <div className="empty-state-cta">
+                  <button 
+                    className="btn-primary" 
+                    onClick={() => setShowForm(true)}
+                    aria-label="Create new report template"
+                  >
+                    + New Report Template
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

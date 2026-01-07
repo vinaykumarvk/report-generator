@@ -62,6 +62,25 @@ function formatTimestamp(value?: string | null) {
   return date.toLocaleString();
 }
 
+function formatRelativeTime(dateString: string): string {
+  try {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return "just now";
+    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    return date.toLocaleDateString();
+  } catch {
+    return "";
+  }
+}
+
 function statusClass(status?: string) {
   if (!status) return "badge";
   return `badge status-${status}`;
@@ -728,11 +747,13 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
             {!loading && !runs.length && !error && (
               <div className="empty-state">
                 <div className="empty-state-icon">📊</div>
-                <h3>No Runs Yet</h3>
-                <p>Create your first run to get started</p>
-                <Link href="/generate" className="button">
-                  Create New Run
-                </Link>
+                <h3>No Reports Yet</h3>
+                <p>Get started by creating your first report. Reports are generated using templates and can include multiple sections with AI-powered content.</p>
+                <div className="empty-state-cta">
+                  <Link href="/generate" className="button">
+                    Create Your First Report
+                  </Link>
+                </div>
               </div>
             )}
 
@@ -741,11 +762,12 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
                 {filteredAndSortedRuns().length === 0 ? (
                   <div className="empty-state">
                     <div className="empty-state-icon">🔍</div>
-                    <h3>No Matching Runs</h3>
-                    <p>Try adjusting your search or filters</p>
-                    <button onClick={() => {
-                      setSearchQuery("");
-                      setStatusFilter("ALL");
+                    <h3>No Matching Reports</h3>
+                    <p>No reports match your current search or filter criteria. Try adjusting your filters or search terms to find what you're looking for.</p>
+                    <div className="empty-state-cta">
+                      <button onClick={() => {
+                        setSearchQuery("");
+                        setStatusFilter("ALL");
                     }}>
                       Clear Filters
                     </button>
@@ -774,12 +796,26 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
                     <div className="run-meta">
                       <div className="run-meta-item">
                         <span className="run-meta-label">Created</span>
-                        <span className="run-meta-value">{formatTimestamp(run.created_at)}</span>
+                        <span className="run-meta-value">
+                          {run.created_at ? formatRelativeTime(run.created_at) : "—"}
+                          {run.created_at && (
+                            <span className="run-timestamp-full" title={formatTimestamp(run.created_at)}>
+                              {" "}({formatTimestamp(run.created_at)})
+                            </span>
+                          )}
+                        </span>
                       </div>
-                      <div className="run-meta-item">
-                        <span className="run-meta-label">Completed</span>
-                        <span className="run-meta-value">{formatTimestamp(run.completed_at)}</span>
-                      </div>
+                      {run.completed_at && (
+                        <div className="run-meta-item">
+                          <span className="run-meta-label">Completed</span>
+                          <span className="run-meta-value">
+                            {formatRelativeTime(run.completed_at)}
+                            <span className="run-timestamp-full" title={formatTimestamp(run.completed_at)}>
+                              {" "}({formatTimestamp(run.completed_at)})
+                            </span>
+                          </span>
+                        </div>
+                      )}
                       {run.status === "RUNNING" && (
                         <div className="run-meta-item">
                           <span className="run-meta-label">Elapsed</span>

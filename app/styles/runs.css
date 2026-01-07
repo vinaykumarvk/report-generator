@@ -195,6 +195,7 @@
   transition: all var(--transition-base);
   position: relative;
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
 .run-item::before {
@@ -209,15 +210,25 @@
   transition: opacity var(--transition-base);
 }
 
-.run-item:hover {
+.run-item:hover,
+.run-item:focus-within {
   border-color: var(--border-secondary);
   background: var(--bg-card-hover);
-  transform: translateX(4px);
+  transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
 }
 
-.run-item:hover::before {
+.run-item:hover::before,
+.run-item:focus-within::before {
   opacity: 1;
+}
+
+/* Touch devices */
+@media (hover: none) {
+  .run-item:active {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+  }
 }
 
 .run-header {
@@ -267,32 +278,20 @@
   color: var(--text-secondary);
 }
 
+.run-timestamp-full {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin-left: 0.25rem;
+  font-weight: normal;
+}
+
 .run-status-note {
   font-size: 0.875rem;
   color: var(--text-tertiary);
   margin-top: var(--space-2);
 }
 
-.status-COMPLETED {
-  background: var(--success-bg);
-  color: var(--success);
-}
-
-.status-FAILED {
-  background: var(--error-bg);
-  color: var(--error);
-}
-
-.status-RUNNING,
-.status-QUEUED {
-  background: var(--accent-bg);
-  color: var(--accent-primary);
-}
-
-.status-DRAFT {
-  background: var(--warning-bg);
-  color: var(--warning);
-}
+/* Status chips are now defined above with ::before icons */
 
 .section-list {
   display: grid;

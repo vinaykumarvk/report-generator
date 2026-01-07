@@ -32,7 +32,8 @@ export async function GET(
   // Try storage_url first, but fallback to file_path if redirect fails
   if (exportRecord.storage_url) {
     try {
-      const url = new URL(exportRecord.storage_url);
+      // Validate URL format
+      new URL(exportRecord.storage_url);
       // Valid URL - redirect to storage with proper headers for download
       console.log(`[Download] Redirecting to storage_url for export ${params.exportId}: ${exportRecord.storage_url}`);
       const response = NextResponse.redirect(exportRecord.storage_url, 302);

@@ -31,18 +31,18 @@ export async function GET(
   }
   // Try storage_url first, but fallback to file_path if redirect fails
   if (exportRecord.storage_url) {
-    // In production, storage_url should work, but if it doesn't, we'll fall through to file_path
-    // Check if storage_url is accessible (basic validation)
     try {
       const url = new URL(exportRecord.storage_url);
-      // If it's a valid URL, redirect to it
-      // Note: We can't actually test if it's accessible here without making a request
-      // So we'll redirect and let the browser handle it
+      // Valid URL - redirect to storage
+      // Add logging for production debugging
+      console.log(`[Download] Redirecting to storage_url for export ${params.exportId}: ${exportRecord.storage_url}`);
       return NextResponse.redirect(exportRecord.storage_url, 302);
     } catch (urlError) {
       // Invalid URL, fall through to file_path
-      console.warn(`Invalid storage_url for export ${params.exportId}:`, exportRecord.storage_url);
+      console.warn(`[Download] Invalid storage_url for export ${params.exportId}:`, exportRecord.storage_url);
     }
+  } else {
+    console.log(`[Download] No storage_url for export ${params.exportId}, using file_path fallback`);
   }
   const contentType =
     exportRecord.format === "PDF"

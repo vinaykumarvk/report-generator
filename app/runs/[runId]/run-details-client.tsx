@@ -495,7 +495,7 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
                   <div style={{ fontWeight: 600 }}>Executive Summary Generation</div>
                   <div className="muted" style={{ fontSize: "0.875rem" }}>
                     {sections.find(s => s.title?.toLowerCase().includes("executive summary"))?.status === "COMPLETED"
-                      ? "✓ Complete"
+                      ? <><Check size={14} className="inline-icon" /> Complete</>
                       : sections.find(s => s.title?.toLowerCase().includes("executive summary"))?.status === "RUNNING"
                       ? "In progress..."
                       : sections.every(s => s.title?.toLowerCase().includes("executive summary") || s.status === "COMPLETED")

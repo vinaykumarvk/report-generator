@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { marked } from "marked";
+import { AlertTriangle, BarChart, Check } from "lucide-react";
 import ExportManager from "../../components/export-manager";
 
 type Run = {

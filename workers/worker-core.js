@@ -530,19 +530,29 @@ async function handleExport(job) {
     console.log("📦 Export record created:", JSON.stringify(exportRecord, null, 2));
     await updateExportRecord(exportId, { filePath: exportRecord.filePath });
 
-    const storageResult = await uploadExportFile({
-      runId: run.id,
-      exportId,
-      format,
-      filePath: exportRecord.filePath,
-    });
+    // Upload to storage, but don't fail the export if storage upload fails
+    let storageResult = null;
+    try {
+      storageResult = await uploadExportFile({
+        runId: run.id,
+        exportId,
+        format,
+        filePath: exportRecord.filePath,
+      });
+      console.log("📦 Uploaded to storage:", storageResult.storageUrl);
+    } catch (storageError) {
+      const storageMessage = storageError instanceof Error ? storageError.message : String(storageError);
+      console.error("⚠️  Storage upload failed (will use file_path fallback):", storageMessage);
+      // Continue without storage_url - the download route will fall back to file_path
+      // This allows exports to work even if storage is misconfigured
+    }
 
     await updateExportRecord(exportId, {
       status: "READY",
       filePath: exportRecord.filePath,
-      storageUrl: storageResult.storageUrl,
-      fileSize: storageResult.fileSize,
-      checksum: storageResult.checksum,
+      storageUrl: storageResult?.storageUrl || null,
+      fileSize: storageResult?.fileSize || null,
+      checksum: storageResult?.checksum || null,
       errorMessage: null,
     });
 

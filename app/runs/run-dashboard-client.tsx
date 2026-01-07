@@ -416,14 +416,6 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
 
   const selectedTemplate = templates.find((item) => item.id === selectedTemplateId);
 
-  return (
-    <div className="page-container">
-      <div className="content-section">
-        {/* CREATE TAB */}
-        {activeTab === "create" && (
-          <div className="card">
-            <h2>New Report</h2>
-            <p className="page-description">
               Select a template, set the topic, and optionally override section sources.
             </p>
             <div className="grid grid-2">

@@ -67,15 +67,16 @@ export default function ReportsStudioClient() {
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"master" | "regular">("master");
+  // Progressive disclosure: Collapse advanced options by default
   const [createPanelsOpen, setCreatePanelsOpen] = useState({
-    objectives: true,
-    sources: true,
-    sections: true,
+    objectives: true,  // Keep objectives open (primary)
+    sources: false,    // Collapse sources (advanced)
+    sections: false,   // Collapse sections (advanced)
   });
   const [editPanelsOpen, setEditPanelsOpen] = useState({
-    objectives: true,
-    sources: true,
-    sections: true,
+    objectives: true,  // Keep objectives open (primary)
+    sources: false,    // Collapse sources (advanced)
+    sections: false,   // Collapse sections (advanced)
   });
   const [expandedTemplateId, setExpandedTemplateId] = useState<string | null>(null);
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
@@ -122,6 +123,21 @@ export default function ReportsStudioClient() {
   // Form state persistence
   const FORM_STORAGE_KEY = "reports-studio-form-draft";
   
+  // Offline detection
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    
+    setIsOffline(!navigator.onLine);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   useEffect(() => {
     loadTemplates();
     loadWritingStyles();
@@ -976,6 +992,14 @@ export default function ReportsStudioClient() {
       {/* ARIA live region for status updates */}
       <div aria-live="polite" aria-atomic="true" className="sr-only" id="status-announcements"></div>
       
+      {/* Offline Indicator */}
+      {isOffline && (
+        <div role="alert" className="offline-indicator" aria-live="assertive">
+          <span>⚠️ You are currently offline. Some features may be limited.</span>
+          <span className="offline-timestamp">Data may be cached.</span>
+        </div>
+      )}
+      
       {/* Confirmation Dialog */}
       <ConfirmationDialog
         isOpen={confirmationDialog.isOpen}
@@ -1038,10 +1062,23 @@ export default function ReportsStudioClient() {
               <div className="form-group-compact">
                 <input
                   type="text"
+                  inputMode="text"
                   value={name}
                   onChange={(e) => {
-                    if (createErrors.name) setCreateErrors((prev) => ({ ...prev, name: undefined }));
-                    setName(e.target.value);
+                    const value = e.target.value;
+                    setName(value);
+                    // Real-time validation
+                    if (createErrors.name && value.trim()) {
+                      setCreateErrors((prev) => ({ ...prev, name: undefined }));
+                    } else if (!value.trim()) {
+                      setCreateErrors((prev) => ({ ...prev, name: "Report name is required." }));
+                    }
+                  }}
+                  onBlur={(e) => {
+                    // Validate on blur
+                    if (!e.target.value.trim()) {
+                      setCreateErrors((prev) => ({ ...prev, name: "Report name is required." }));
+                    }
                   }}
                   placeholder="Report Name *"
                   aria-label="Report name"
@@ -1397,13 +1434,23 @@ export default function ReportsStudioClient() {
                       <div className="form-group-compact">
                         <div className="format-length-source-row">
                           <input
-                            type="text"
+                            type="number"
+                            inputMode="numeric"
+                            min="0"
                             value={section.targetLengthMin !== undefined && section.targetLengthMin !== null ? section.targetLengthMin : ""}
                             onChange={(e) => {
                               const val = e.target.value;
-                              updateSection(index, "targetLengthMin", val === "" ? undefined : parseInt(val) || 0);
+                              const numVal = val === "" ? undefined : parseInt(val) || 0;
+                              updateSection(index, "targetLengthMin", numVal);
                               const key = section.id || `index-${index}`;
-                              if (createSectionErrors[key]?.length) {
+                              // Real-time validation
+                              const max = section.targetLengthMax;
+                              if (numVal !== undefined && max !== undefined && numVal > max) {
+                                setCreateSectionErrors((prev) => ({
+                                  ...prev,
+                                  [key]: { ...prev[key], length: "Min words must be less than or equal to max words." },
+                                }));
+                              } else if (createSectionErrors[key]?.length) {
                                 setCreateSectionErrors((prev) => ({
                                   ...prev,
                                   [key]: { ...prev[key], length: undefined },
@@ -1419,13 +1466,23 @@ export default function ReportsStudioClient() {
                             }
                           />
                           <input
-                            type="text"
+                            type="number"
+                            inputMode="numeric"
+                            min="0"
                             value={section.targetLengthMax !== undefined && section.targetLengthMax !== null ? section.targetLengthMax : ""}
                             onChange={(e) => {
                               const val = e.target.value;
-                              updateSection(index, "targetLengthMax", val === "" ? undefined : parseInt(val) || 0);
+                              const numVal = val === "" ? undefined : parseInt(val) || 0;
+                              updateSection(index, "targetLengthMax", numVal);
                               const key = section.id || `index-${index}`;
-                              if (createSectionErrors[key]?.length) {
+                              // Real-time validation
+                              const min = section.targetLengthMin;
+                              if (numVal !== undefined && min !== undefined && min > numVal) {
+                                setCreateSectionErrors((prev) => ({
+                                  ...prev,
+                                  [key]: { ...prev[key], length: "Min words must be less than or equal to max words." },
+                                }));
+                              } else if (createSectionErrors[key]?.length) {
                                 setCreateSectionErrors((prev) => ({
                                   ...prev,
                                   [key]: { ...prev[key], length: undefined },
@@ -2003,18 +2060,29 @@ export default function ReportsStudioClient() {
                                         <div className="form-row-inline">
                                           <input
                                             type="number"
+                                            inputMode="numeric"
+                                            min="0"
                                             value={section.targetLengthMin || ""}
                                             onChange={(e) => {
+                                              const val = e.target.value;
+                                              const numVal = val === "" ? undefined : parseInt(val) || 0;
                                               const key = section.id || `index-${idx}`;
-                                              if (editSectionErrors[key]?.length) {
+                                              const updatedSections = [...(editFormData.sections || [])];
+                                              updatedSections[idx] = {...updatedSections[idx], targetLengthMin: numVal};
+                                              setEditFormData({...editFormData, sections: updatedSections});
+                                              // Real-time validation
+                                              const max = updatedSections[idx].targetLengthMax;
+                                              if (numVal !== undefined && max !== undefined && numVal > max) {
+                                                setEditSectionErrors((prev) => ({
+                                                  ...prev,
+                                                  [key]: { ...prev[key], length: "Min words must be less than or equal to max words." },
+                                                }));
+                                              } else if (editSectionErrors[key]?.length) {
                                                 setEditSectionErrors((prev) => ({
                                                   ...prev,
                                                   [key]: { ...prev[key], length: undefined },
                                                 }));
                                               }
-                                              const updatedSections = [...(editFormData.sections || [])];
-                                              updatedSections[idx] = {...updatedSections[idx], targetLengthMin: parseInt(e.target.value) || 0};
-                                              setEditFormData({...editFormData, sections: updatedSections});
                                             }}
                                             placeholder="Min words"
                                             aria-label={`Section ${idx + 1} minimum word count`}
@@ -2026,18 +2094,29 @@ export default function ReportsStudioClient() {
                                           />
                                           <input
                                             type="number"
+                                            inputMode="numeric"
+                                            min="0"
                                             value={section.targetLengthMax || ""}
                                             onChange={(e) => {
+                                              const val = e.target.value;
+                                              const numVal = val === "" ? undefined : parseInt(val) || 0;
                                               const key = section.id || `index-${idx}`;
-                                              if (editSectionErrors[key]?.length) {
+                                              const updatedSections = [...(editFormData.sections || [])];
+                                              updatedSections[idx] = {...updatedSections[idx], targetLengthMax: numVal};
+                                              setEditFormData({...editFormData, sections: updatedSections});
+                                              // Real-time validation
+                                              const min = updatedSections[idx].targetLengthMin;
+                                              if (numVal !== undefined && min !== undefined && min > numVal) {
+                                                setEditSectionErrors((prev) => ({
+                                                  ...prev,
+                                                  [key]: { ...prev[key], length: "Min words must be less than or equal to max words." },
+                                                }));
+                                              } else if (editSectionErrors[key]?.length) {
                                                 setEditSectionErrors((prev) => ({
                                                   ...prev,
                                                   [key]: { ...prev[key], length: undefined },
                                                 }));
                                               }
-                                              const updatedSections = [...(editFormData.sections || [])];
-                                              updatedSections[idx] = {...updatedSections[idx], targetLengthMax: parseInt(e.target.value) || 0};
-                                              setEditFormData({...editFormData, sections: updatedSections});
                                             }}
                                             placeholder="Max words"
                                             aria-label={`Section ${idx + 1} maximum word count`}

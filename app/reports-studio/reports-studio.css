@@ -1,5 +1,11 @@
 /* Reports Studio Styles */
 
+/* Prevent horizontal scroll on mobile */
+.page-container {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
 .report-form-container {
   margin-top: 2rem;
 }
@@ -46,6 +52,46 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border-width: 0;
+}
+
+/* Offline Indicator */
+.offline-indicator {
+  background: var(--warning-bg);
+  color: var(--warning);
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  border-left: 3px solid var(--warning);
+}
+
+.offline-timestamp {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+/* Help Text */
+.help-text {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  font-weight: normal;
+  margin-top: 0.25rem;
+}
+
+.required-indicator {
+  color: var(--error);
+  font-weight: 600;
+}
+
+.form-label-compact {
+  display: block;
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
 }
 
 /* Skeleton Loading */

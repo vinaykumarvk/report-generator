@@ -31,7 +31,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
       </head>
       <body>
-        <TopTabs />
+        <nav role="navigation" aria-label="Main navigation">
+          <TopTabs />
+        </nav>
         <div className="app-wrapper">
           {children}
         </div>

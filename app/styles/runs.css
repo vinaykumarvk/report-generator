@@ -170,6 +170,7 @@
   padding: var(--space-3);
   color: var(--text-primary);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  min-height: 44px;
 }
 
 .filter-input::placeholder {
@@ -177,8 +178,11 @@
 }
 
 .filter-input:focus,
-.filter-select:focus {
-  outline: none;
+.filter-select:focus,
+.filter-input:focus-visible,
+.filter-select:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px var(--accent-bg);
 }
@@ -377,6 +381,7 @@
 .run-actions button {
   padding: var(--space-2) var(--space-4);
   font-size: 0.875rem;
+  min-height: 44px;
 }
 
 .exports-panel {
@@ -426,6 +431,22 @@
 
 .export-link:hover {
   text-decoration: underline;
+}
+
+.tab-button,
+.run-actions button,
+.exports-actions button,
+.filter-input,
+.filter-select {
+  touch-action: manipulation;
+}
+
+.tab-button:focus-visible,
+.run-actions button:focus-visible,
+.exports-actions button:focus-visible,
+.export-link:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
 }
 
 .export-status {

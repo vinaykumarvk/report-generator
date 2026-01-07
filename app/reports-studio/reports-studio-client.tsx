@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import VectorStoreSelector from "./components/vector-store-selector";
+import ConfirmationDialog from "../components/confirmation-dialog";
+import "../components/confirmation-dialog.css";
 import "./reports-studio.css";
 
 type Template = {
@@ -80,6 +82,24 @@ export default function ReportsStudioClient() {
   const [editFormData, setEditFormData] = useState<Partial<Template>>({});
   const [availableVectorStores, setAvailableVectorStores] = useState<VectorStore[]>([]);
   const [writingStyles, setWritingStyles] = useState<WritingStyle[]>([]);
+  const [createErrors, setCreateErrors] = useState<{ name?: string }>({});
+  const [editErrors, setEditErrors] = useState<{ name?: string }>({});
+  const [createSectionErrors, setCreateSectionErrors] = useState<Record<string, { title?: string; length?: string }>>({});
+  const [editSectionErrors, setEditSectionErrors] = useState<Record<string, { title?: string; length?: string }>>({});
+  
+  // Confirmation dialog state
+  const [confirmationDialog, setConfirmationDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    variant?: "danger" | "warning" | "info";
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
 
   // Form states - Objectives
   const [name, setName] = useState("");
@@ -99,10 +119,88 @@ export default function ReportsStudioClient() {
   const [selectedVectorStores, setSelectedVectorStores] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<Record<string, string[]>>({});
 
+  // Form state persistence
+  const FORM_STORAGE_KEY = "reports-studio-form-draft";
+  
   useEffect(() => {
     loadTemplates();
     loadWritingStyles();
   }, []);
+
+  // Restore form state from localStorage when form is opened
+  useEffect(() => {
+    if (showForm) {
+      const saved = localStorage.getItem(FORM_STORAGE_KEY);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed.name) setName(parsed.name);
+          if (parsed.description) setDescription(parsed.description);
+          if (parsed.audience) setAudience(parsed.audience);
+          if (parsed.tone) setTone(parsed.tone);
+          if (parsed.domain) setDomain(parsed.domain);
+          if (parsed.jurisdiction) setJurisdiction(parsed.jurisdiction);
+          if (parsed.formats) setFormats(parsed.formats);
+          if (parsed.isMaster !== undefined) setIsMaster(parsed.isMaster);
+          if (parsed.sections) setSections(parsed.sections);
+          if (parsed.selectedConnectorTypes) setSelectedConnectorTypes(parsed.selectedConnectorTypes);
+          if (parsed.selectedVectorStores) setSelectedVectorStores(parsed.selectedVectorStores);
+          if (parsed.selectedFiles) setSelectedFiles(parsed.selectedFiles);
+        } catch (e) {
+          console.error("Failed to restore form state:", e);
+        }
+      }
+    }
+  }, [showForm]);
+
+  // Auto-save form state
+  useEffect(() => {
+    if (showForm && (name || description || sections.length > 0)) {
+      const formState = {
+        name,
+        description,
+        audience,
+        tone,
+        domain,
+        jurisdiction,
+        formats,
+        isMaster,
+        sections,
+        selectedConnectorTypes,
+        selectedVectorStores,
+        selectedFiles,
+      };
+      localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(formState));
+    }
+  }, [showForm, name, description, audience, tone, domain, jurisdiction, formats, isMaster, sections, selectedConnectorTypes, selectedVectorStores, selectedFiles]);
+
+  // Keyboard navigation handlers
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Escape to close form or cancel editing
+      if (e.key === "Escape") {
+        if (confirmationDialog.isOpen) {
+          setConfirmationDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} });
+        } else if (showForm) {
+          resetForm();
+        } else if (editingTemplateId) {
+          cancelEditingTemplate();
+        } else if (expandedTemplateId) {
+          setExpandedTemplateId(null);
+        }
+      }
+      
+      // Enter on buttons (handled by default, but ensure it works)
+      if (e.key === "Enter" && e.target instanceof HTMLElement) {
+        if (e.target.tagName === "BUTTON" && !e.target.disabled) {
+          e.target.click();
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [showForm, editingTemplateId, expandedTemplateId, confirmationDialog.isOpen]);
 
   async function loadTemplates() {
     try {
@@ -217,6 +315,8 @@ export default function ReportsStudioClient() {
   function cancelEditingTemplate() {
     setEditingTemplateId(null);
     setEditFormData({});
+    setEditErrors({});
+    setEditSectionErrors({});
     setIsMaster(false);
     // Clear source-related state
     setSelectedConnectorTypes([]);
@@ -227,6 +327,15 @@ export default function ReportsStudioClient() {
 
   async function saveTemplateEdits() {
     if (!editingTemplateId) return;
+    if (!editFormData.name || !editFormData.name.trim()) {
+      setEditErrors({ name: "Report name is required." });
+      return;
+    }
+    const sectionErrors = validateSections((editFormData.sections || []) as Section[]);
+    setEditSectionErrors(sectionErrors);
+    if (Object.keys(sectionErrors).length > 0) {
+      return;
+    }
 
     try {
       // Build connectors array from selected sources
@@ -323,6 +432,8 @@ export default function ReportsStudioClient() {
         alert("Template updated successfully!");
         setEditingTemplateId(null);
         setEditFormData({});
+        setEditErrors({});
+        setEditSectionErrors({});
         setSelectedConnectorTypes([]);
         setSelectedVectorStores([]);
         setSelectedFiles({});
@@ -469,21 +580,51 @@ export default function ReportsStudioClient() {
   }
 
   async function deleteTemplate(templateId: string) {
-    if (!confirm("Are you sure you want to delete this template?")) return;
+    const template = templates.find(t => t.id === templateId);
+    const templateName = template?.name || "this template";
+    
+    setConfirmationDialog({
+      isOpen: true,
+      title: "Delete Template",
+      message: `Are you sure you want to delete "${templateName}"? This action cannot be undone.`,
+      variant: "danger",
+      onConfirm: async () => {
+        setConfirmationDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} });
+        try {
+          const res = await fetch(`/api/templates/${templateId}`, {
+            method: "DELETE",
+          });
 
-    try {
-      const res = await fetch(`/api/templates/${templateId}`, {
-        method: "DELETE",
-      });
-
-      if (res.ok) {
-        alert("Template deleted successfully!");
-        setExpandedTemplateId(null);
-        loadTemplates();
-      }
-    } catch (error: any) {
-      alert(error.message);
-    }
+          if (res.ok) {
+            setExpandedTemplateId(null);
+            loadTemplates();
+            // Show success message (could be enhanced with toast)
+          } else {
+            const error = await res.json().catch(() => ({ error: "Failed to delete template" }));
+            alert(error.error || "Failed to delete template");
+          }
+        } catch (error: any) {
+          alert(error.message || "Failed to delete template");
+        }
+      },
+    });
+  }
+  
+  function confirmDeleteSection(sectionIndex: number, isEdit: boolean = false) {
+    setConfirmationDialog({
+      isOpen: true,
+      title: "Delete Section",
+      message: "Are you sure you want to delete this section? This action cannot be undone.",
+      variant: "danger",
+      onConfirm: () => {
+        setConfirmationDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} });
+        if (isEdit) {
+          deleteEditSection(sectionIndex);
+        } else {
+          deleteSection(sectionIndex);
+        }
+      },
+    });
   }
 
   async function loadWritingStyles() {
@@ -646,9 +787,31 @@ export default function ReportsStudioClient() {
     });
   }
 
+  function validateSections(items: Section[] = []) {
+    const errors: Record<string, { title?: string; length?: string }> = {};
+    items.forEach((section, idx) => {
+      const key = section.id || `index-${idx}`;
+      const title = section.title?.trim() || "";
+      if (!title) {
+        errors[key] = { ...errors[key], title: "Section title is required." };
+      }
+      const min = section.targetLengthMin;
+      const max = section.targetLengthMax;
+      if (typeof min === "number" && typeof max === "number" && min > max) {
+        errors[key] = { ...errors[key], length: "Min words must be less than or equal to max words." };
+      }
+    });
+    return errors;
+  }
+
   async function handleSubmit() {
     if (!name.trim()) {
-      alert("Template name is required");
+      setCreateErrors({ name: "Report name is required." });
+      return;
+    }
+    const sectionErrors = validateSections(sections);
+    setCreateSectionErrors(sectionErrors);
+    if (Object.keys(sectionErrors).length > 0) {
       return;
     }
 
@@ -791,7 +954,11 @@ export default function ReportsStudioClient() {
     setSelectedVectorStores([]);
     setSelectedFiles({});
     setIsMaster(false);
+    setCreateErrors({});
+    setCreateSectionErrors({});
     setCreatePanelsOpen({ objectives: true, sources: true, sections: true });
+    // Clear saved form state
+    localStorage.removeItem(FORM_STORAGE_KEY);
   }
 
   const filteredTemplates = templates.filter(
@@ -805,7 +972,21 @@ export default function ReportsStudioClient() {
   const regularTemplates = filteredTemplates.filter(t => !t.isMaster);
 
   return (
-    <div className="page-container">
+    <main className="page-container" role="main" aria-label="Reports Studio">
+      {/* ARIA live region for status updates */}
+      <div aria-live="polite" aria-atomic="true" className="sr-only" id="status-announcements"></div>
+      
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={confirmationDialog.isOpen}
+        title={confirmationDialog.title}
+        message={confirmationDialog.message}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={confirmationDialog.onConfirm}
+        onCancel={() => setConfirmationDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} })}
+        variant={confirmationDialog.variant || "danger"}
+      />
       <div className="page-header-section" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         {/* Tabs Navigation */}
         <div className="templates-tabs" style={{ marginBottom: 0, borderBottom: 'none' }}>
@@ -829,8 +1010,8 @@ export default function ReportsStudioClient() {
 
       {/* CREATE/EDIT FORM */}
       {showForm && (
-        <div className="report-form-container">
-          <div className="report-form-card">
+        <div className="report-form-container" role="region" aria-label="Create Report Template Form">
+          <div className="report-form-card" aria-busy={loading} aria-live="polite">
             {/* SECTION 1: OBJECTIVES */}
             <div className="form-section panel-card">
               <div className="panel-header">
@@ -844,6 +1025,7 @@ export default function ReportsStudioClient() {
                       objectives: !prev.objectives,
                     }))
                   }
+                  aria-label={createPanelsOpen.objectives ? "Collapse objectives" : "Expand objectives"}
                   title={createPanelsOpen.objectives ? "Collapse" : "Expand"}
                 >
                   {createPanelsOpen.objectives ? "▲" : "▼"}
@@ -857,9 +1039,20 @@ export default function ReportsStudioClient() {
                 <input
                   type="text"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    if (createErrors.name) setCreateErrors((prev) => ({ ...prev, name: undefined }));
+                    setName(e.target.value);
+                  }}
                   placeholder="Report Name *"
+                  aria-label="Report name"
+                  aria-invalid={Boolean(createErrors.name)}
+                  aria-describedby={createErrors.name ? "create-template-name-error" : undefined}
                 />
+                {createErrors.name && (
+                  <div id="create-template-name-error" className="field-error" role="alert">
+                    {createErrors.name}
+                  </div>
+                )}
               </div>
 
               {/* Row 2: Description */}
@@ -869,6 +1062,7 @@ export default function ReportsStudioClient() {
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Description"
                   rows={3}
+                  aria-label="Report description"
                 />
               </div>
 
@@ -880,12 +1074,14 @@ export default function ReportsStudioClient() {
                     value={audience}
                     onChange={(e) => setAudience(e.target.value)}
                     placeholder="Audience"
+                    aria-label="Audience"
                   />
                   <input
                     type="text"
                     value={tone}
                     onChange={(e) => setTone(e.target.value)}
                     placeholder="Tone"
+                    aria-label="Tone"
                   />
                 </div>
               </div>
@@ -898,12 +1094,14 @@ export default function ReportsStudioClient() {
                     value={domain}
                     onChange={(e) => setDomain(e.target.value)}
                     placeholder="Domain"
+                    aria-label="Domain"
                   />
                   <input
                     type="text"
                     value={jurisdiction}
                     onChange={(e) => setJurisdiction(e.target.value)}
                     placeholder="Jurisdiction"
+                    aria-label="Jurisdiction"
                   />
                 </div>
               </div>
@@ -958,6 +1156,7 @@ export default function ReportsStudioClient() {
                       sources: !prev.sources,
                     }))
                   }
+                  aria-label={createPanelsOpen.sources ? "Collapse sources" : "Expand sources"}
                   title={createPanelsOpen.sources ? "Collapse" : "Expand"}
                 >
                   {createPanelsOpen.sources ? "▲" : "▼"}
@@ -1033,6 +1232,7 @@ export default function ReportsStudioClient() {
                         sections: !prev.sections,
                       }))
                     }
+                    aria-label={createPanelsOpen.sections ? "Collapse sections" : "Expand sections"}
                     title={createPanelsOpen.sections ? "Collapse" : "Expand"}
                   >
                     {createPanelsOpen.sections ? "▲" : "▼"}
@@ -1073,6 +1273,7 @@ export default function ReportsStudioClient() {
                             e.stopPropagation();
                             moveSection(index, "up");
                           }}
+                          aria-label="Move section up"
                           title="Move Up"
                           disabled={index === 0}
                         >
@@ -1084,6 +1285,7 @@ export default function ReportsStudioClient() {
                             e.stopPropagation();
                             moveSection(index, "down");
                           }}
+                          aria-label="Move section down"
                           title="Move Down"
                           disabled={index === sections.length - 1}
                         >
@@ -1095,6 +1297,7 @@ export default function ReportsStudioClient() {
                             e.stopPropagation();
                             toggleSectionCollapse(index);
                           }}
+                          aria-label="Expand section"
                           title="Expand"
                         >
                           ▼
@@ -1103,8 +1306,9 @@ export default function ReportsStudioClient() {
                           className="btn-icon-danger"
                           onClick={(e) => {
                             e.stopPropagation();
-                            deleteSection(index);
+                            confirmDeleteSection(index, false);
                           }}
+                          aria-label="Delete section"
                           title="Delete Section"
                         >
                           🗑️
@@ -1120,6 +1324,7 @@ export default function ReportsStudioClient() {
                         <button
                           className="btn-icon"
                           onClick={() => moveSection(index, "up")}
+                          aria-label="Move section up"
                           title="Move Up"
                           disabled={index === 0}
                         >
@@ -1128,6 +1333,7 @@ export default function ReportsStudioClient() {
                         <button
                           className="btn-icon"
                           onClick={() => moveSection(index, "down")}
+                          aria-label="Move section down"
                           title="Move Down"
                           disabled={index === sections.length - 1}
                         >
@@ -1136,13 +1342,15 @@ export default function ReportsStudioClient() {
                         <button 
                           className="btn-icon-collapse" 
                           onClick={() => toggleSectionCollapse(index)}
+                          aria-label="Collapse section"
                           title="Collapse"
                           >
                             ▲
                           </button>
                           <button
                             className="btn-icon-danger"
-                            onClick={() => deleteSection(index)}
+                            onClick={() => confirmDeleteSection(index, false)}
+                            aria-label="Delete section"
                             title="Delete Section"
                           >
                             🗑️
@@ -1155,9 +1363,34 @@ export default function ReportsStudioClient() {
                         <input
                           type="text"
                           value={section.title}
-                          onChange={(e) => updateSection(index, "title", e.target.value)}
+                          onChange={(e) => {
+                            const key = section.id || `index-${index}`;
+                            if (createSectionErrors[key]?.title) {
+                              setCreateSectionErrors((prev) => ({
+                                ...prev,
+                                [key]: { ...prev[key], title: undefined },
+                              }));
+                            }
+                            updateSection(index, "title", e.target.value);
+                          }}
                           placeholder="Title *"
+                          aria-label={`Section ${index + 1} title`}
+                          aria-invalid={Boolean(createSectionErrors[section.id || `index-${index}`]?.title)}
+                          aria-describedby={
+                            createSectionErrors[section.id || `index-${index}`]?.title
+                              ? `create-section-${section.id || `index-${index}`}-title-error`
+                              : undefined
+                          }
                         />
+                        {createSectionErrors[section.id || `index-${index}`]?.title && (
+                          <div
+                            id={`create-section-${section.id || `index-${index}`}-title-error`}
+                            className="field-error"
+                            role="alert"
+                          >
+                            {createSectionErrors[section.id || `index-${index}`]?.title}
+                          </div>
+                        )}
                       </div>
 
                       {/* Length & Source - All in One Line */}
@@ -1169,8 +1402,21 @@ export default function ReportsStudioClient() {
                             onChange={(e) => {
                               const val = e.target.value;
                               updateSection(index, "targetLengthMin", val === "" ? undefined : parseInt(val) || 0);
+                              const key = section.id || `index-${index}`;
+                              if (createSectionErrors[key]?.length) {
+                                setCreateSectionErrors((prev) => ({
+                                  ...prev,
+                                  [key]: { ...prev[key], length: undefined },
+                                }));
+                              }
                             }}
                             placeholder="Min words"
+                            aria-label={`Section ${index + 1} minimum word count`}
+                            aria-describedby={
+                              createSectionErrors[section.id || `index-${index}`]?.length
+                                ? `create-section-${section.id || `index-${index}`}-length-error`
+                                : undefined
+                            }
                           />
                           <input
                             type="text"
@@ -1178,19 +1424,42 @@ export default function ReportsStudioClient() {
                             onChange={(e) => {
                               const val = e.target.value;
                               updateSection(index, "targetLengthMax", val === "" ? undefined : parseInt(val) || 0);
+                              const key = section.id || `index-${index}`;
+                              if (createSectionErrors[key]?.length) {
+                                setCreateSectionErrors((prev) => ({
+                                  ...prev,
+                                  [key]: { ...prev[key], length: undefined },
+                                }));
+                              }
                             }}
                             placeholder="Max words"
+                            aria-label={`Section ${index + 1} maximum word count`}
+                            aria-describedby={
+                              createSectionErrors[section.id || `index-${index}`]?.length
+                                ? `create-section-${section.id || `index-${index}`}-length-error`
+                                : undefined
+                            }
                           />
                           <select
                             value={section.sourceMode || ""}
                             onChange={(e) => updateSection(index, "sourceMode", e.target.value as "inherit" | "custom")}
                             className={!section.sourceMode ? "placeholder-select" : ""}
+                            aria-label={`Section ${index + 1} source mode`}
                           >
                             <option value="" disabled>Source</option>
                             <option value="inherit">Same as Report</option>
                             <option value="custom">Custom Source</option>
                           </select>
                         </div>
+                        {createSectionErrors[section.id || `index-${index}`]?.length && (
+                          <div
+                            id={`create-section-${section.id || `index-${index}`}-length-error`}
+                            className="field-error"
+                            role="alert"
+                          >
+                            {createSectionErrors[section.id || `index-${index}`]?.length}
+                          </div>
+                        )}
                       </div>
 
                       {/* Writing Style Dropdown */}
@@ -1199,6 +1468,7 @@ export default function ReportsStudioClient() {
                           value={section.writingStyle || ""}
                           onChange={(e) => updateSection(index, "writingStyle", e.target.value)}
                           className={`writing-style-select ${!section.writingStyle ? "placeholder-select" : ""}`}
+                          aria-label={`Section ${index + 1} writing style`}
                         >
                           <option value="" disabled>Writing Style</option>
                           {writingStyles.map((style) => (
@@ -1221,6 +1491,7 @@ export default function ReportsStudioClient() {
                           onChange={(e) => updateSection(index, "purpose", e.target.value)}
                           placeholder="Purpose"
                           rows={3}
+                          aria-label={`Section ${index + 1} purpose`}
                         />
                       </div>
 
@@ -1279,20 +1550,22 @@ export default function ReportsStudioClient() {
 
       {/* SAVED TEMPLATES LIST */}
       {!showForm && (
-        <>
-          <div className="search-section">
+        <div role="region" aria-label="Templates List">
+          <div className="search-section" role="search" aria-label="Search templates">
             <input
               type="text"
               className="search-input"
               placeholder="Search reports..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Search report templates"
             />
           </div>
 
           {/* Loading Skeleton */}
           {loading && (
-            <div className="saved-templates-list">
+            <div className="saved-templates-list" aria-busy="true" aria-live="polite">
+              <div className="sr-only">Loading templates...</div>
               {[0, 1, 2].map((row) => (
                 <div key={`skeleton-${row}`} className="saved-template-card">
                   <div className="saved-template-header">
@@ -1347,6 +1620,7 @@ export default function ReportsStudioClient() {
                           e.stopPropagation();
                           toggleTemplateExpansion(template.id);
                         }}
+                        aria-label={isExpanded ? "Collapse template" : "Expand template"}
                         title={isExpanded ? "Collapse" : "Expand"}
                       >
                         {isExpanded ? "▲" : "▼"}
@@ -1358,6 +1632,7 @@ export default function ReportsStudioClient() {
                           startEditingTemplate(template.id);
                           if (!isExpanded) setExpandedTemplateId(template.id);
                         }}
+                        aria-label="Edit template"
                         title="Edit"
                       >
                         ✏️
@@ -1368,6 +1643,7 @@ export default function ReportsStudioClient() {
                           e.stopPropagation();
                           cloneTemplate(template.id);
                         }}
+                        aria-label="Clone template"
                         title="Clone"
                       >
                         📋
@@ -1378,6 +1654,7 @@ export default function ReportsStudioClient() {
                           e.stopPropagation();
                           deleteTemplate(template.id);
                         }}
+                        aria-label="Delete template"
                         title="Delete"
                       >
                         🗑️
@@ -1402,6 +1679,7 @@ export default function ReportsStudioClient() {
                                   objectives: !prev.objectives,
                                 }))
                               }
+                              aria-label={editPanelsOpen.objectives ? "Collapse objectives" : "Expand objectives"}
                               title={editPanelsOpen.objectives ? "Collapse" : "Expand"}
                             >
                               {editPanelsOpen.objectives ? "▲" : "▼"}
@@ -1416,9 +1694,20 @@ export default function ReportsStudioClient() {
                                 <input
                                   type="text"
                                   value={editFormData.name || ""}
-                                  onChange={(e) => setEditFormData({...editFormData, name: e.target.value})}
+                                  onChange={(e) => {
+                                    if (editErrors.name) setEditErrors((prev) => ({ ...prev, name: undefined }));
+                                    setEditFormData({...editFormData, name: e.target.value});
+                                  }}
                                   placeholder="Report Name *"
+                                  aria-label="Report name"
+                                  aria-invalid={Boolean(editErrors.name)}
+                                  aria-describedby={editErrors.name ? "edit-template-name-error" : undefined}
                                 />
+                                {editErrors.name && (
+                                  <div id="edit-template-name-error" className="field-error" role="alert">
+                                    {editErrors.name}
+                                  </div>
+                                )}
                               </div>
                               <div className="form-group-compact">
                                 <textarea
@@ -1426,6 +1715,7 @@ export default function ReportsStudioClient() {
                                   onChange={(e) => setEditFormData({...editFormData, description: e.target.value})}
                                   placeholder="Description"
                                   rows={3}
+                                  aria-label="Report description"
                                 />
                               </div>
                               <div className="form-group-compact">
@@ -1435,12 +1725,14 @@ export default function ReportsStudioClient() {
                                     value={editFormData.audience || ""}
                                     onChange={(e) => setEditFormData({...editFormData, audience: e.target.value})}
                                     placeholder="Audience"
+                                    aria-label="Audience"
                                   />
                                   <input
                                     type="text"
                                     value={editFormData.tone || ""}
                                     onChange={(e) => setEditFormData({...editFormData, tone: e.target.value})}
                                     placeholder="Tone"
+                                    aria-label="Tone"
                                   />
                                 </div>
                               </div>
@@ -1451,12 +1743,14 @@ export default function ReportsStudioClient() {
                                     value={editFormData.domain || ""}
                                     onChange={(e) => setEditFormData({...editFormData, domain: e.target.value})}
                                     placeholder="Domain"
+                                    aria-label="Domain"
                                   />
                                   <input
                                     type="text"
                                     value={editFormData.jurisdiction || ""}
                                     onChange={(e) => setEditFormData({...editFormData, jurisdiction: e.target.value})}
                                     placeholder="Jurisdiction"
+                                    aria-label="Jurisdiction"
                                   />
                                 </div>
                               </div>
@@ -1513,6 +1807,7 @@ export default function ReportsStudioClient() {
                                   sources: !prev.sources,
                                 }))
                               }
+                              aria-label={editPanelsOpen.sources ? "Collapse sources" : "Expand sources"}
                               title={editPanelsOpen.sources ? "Collapse" : "Expand"}
                             >
                               {editPanelsOpen.sources ? "▲" : "▼"}
@@ -1607,6 +1902,7 @@ export default function ReportsStudioClient() {
                                     sections: !prev.sections,
                                   }))
                                 }
+                                aria-label={editPanelsOpen.sections ? "Collapse sections" : "Expand sections"}
                                 title={editPanelsOpen.sections ? "Collapse" : "Expand"}
                               >
                                 {editPanelsOpen.sections ? "▲" : "▼"}
@@ -1628,6 +1924,7 @@ export default function ReportsStudioClient() {
                                         <button
                                           className="btn-icon"
                                           onClick={() => moveEditSection(idx, "up")}
+                                          aria-label="Move section up"
                                           title="Move Up"
                                           disabled={idx === 0}
                                         >
@@ -1636,6 +1933,7 @@ export default function ReportsStudioClient() {
                                         <button
                                           className="btn-icon"
                                           onClick={() => moveEditSection(idx, "down")}
+                                          aria-label="Move section down"
                                           title="Move Down"
                                           disabled={idx === (editFormData.sections?.length || 0) - 1}
                                         >
@@ -1643,7 +1941,8 @@ export default function ReportsStudioClient() {
                                         </button>
                                         <button
                                           className="btn-icon-danger"
-                                          onClick={() => deleteEditSection(idx)}
+                                          onClick={() => confirmDeleteSection(idx, true)}
+                                          aria-label="Delete section"
                                           title="Delete Section"
                                         >
                                           🗑️
@@ -1656,12 +1955,35 @@ export default function ReportsStudioClient() {
                                           type="text"
                                           value={section.title || ""}
                                           onChange={(e) => {
+                                            const key = section.id || `index-${idx}`;
+                                            if (editSectionErrors[key]?.title) {
+                                              setEditSectionErrors((prev) => ({
+                                                ...prev,
+                                                [key]: { ...prev[key], title: undefined },
+                                              }));
+                                            }
                                             const updatedSections = [...(editFormData.sections || [])];
                                             updatedSections[idx] = {...updatedSections[idx], title: e.target.value};
                                             setEditFormData({...editFormData, sections: updatedSections});
                                           }}
                                           placeholder="Section Title *"
+                                          aria-label={`Section ${idx + 1} title`}
+                                          aria-invalid={Boolean(editSectionErrors[section.id || `index-${idx}`]?.title)}
+                                          aria-describedby={
+                                            editSectionErrors[section.id || `index-${idx}`]?.title
+                                              ? `edit-section-${section.id || `index-${idx}`}-title-error`
+                                              : undefined
+                                          }
                                         />
+                                        {editSectionErrors[section.id || `index-${idx}`]?.title && (
+                                          <div
+                                            id={`edit-section-${section.id || `index-${idx}`}-title-error`}
+                                            className="field-error"
+                                            role="alert"
+                                          >
+                                            {editSectionErrors[section.id || `index-${idx}`]?.title}
+                                          </div>
+                                        )}
                                       </div>
                                       <div className="form-group-compact">
                                         <textarea
@@ -1673,6 +1995,7 @@ export default function ReportsStudioClient() {
                                           }}
                                           placeholder="Purpose"
                                           rows={2}
+                                          aria-label={`Section ${idx + 1} purpose`}
                                         />
                                       </div>
                                       <div className="form-group-compact">
@@ -1682,21 +2005,47 @@ export default function ReportsStudioClient() {
                                             type="number"
                                             value={section.targetLengthMin || ""}
                                             onChange={(e) => {
+                                              const key = section.id || `index-${idx}`;
+                                              if (editSectionErrors[key]?.length) {
+                                                setEditSectionErrors((prev) => ({
+                                                  ...prev,
+                                                  [key]: { ...prev[key], length: undefined },
+                                                }));
+                                              }
                                               const updatedSections = [...(editFormData.sections || [])];
                                               updatedSections[idx] = {...updatedSections[idx], targetLengthMin: parseInt(e.target.value) || 0};
                                               setEditFormData({...editFormData, sections: updatedSections});
                                             }}
                                             placeholder="Min words"
+                                            aria-label={`Section ${idx + 1} minimum word count`}
+                                            aria-describedby={
+                                              editSectionErrors[section.id || `index-${idx}`]?.length
+                                                ? `edit-section-${section.id || `index-${idx}`}-length-error`
+                                                : undefined
+                                            }
                                           />
                                           <input
                                             type="number"
                                             value={section.targetLengthMax || ""}
                                             onChange={(e) => {
+                                              const key = section.id || `index-${idx}`;
+                                              if (editSectionErrors[key]?.length) {
+                                                setEditSectionErrors((prev) => ({
+                                                  ...prev,
+                                                  [key]: { ...prev[key], length: undefined },
+                                                }));
+                                              }
                                               const updatedSections = [...(editFormData.sections || [])];
                                               updatedSections[idx] = {...updatedSections[idx], targetLengthMax: parseInt(e.target.value) || 0};
                                               setEditFormData({...editFormData, sections: updatedSections});
                                             }}
                                             placeholder="Max words"
+                                            aria-label={`Section ${idx + 1} maximum word count`}
+                                            aria-describedby={
+                                              editSectionErrors[section.id || `index-${idx}`]?.length
+                                                ? `edit-section-${section.id || `index-${idx}`}-length-error`
+                                                : undefined
+                                            }
                                           />
                                           <select
                                             value={section.sourceMode || ""}
@@ -1706,12 +2055,22 @@ export default function ReportsStudioClient() {
                                               setEditFormData({...editFormData, sections: updatedSections});
                                             }}
                                             className={!section.sourceMode ? "placeholder-select" : ""}
+                                            aria-label={`Section ${idx + 1} source mode`}
                                           >
                                             <option value="" disabled>Source</option>
                                             <option value="inherit">Same as Report</option>
                                             <option value="custom">Custom Source</option>
                                           </select>
                                         </div>
+                                        {editSectionErrors[section.id || `index-${idx}`]?.length && (
+                                          <div
+                                            id={`edit-section-${section.id || `index-${idx}`}-length-error`}
+                                            className="field-error"
+                                            role="alert"
+                                          >
+                                            {editSectionErrors[section.id || `index-${idx}`]?.length}
+                                          </div>
+                                        )}
                                       </div>
                                       {section.sourceMode === "custom" && (
                                         <div className="form-group-compact">
@@ -1735,6 +2094,7 @@ export default function ReportsStudioClient() {
                                             setEditFormData({...editFormData, sections: updatedSections});
                                           }}
                                           className={`writing-style-select ${!section.writingStyle ? "placeholder-select" : ""}`}
+                                          aria-label={`Section ${idx + 1} writing style`}
                                         >
                                           <option value="" disabled>Writing Style</option>
                                           {writingStyles.map((style) => (
@@ -1862,6 +2222,7 @@ export default function ReportsStudioClient() {
                               e.stopPropagation();
                               toggleTemplateExpansion(template.id);
                             }}
+                            aria-label={isExpanded ? "Collapse template" : "Expand template"}
                             title={isExpanded ? "Collapse" : "Expand"}
                           >
                             {isExpanded ? "▲" : "▼"}
@@ -1873,6 +2234,7 @@ export default function ReportsStudioClient() {
                               startEditingTemplate(template.id);
                               if (!isExpanded) setExpandedTemplateId(template.id);
                             }}
+                            aria-label="Edit template"
                             title="Edit"
                           >
                             ✏️
@@ -1883,6 +2245,7 @@ export default function ReportsStudioClient() {
                               e.stopPropagation();
                               cloneTemplate(template.id);
                             }}
+                            aria-label="Clone template"
                             title="Clone"
                           >
                             📋
@@ -1893,6 +2256,7 @@ export default function ReportsStudioClient() {
                               e.stopPropagation();
                               deleteTemplate(template.id);
                             }}
+                            aria-label="Delete template"
                             title="Delete"
                           >
                             🗑️
@@ -1916,6 +2280,7 @@ export default function ReportsStudioClient() {
                                       objectives: !prev.objectives,
                                     }))
                                   }
+                                  aria-label={editPanelsOpen.objectives ? "Collapse objectives" : "Expand objectives"}
                                   title={editPanelsOpen.objectives ? "Collapse" : "Expand"}
                                 >
                                   {editPanelsOpen.objectives ? "▲" : "▼"}
@@ -1930,9 +2295,20 @@ export default function ReportsStudioClient() {
                                     <input
                                       type="text"
                                       value={editFormData.name || ""}
-                                      onChange={(e) => setEditFormData({...editFormData, name: e.target.value})}
+                                      onChange={(e) => {
+                                        if (editErrors.name) setEditErrors((prev) => ({ ...prev, name: undefined }));
+                                        setEditFormData({...editFormData, name: e.target.value});
+                                      }}
                                       placeholder="Report Name *"
+                                      aria-label="Report name"
+                                      aria-invalid={Boolean(editErrors.name)}
+                                      aria-describedby={editErrors.name ? "edit-template-name-error" : undefined}
                                     />
+                                    {editErrors.name && (
+                                      <div id="edit-template-name-error" className="field-error" role="alert">
+                                        {editErrors.name}
+                                      </div>
+                                    )}
                                   </div>
                                   <div className="form-group-compact">
                                     <textarea
@@ -1940,6 +2316,7 @@ export default function ReportsStudioClient() {
                                       onChange={(e) => setEditFormData({...editFormData, description: e.target.value})}
                                       placeholder="Description"
                                       rows={3}
+                                      aria-label="Report description"
                                     />
                                   </div>
                                   <div className="form-group-compact">
@@ -1949,12 +2326,14 @@ export default function ReportsStudioClient() {
                                         value={editFormData.audience || ""}
                                         onChange={(e) => setEditFormData({...editFormData, audience: e.target.value})}
                                         placeholder="Audience"
+                                        aria-label="Audience"
                                       />
                                       <input
                                         type="text"
                                         value={editFormData.tone || ""}
                                         onChange={(e) => setEditFormData({...editFormData, tone: e.target.value})}
                                         placeholder="Tone"
+                                        aria-label="Tone"
                                       />
                                     </div>
                                   </div>
@@ -1965,12 +2344,14 @@ export default function ReportsStudioClient() {
                                         value={editFormData.domain || ""}
                                         onChange={(e) => setEditFormData({...editFormData, domain: e.target.value})}
                                         placeholder="Domain"
+                                        aria-label="Domain"
                                       />
                                       <input
                                         type="text"
                                         value={editFormData.jurisdiction || ""}
                                         onChange={(e) => setEditFormData({...editFormData, jurisdiction: e.target.value})}
                                         placeholder="Jurisdiction"
+                                        aria-label="Jurisdiction"
                                       />
                                     </div>
                                   </div>
@@ -2027,6 +2408,7 @@ export default function ReportsStudioClient() {
                                       sources: !prev.sources,
                                     }))
                                   }
+                                  aria-label={editPanelsOpen.sources ? "Collapse sources" : "Expand sources"}
                                   title={editPanelsOpen.sources ? "Collapse" : "Expand"}
                                 >
                                   {editPanelsOpen.sources ? "▲" : "▼"}
@@ -2121,6 +2503,7 @@ export default function ReportsStudioClient() {
                                         sections: !prev.sections,
                                       }))
                                     }
+                                    aria-label={editPanelsOpen.sections ? "Collapse sections" : "Expand sections"}
                                     title={editPanelsOpen.sections ? "Collapse" : "Expand"}
                                   >
                                     {editPanelsOpen.sections ? "▲" : "▼"}
@@ -2142,6 +2525,7 @@ export default function ReportsStudioClient() {
                                             <button
                                               className="btn-icon"
                                               onClick={() => moveEditSection(idx, "up")}
+                                              aria-label="Move section up"
                                               title="Move Up"
                                               disabled={idx === 0}
                                             >
@@ -2150,6 +2534,7 @@ export default function ReportsStudioClient() {
                                             <button
                                               className="btn-icon"
                                               onClick={() => moveEditSection(idx, "down")}
+                                              aria-label="Move section down"
                                               title="Move Down"
                                               disabled={idx === (editFormData.sections?.length || 0) - 1}
                                             >
@@ -2158,6 +2543,7 @@ export default function ReportsStudioClient() {
                                             <button
                                               className="btn-icon-danger"
                                               onClick={() => deleteEditSection(idx)}
+                                              aria-label="Delete section"
                                               title="Delete Section"
                                             >
                                               🗑️
@@ -2170,12 +2556,35 @@ export default function ReportsStudioClient() {
                                               type="text"
                                               value={section.title || ""}
                                               onChange={(e) => {
+                                                const key = section.id || `index-${idx}`;
+                                                if (editSectionErrors[key]?.title) {
+                                                  setEditSectionErrors((prev) => ({
+                                                    ...prev,
+                                                    [key]: { ...prev[key], title: undefined },
+                                                  }));
+                                                }
                                                 const updatedSections = [...(editFormData.sections || [])];
                                                 updatedSections[idx] = {...updatedSections[idx], title: e.target.value};
                                                 setEditFormData({...editFormData, sections: updatedSections});
                                               }}
                                               placeholder="Section Title *"
+                                              aria-label={`Section ${idx + 1} title`}
+                                              aria-invalid={Boolean(editSectionErrors[section.id || `index-${idx}`]?.title)}
+                                              aria-describedby={
+                                                editSectionErrors[section.id || `index-${idx}`]?.title
+                                                  ? `edit-section-${section.id || `index-${idx}`}-title-error`
+                                                  : undefined
+                                              }
                                             />
+                                            {editSectionErrors[section.id || `index-${idx}`]?.title && (
+                                              <div
+                                                id={`edit-section-${section.id || `index-${idx}`}-title-error`}
+                                                className="field-error"
+                                                role="alert"
+                                              >
+                                                {editSectionErrors[section.id || `index-${idx}`]?.title}
+                                              </div>
+                                            )}
                                           </div>
                                           <div className="form-group-compact">
                                             <textarea
@@ -2187,6 +2596,7 @@ export default function ReportsStudioClient() {
                                               }}
                                               placeholder="Purpose"
                                               rows={2}
+                                              aria-label={`Section ${idx + 1} purpose`}
                                             />
                                           </div>
                                           <div className="form-group-compact">
@@ -2196,21 +2606,47 @@ export default function ReportsStudioClient() {
                                                 type="number"
                                                 value={section.targetLengthMin || ""}
                                                 onChange={(e) => {
+                                                  const key = section.id || `index-${idx}`;
+                                                  if (editSectionErrors[key]?.length) {
+                                                    setEditSectionErrors((prev) => ({
+                                                      ...prev,
+                                                      [key]: { ...prev[key], length: undefined },
+                                                    }));
+                                                  }
                                                   const updatedSections = [...(editFormData.sections || [])];
                                                   updatedSections[idx] = {...updatedSections[idx], targetLengthMin: parseInt(e.target.value) || 0};
                                                   setEditFormData({...editFormData, sections: updatedSections});
                                                 }}
                                                 placeholder="Min words"
+                                                aria-label={`Section ${idx + 1} minimum word count`}
+                                                aria-describedby={
+                                                  editSectionErrors[section.id || `index-${idx}`]?.length
+                                                    ? `edit-section-${section.id || `index-${idx}`}-length-error`
+                                                    : undefined
+                                                }
                                               />
                                               <input
                                                 type="number"
                                                 value={section.targetLengthMax || ""}
                                                 onChange={(e) => {
+                                                  const key = section.id || `index-${idx}`;
+                                                  if (editSectionErrors[key]?.length) {
+                                                    setEditSectionErrors((prev) => ({
+                                                      ...prev,
+                                                      [key]: { ...prev[key], length: undefined },
+                                                    }));
+                                                  }
                                                   const updatedSections = [...(editFormData.sections || [])];
                                                   updatedSections[idx] = {...updatedSections[idx], targetLengthMax: parseInt(e.target.value) || 0};
                                                   setEditFormData({...editFormData, sections: updatedSections});
                                                 }}
                                                 placeholder="Max words"
+                                                aria-label={`Section ${idx + 1} maximum word count`}
+                                                aria-describedby={
+                                                  editSectionErrors[section.id || `index-${idx}`]?.length
+                                                    ? `edit-section-${section.id || `index-${idx}`}-length-error`
+                                                    : undefined
+                                                }
                                               />
                                               <select
                                                 value={section.sourceMode || ""}
@@ -2220,12 +2656,22 @@ export default function ReportsStudioClient() {
                                                   setEditFormData({...editFormData, sections: updatedSections});
                                                 }}
                                                 className={!section.sourceMode ? "placeholder-select" : ""}
+                                                aria-label={`Section ${idx + 1} source mode`}
                                               >
                                                 <option value="" disabled>Source</option>
                                                 <option value="inherit">Same as Report</option>
                                                 <option value="custom">Custom Source</option>
                                               </select>
                                             </div>
+                                            {editSectionErrors[section.id || `index-${idx}`]?.length && (
+                                              <div
+                                                id={`edit-section-${section.id || `index-${idx}`}-length-error`}
+                                                className="field-error"
+                                                role="alert"
+                                              >
+                                                {editSectionErrors[section.id || `index-${idx}`]?.length}
+                                              </div>
+                                            )}
                                           </div>
                                           {section.sourceMode === "custom" && (
                                             <div className="form-group-compact">
@@ -2249,6 +2695,7 @@ export default function ReportsStudioClient() {
                                                 setEditFormData({...editFormData, sections: updatedSections});
                                               }}
                                               className={`writing-style-select ${!section.writingStyle ? "placeholder-select" : ""}`}
+                                              aria-label={`Section ${idx + 1} writing style`}
                                             >
                                               <option value="" disabled>Writing Style</option>
                                               {writingStyles.map((style) => (
@@ -2342,8 +2789,8 @@ export default function ReportsStudioClient() {
               <p>Click &quot;+ New Report&quot; to create your first template</p>
             </div>
           )}
-        </>
+        </div>
       )}
-    </div>
+    </main>
   );
 }

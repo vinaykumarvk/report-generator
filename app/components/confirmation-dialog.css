@@ -1,0 +1,113 @@
+.confirmation-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.confirmation-dialog {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: var(--shadow-xl);
+  border: 2px solid var(--border-primary);
+}
+
+.confirmation-dialog.danger {
+  border-color: var(--error);
+}
+
+.confirmation-dialog.warning {
+  border-color: var(--warning);
+}
+
+.confirmation-dialog.info {
+  border-color: var(--info);
+}
+
+.confirmation-dialog-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 1rem 0;
+}
+
+.confirmation-dialog-message {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin: 0 0 1.5rem 0;
+  line-height: 1.5;
+}
+
+.confirmation-dialog-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
+
+.btn-danger {
+  background: var(--error);
+  color: white;
+  border-color: var(--error);
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
+.btn-danger:focus-visible {
+  outline: 2px solid var(--error);
+  outline-offset: 2px;
+}
+
+/* Mobile: Bottom sheet style */
+@media (max-width: 768px) {
+  .confirmation-dialog-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .confirmation-dialog {
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    max-width: 100%;
+    margin: 0;
+    padding: 1.5rem;
+    border-left: none;
+    border-right: none;
+    border-top: 2px solid var(--border-primary);
+  }
+
+  .confirmation-dialog-actions {
+    flex-direction: column-reverse;
+  }
+
+  .confirmation-dialog-actions button {
+    width: 100%;
+  }
+}
+
+/* Small mobile (360px) */
+@media (max-width: 360px) {
+  .confirmation-dialog {
+    padding: 1rem;
+  }
+
+  .confirmation-dialog-title {
+    font-size: 1.1rem;
+  }
+
+  .confirmation-dialog-message {
+    font-size: 0.9rem;
+  }
+}
+

@@ -1087,7 +1087,16 @@ export default function ReportsStudioClient() {
             {/* SECTION 1: OBJECTIVES */}
             <div className="form-section panel-card">
               <div className="panel-header">
-                <h2 className="form-section-title">1. Objectives</h2>
+                <div className="panel-header-content">
+                  <h2 className="form-section-title">
+                    <span className="section-number">1</span>
+                    <span>Objectives</span>
+                    {name && !createErrors.name && (
+                      <span className="section-completion-check" aria-label="Section completed">✓</span>
+                    )}
+                  </h2>
+                  <span className="section-progress">Step 1 of 3</span>
+                </div>
                 <button
                   className="btn-icon"
                   type="button"

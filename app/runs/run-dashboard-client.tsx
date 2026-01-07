@@ -755,14 +755,15 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
                   <div className="empty-state">
                     <div className="empty-state-icon"><Search size={48} /></div>
                     <h3>No Matching Reports</h3>
-                    <p>No reports match your current search or filter criteria. Try adjusting your filters or search terms to find what you're looking for.</p>
+                    <p>No reports match your current search or filter criteria. Try adjusting your filters or search terms to find what you&apos;re looking for.</p>
                     <div className="empty-state-cta">
                       <button onClick={() => {
                         setSearchQuery("");
                         setStatusFilter("ALL");
-                    }}>
-                      Clear Filters
-                    </button>
+                      }}>
+                        Clear Filters
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <>
@@ -771,177 +772,177 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
                     </div>
                     <div className="run-list">
                       {filteredAndSortedRuns().map((run) => (
-                  <div className="run-item" key={run.id}>
-                    <div className="run-header">
-                      <div>
-                        <div className="run-title">
-                          {run.template_version_snapshot_json?.name || "Untitled Template"}
-                        </div>
-                        {run.input_json?.topic && (
-                          <div className="muted">Topic: {run.input_json.topic}</div>
-                        )}
-                        <div className="run-id">{run.id}</div>
-                      </div>
-                      <span className={statusClass(run.status)}>{run.status || "UNKNOWN"}</span>
-                    </div>
+                        <div className="run-item" key={run.id}>
+                          <div className="run-header">
+                            <div>
+                              <div className="run-title">
+                                {run.template_version_snapshot_json?.name || "Untitled Template"}
+                              </div>
+                              {run.input_json?.topic && (
+                                <div className="muted">Topic: {run.input_json.topic}</div>
+                              )}
+                              <div className="run-id">{run.id}</div>
+                            </div>
+                            <span className={statusClass(run.status)}>{run.status || "UNKNOWN"}</span>
+                          </div>
 
-                    <div className="run-meta">
-                      <div className="run-meta-item">
-                        <span className="run-meta-label">Created</span>
-                        <span className="run-meta-value">
-                          {run.created_at ? formatRelativeTime(run.created_at) : "—"}
-                          {run.created_at && (
-                            <span className="run-timestamp-full" title={formatTimestamp(run.created_at)}>
-                              {" "}({formatTimestamp(run.created_at)})
-                            </span>
+                          <div className="run-meta">
+                            <div className="run-meta-item">
+                              <span className="run-meta-label">Created</span>
+                              <span className="run-meta-value">
+                                {run.created_at ? formatRelativeTime(run.created_at) : "—"}
+                                {run.created_at && (
+                                  <span className="run-timestamp-full" title={formatTimestamp(run.created_at)}>
+                                    {" "}({formatTimestamp(run.created_at)})
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                            {run.completed_at && (
+                              <div className="run-meta-item">
+                                <span className="run-meta-label">Completed</span>
+                                <span className="run-meta-value">
+                                  {formatRelativeTime(run.completed_at)}
+                                  <span className="run-timestamp-full" title={formatTimestamp(run.completed_at)}>
+                                    {" "}({formatTimestamp(run.completed_at)})
+                                  </span>
+                                </span>
+                              </div>
+                            )}
+                            {run.status === "RUNNING" && (
+                              <div className="run-meta-item">
+                                <span className="run-meta-label">Elapsed</span>
+                                <span className="run-meta-value">{formatElapsed(run)}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="run-actions">
+                            {run.status === "DRAFT" && (
+                              <button type="button" onClick={() => runAction(run.id, "start")}>
+                                Start
+                              </button>
+                            )}
+                            {run.status === "RUNNING" && (
+                              <button
+                                type="button"
+                                className="secondary"
+                                onClick={refreshStatus}
+                                disabled={isRefreshing}
+                              >
+                                {isRefreshing ? "Refreshing..." : "Refresh Status"}
+                              </button>
+                            )}
+                            {run.status === "COMPLETED" && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="secondary"
+                                  onClick={async () => {
+                                    const res = await fetch(`/api/report-runs/${run.id}/exports`, { cache: "no-store" });
+                                    if (res.ok) {
+                                      const exports = await res.json();
+                                      const mdExport = exports.find((e: any) => e.format === "MARKDOWN" && e.status === "READY");
+                                      if (mdExport) {
+                                        // Use fetch + blob for proper download
+                                        try {
+                                          const downloadRes = await fetch(`/api/report-runs/${run.id}/exports/${mdExport.id}`);
+                                          if (downloadRes.ok || downloadRes.redirected) {
+                                            const finalUrl = downloadRes.redirected ? downloadRes.url : downloadRes.url;
+                                            const blob = await fetch(finalUrl).then(r => r.blob());
+                                            const blobUrl = window.URL.createObjectURL(blob);
+                                            const link = document.createElement("a");
+                                            link.href = blobUrl;
+                                            link.download = `${run.id}.md`;
+                                            document.body.appendChild(link);
+                                            link.click();
+                                            link.remove();
+                                            window.URL.revokeObjectURL(blobUrl);
+                                          }
+                                        } catch (err) {
+                                          console.error('Download error:', err);
+                                          window.open(`/api/report-runs/${run.id}/exports/${mdExport.id}`, '_blank');
+                                        }
+                                      } else {
+                                        // Create new export
+                                        const createRes = await fetch(`/api/report-runs/${run.id}/export`, {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ format: 'MARKDOWN' })
+                                        });
+                                        if (createRes.ok) {
+                                          alert('Export started. Please wait a moment and try again.');
+                                        }
+                                      }
+                                    }
+                                  }}
+                                >
+                                  Download .md
+                                </button>
+                                <button
+                                  type="button"
+                                  className="secondary"
+                                  onClick={async () => {
+                                    const res = await fetch(`/api/report-runs/${run.id}/exports`, { cache: "no-store" });
+                                    if (res.ok) {
+                                      const exports = await res.json();
+                                      const pdfExport = exports.find((e: any) => e.format === "PDF" && e.status === "READY");
+                                      if (pdfExport) {
+                                        // Use fetch + blob for proper download
+                                        try {
+                                          const downloadRes = await fetch(`/api/report-runs/${run.id}/exports/${pdfExport.id}`);
+                                          if (downloadRes.ok || downloadRes.redirected) {
+                                            const finalUrl = downloadRes.redirected ? downloadRes.url : downloadRes.url;
+                                            const blob = await fetch(finalUrl).then(r => r.blob());
+                                            const blobUrl = window.URL.createObjectURL(blob);
+                                            const link = document.createElement("a");
+                                            link.href = blobUrl;
+                                            link.download = `${run.id}.pdf`;
+                                            document.body.appendChild(link);
+                                            link.click();
+                                            link.remove();
+                                            window.URL.revokeObjectURL(blobUrl);
+                                          }
+                                        } catch (err) {
+                                          console.error('Download error:', err);
+                                          window.open(`/api/report-runs/${run.id}/exports/${pdfExport.id}`, '_blank');
+                                        }
+                                      } else {
+                                        // Create new export
+                                        const createRes = await fetch(`/api/report-runs/${run.id}/export`, {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ format: 'PDF' })
+                                        });
+                                        if (createRes.ok) {
+                                          alert('Export started. Please wait a moment and try again.');
+                                        }
+                                      }
+                                    }
+                                  }}
+                                >
+                                  Download .pdf
+                                </button>
+                              </>
+                            )}
+                            <Link className="button secondary" href={`/runs/${run.id}`}>
+                              View Details
+                            </Link>
+                          </div>
+
+                          {run.status === "RUNNING" && (
+                            <div className="run-status-note">
+                              This report usually completes in about 5–15 minutes. You can come back later and refresh the page.
+                            </div>
                           )}
-                        </span>
-                      </div>
-                      {run.completed_at && (
-                        <div className="run-meta-item">
-                          <span className="run-meta-label">Completed</span>
-                          <span className="run-meta-value">
-                            {formatRelativeTime(run.completed_at)}
-                            <span className="run-timestamp-full" title={formatTimestamp(run.completed_at)}>
-                              {" "}({formatTimestamp(run.completed_at)})
-                            </span>
-                          </span>
+
+                          {actionStatus[run.id] && (
+                            <div className="action-status" aria-live="polite">
+                              {actionStatus[run.id]}
+                            </div>
+                          )}
                         </div>
-                      )}
-                      {run.status === "RUNNING" && (
-                        <div className="run-meta-item">
-                          <span className="run-meta-label">Elapsed</span>
-                          <span className="run-meta-value">{formatElapsed(run)}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="run-actions">
-                      {run.status === "DRAFT" && (
-                        <button type="button" onClick={() => runAction(run.id, "start")}>
-                          Start
-                        </button>
-                      )}
-                      {run.status === "RUNNING" && (
-                        <button
-                          type="button"
-                          className="secondary"
-                          onClick={refreshStatus}
-                          disabled={isRefreshing}
-                        >
-                          {isRefreshing ? "Refreshing..." : "Refresh Status"}
-                        </button>
-                      )}
-                      {run.status === "COMPLETED" && (
-                        <>
-                          <button
-                            type="button"
-                            className="secondary"
-                            onClick={async () => {
-                              const res = await fetch(`/api/report-runs/${run.id}/exports`, { cache: "no-store" });
-                              if (res.ok) {
-                                const exports = await res.json();
-                                const mdExport = exports.find((e: any) => e.format === "MARKDOWN" && e.status === "READY");
-                                if (mdExport) {
-                                  // Use fetch + blob for proper download
-                                  try {
-                                    const downloadRes = await fetch(`/api/report-runs/${run.id}/exports/${mdExport.id}`);
-                                    if (downloadRes.ok || downloadRes.redirected) {
-                                      const finalUrl = downloadRes.redirected ? downloadRes.url : downloadRes.url;
-                                      const blob = await fetch(finalUrl).then(r => r.blob());
-                                      const blobUrl = window.URL.createObjectURL(blob);
-                                      const link = document.createElement("a");
-                                      link.href = blobUrl;
-                                      link.download = `${run.id}.md`;
-                                      document.body.appendChild(link);
-                                      link.click();
-                                      link.remove();
-                                      window.URL.revokeObjectURL(blobUrl);
-                                    }
-                                  } catch (err) {
-                                    console.error('Download error:', err);
-                                    window.open(`/api/report-runs/${run.id}/exports/${mdExport.id}`, '_blank');
-                                  }
-                                } else {
-                                  // Create new export
-                                  const createRes = await fetch(`/api/report-runs/${run.id}/export`, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ format: 'MARKDOWN' })
-                                  });
-                                  if (createRes.ok) {
-                                    alert('Export started. Please wait a moment and try again.');
-                                  }
-                                }
-                              }
-                            }}
-                          >
-                            Download .md
-                          </button>
-                          <button
-                            type="button"
-                            className="secondary"
-                            onClick={async () => {
-                              const res = await fetch(`/api/report-runs/${run.id}/exports`, { cache: "no-store" });
-                              if (res.ok) {
-                                const exports = await res.json();
-                                const pdfExport = exports.find((e: any) => e.format === "PDF" && e.status === "READY");
-                                if (pdfExport) {
-                                  // Use fetch + blob for proper download
-                                  try {
-                                    const downloadRes = await fetch(`/api/report-runs/${run.id}/exports/${pdfExport.id}`);
-                                    if (downloadRes.ok || downloadRes.redirected) {
-                                      const finalUrl = downloadRes.redirected ? downloadRes.url : downloadRes.url;
-                                      const blob = await fetch(finalUrl).then(r => r.blob());
-                                      const blobUrl = window.URL.createObjectURL(blob);
-                                      const link = document.createElement("a");
-                                      link.href = blobUrl;
-                                      link.download = `${run.id}.pdf`;
-                                      document.body.appendChild(link);
-                                      link.click();
-                                      link.remove();
-                                      window.URL.revokeObjectURL(blobUrl);
-                                    }
-                                  } catch (err) {
-                                    console.error('Download error:', err);
-                                    window.open(`/api/report-runs/${run.id}/exports/${pdfExport.id}`, '_blank');
-                                  }
-                                } else {
-                                  // Create new export
-                                  const createRes = await fetch(`/api/report-runs/${run.id}/export`, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ format: 'PDF' })
-                                  });
-                                  if (createRes.ok) {
-                                    alert('Export started. Please wait a moment and try again.');
-                                  }
-                                }
-                              }
-                            }}
-                          >
-                            Download .pdf
-                          </button>
-                        </>
-                      )}
-                      <Link className="button secondary" href={`/runs/${run.id}`}>
-                        View Details
-                      </Link>
-                    </div>
-
-                    {run.status === "RUNNING" && (
-                      <div className="run-status-note">
-                        This report usually completes in about 5–15 minutes. You can come back later and refresh the page.
-                      </div>
-                    )}
-
-                    {actionStatus[run.id] && (
-                      <div className="action-status" aria-live="polite">
-                        {actionStatus[run.id]}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                      ))}
                     </div>
                   </>
                 )}

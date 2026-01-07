@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
-import { FileText, File, Users, Plug, Trash2, ChevronUp, ChevronDown, Check, AlertTriangle, Clipboard, BarChart } from "lucide-react";
+import { useEffect, useState } from "react";
+import { File, Users, Plug, Trash2, ChevronUp, ChevronDown, Check, AlertTriangle, Clipboard, BarChart } from "lucide-react";
 import VectorStoreSelector from "./components/vector-store-selector";
 import ConfirmationDialog from "../components/confirmation-dialog";
 import StatusChip from "../components/status-chip";
@@ -85,6 +85,7 @@ export default function ReportsStudioClient() {
   });
   const [expandedTemplateId, setExpandedTemplateId] = useState<string | null>(null);
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
   const [editFormData, setEditFormData] = useState<Partial<Template>>({});
   const [availableVectorStores, setAvailableVectorStores] = useState<VectorStore[]>([]);
   const [writingStyles, setWritingStyles] = useState<WritingStyle[]>([]);
@@ -244,8 +245,8 @@ export default function ReportsStudioClient() {
       }
       
       // Enter on buttons (handled by default, but ensure it works)
-      if (e.key === "Enter" && e.target instanceof HTMLElement) {
-        if (e.target.tagName === "BUTTON" && !e.target.disabled) {
+      if (e.key === "Enter" && e.target instanceof HTMLButtonElement) {
+        if (!e.target.disabled) {
           e.target.click();
         }
       }
@@ -1204,7 +1205,7 @@ export default function ReportsStudioClient() {
               {/* Row 5: Output Formats */}
               <div className="form-group-compact">
                 <div className="checkbox-group-inline-compact">
-                  {["markdown", "docx", "pdf"].map((fmt) => (
+                  {["markdown", "pdf"].map((fmt) => (
                     <label key={fmt} className="checkbox-label-inline-compact">
                       <input
                         type="checkbox"

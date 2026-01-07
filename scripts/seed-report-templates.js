@@ -24,7 +24,7 @@ const reportTemplates = [
     tone: 'Analytical, objective, data-driven, professional',
     domain: 'Equity Research, Corporate Analysis, Financial Markets, Strategy',
     jurisdiction: 'Global (customizable per company: US, India, EU, GCC, APAC)',
-    formats: ['markdown', 'docx', 'pdf'],
+    formats: ['markdown', 'pdf'],
     status: 'ACTIVE',
     sections: [
       {
@@ -106,7 +106,7 @@ const reportTemplates = [
     tone: 'Professional, persuasive, client-focused, solution-oriented',
     domain: 'Sales, Business Development, Consulting',
     jurisdiction: 'Global',
-    formats: ['markdown', 'docx', 'pdf'],
+    formats: ['markdown', 'pdf'],
     status: 'ACTIVE',
     sections: [
       {
@@ -188,7 +188,7 @@ const reportTemplates = [
     tone: 'Clear, precise, structured, technical',
     domain: 'Product Management, Software Development, Business Analysis',
     jurisdiction: 'Global',
-    formats: ['markdown', 'docx'],
+    formats: ['markdown'],
     status: 'ACTIVE',
     sections: [
       {
@@ -270,7 +270,7 @@ const reportTemplates = [
     tone: 'Precise, structured, technical, comprehensive',
     domain: 'Quality Assurance, Software Testing',
     jurisdiction: 'Global',
-    formats: ['markdown', 'docx'],
+    formats: ['markdown'],
     status: 'ACTIVE',
     sections: [
       {
@@ -352,7 +352,7 @@ const reportTemplates = [
     tone: 'Professional, clear, client-focused, actionable',
     domain: 'Account Management, Consulting, Client Services',
     jurisdiction: 'Global',
-    formats: ['markdown', 'docx', 'pdf'],
+    formats: ['markdown', 'pdf'],
     status: 'ACTIVE',
     sections: [
       {
@@ -434,7 +434,7 @@ const reportTemplates = [
     tone: 'Analytical, objective, data-driven, professional',
     domain: 'Wealth Management, Private Banking, Sales Performance',
     jurisdiction: 'Global',
-    formats: ['markdown', 'docx', 'pdf'],
+    formats: ['markdown', 'pdf'],
     status: 'ACTIVE',
     sections: [
       {

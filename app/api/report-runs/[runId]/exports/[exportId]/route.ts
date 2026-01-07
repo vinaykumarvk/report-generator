@@ -50,8 +50,6 @@ export async function GET(
   const contentType =
     exportRecord.format === "PDF"
       ? "application/pdf"
-      : exportRecord.format === "DOCX"
-      ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
       : "text/markdown";
   if (!exportRecord.file_path || !fs.existsSync(exportRecord.file_path)) {
     if (exportRecord.format !== "MARKDOWN") {

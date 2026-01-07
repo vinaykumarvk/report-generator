@@ -501,17 +501,6 @@ async function handleExport(job) {
         },
         { sourcesAppendix: uniqueSources, exportId }
       );
-    } else if (format === "DOCX") {
-      const { writeDocxExport } = require("../src/lib/docxExport");
-      exportRecord = await writeDocxExport(
-        {
-          id: run.id,
-          templateSnapshot: run.templateSnapshot,
-          finalReport: finalReportContent,
-          inputJson: run.inputJson,
-        },
-        { sourcesAppendix: uniqueSources, exportId }
-      );
     } else if (format === "PDF") {
       const { writePdfExport } = require("../src/lib/pdfExport");
       exportRecord = await writePdfExport(

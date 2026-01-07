@@ -60,6 +60,7 @@ export default function ConfirmationDialog({
       document.addEventListener("keydown", handleTab);
       return () => document.removeEventListener("keydown", handleTab);
     }
+    return undefined;
   }, [isOpen]);
 
   useEffect(() => {

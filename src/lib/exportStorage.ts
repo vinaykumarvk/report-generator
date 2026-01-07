@@ -4,18 +4,16 @@ import { supabaseAdmin, assertNoSupabaseError } from "@/lib/supabaseAdmin";
 
 const DEFAULT_EXPORTS_BUCKET = process.env.SUPABASE_EXPORTS_BUCKET || "exports";
 
-type ExportFormat = "MARKDOWN" | "PDF" | "DOCX";
+type ExportFormat = "MARKDOWN" | "PDF";
 
 const formatExtensions: Record<ExportFormat, string> = {
   MARKDOWN: "md",
   PDF: "pdf",
-  DOCX: "docx",
 };
 
 const formatContentTypes: Record<ExportFormat, string> = {
   MARKDOWN: "text/markdown",
   PDF: "application/pdf",
-  DOCX: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 };
 
 export function buildExportObjectKey(params: {

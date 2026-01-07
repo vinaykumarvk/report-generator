@@ -30,6 +30,7 @@ export default function StatusChip({
 
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [duration, onDismiss]);
 
   if (!isVisible) return null;

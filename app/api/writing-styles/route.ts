@@ -13,7 +13,9 @@ export async function GET() {
     }
     const fileContents = fs.readFileSync(filePath, "utf8");
     const data = JSON.parse(fileContents);
-    return NextResponse.json(data);
+    // Return the writing_styles array from the parsed data
+    const writingStyles = data.writing_styles || [];
+    return NextResponse.json({ writing_styles: writingStyles });
   } catch (error) {
     console.error("Failed to load writing styles:", error);
     return NextResponse.json(

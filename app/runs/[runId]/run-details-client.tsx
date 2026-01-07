@@ -14,7 +14,6 @@ type Run = {
   final_report_json?: {
     content: string;
     sections: Array<{ id: string; title: string; content: string }>;
-    transitions: Array<{ from: string; to: string; text: string }>;
   } | null;
   template_version_snapshot_json?: { name?: string };
   blueprint_json?: {
@@ -37,11 +36,6 @@ type Run = {
       prohibitions?: string[];
     };
   };
-  transitions_json?: Array<{
-    afterSectionId: string;
-    beforeSectionId: string;
-    content: string;
-  }>;
 };
 
 type SectionRun = {
@@ -422,40 +416,6 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
           </div>
         )}
 
-        {/* Transitions */}
-        {run?.transitions_json && run.transitions_json.length > 0 && (
-          <div className="card">
-            <h2>🔗 Section Transitions</h2>
-            <p className="muted" style={{ marginTop: "-0.5rem", marginBottom: "1rem" }}>
-              Smart transitions that create smooth narrative flow between sections
-            </p>
-            <div style={{ display: "grid", gap: "1rem" }}>
-              {run.transitions_json.map((transition, i) => {
-                const afterSection = sections.find(s => s.id === transition.afterSectionId);
-                const beforeSection = sections.find(s => s.id === transition.beforeSectionId);
-                
-                return (
-                  <div
-                    key={i}
-                    style={{
-                      padding: "1rem",
-                      background: "var(--color-background-secondary)",
-                      borderRadius: "0.5rem",
-                      borderLeft: "3px solid var(--color-accent)"
-                    }}
-                  >
-                    <div style={{ marginBottom: "0.5rem", fontSize: "0.875rem", color: "var(--color-accent)", fontWeight: 600 }}>
-                      {afterSection?.title || "Section"} → {beforeSection?.title || "Next Section"}
-                    </div>
-                    <div style={{ lineHeight: "1.6", fontStyle: "italic" }}>
-                      {transition.content}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* Phase 1 Progress Indicator */}
         {run && run.status === "RUNNING" && (
@@ -512,33 +472,6 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
                 </div>
               </div>
 
-              {/* Transitions */}
-              <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                <div style={{ 
-                  width: "32px", 
-                  height: "32px", 
-                  borderRadius: "50%",
-                  background: run.transitions_json && run.transitions_json.length > 0 ? "var(--color-success)" : "var(--color-accent-light)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontWeight: "bold",
-                  color: run.transitions_json && run.transitions_json.length > 0 ? "white" : "var(--color-accent)"
-                }}>
-                  {run.transitions_json && run.transitions_json.length > 0 ? "✓" : "3"}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600 }}>Transitions Generation</div>
-                  <div className="muted" style={{ fontSize: "0.875rem" }}>
-                    {run.transitions_json && run.transitions_json.length > 0 
-                      ? `✓ ${run.transitions_json.length} transitions created` 
-                      : sections.every(s => s.title?.toLowerCase().includes("executive summary") || s.status === "COMPLETED")
-                      ? "In progress..."
-                      : "Waiting for sections..."}
-                  </div>
-                </div>
-              </div>
-
               {/* Executive Summary */}
               <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
                 <div style={{ 
@@ -565,9 +498,9 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
                       ? "✓ Complete"
                       : sections.find(s => s.title?.toLowerCase().includes("executive summary"))?.status === "RUNNING"
                       ? "In progress..."
-                      : run.transitions_json && run.transitions_json.length > 0
+                      : sections.every(s => s.title?.toLowerCase().includes("executive summary") || s.status === "COMPLETED")
                       ? "In progress..."
-                      : "Waiting for transitions..."}
+                      : "Waiting for sections..."}
                   </div>
                 </div>
               </div>

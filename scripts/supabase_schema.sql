@@ -125,6 +125,7 @@ create table if not exists report_runs (
   completed_at timestamptz,
   blueprint_json jsonb,
   final_report_json jsonb,
+  transitions_json jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

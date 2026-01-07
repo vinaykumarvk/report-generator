@@ -217,14 +217,34 @@ async function handleRunSection(job) {
   });
   
   if (allNonExecDone) {
-    const existingAssemble = await hasAssembleJob(run.id);
-    if (!existingAssemble) {
+    // Check if executive summary or assemble job already exists
+    // We need to check for both GENERATE_EXEC_SUMMARY and ASSEMBLE jobs
+    const { supabaseAdmin } = require("../src/lib/supabaseAdmin");
+    const supabase = supabaseAdmin();
+    const { data: existingJobs, error } = await supabase
+      .from("jobs")
+      .select("id")
+      .eq("run_id", run.id)
+      .in("type", ["GENERATE_EXEC_SUMMARY", "ASSEMBLE"])
+      .in("status", ["QUEUED", "RUNNING", "COMPLETED"])
+      .limit(1);
+    
+    if (error) {
+      console.error("Error checking for existing jobs:", error);
+      // Continue anyway - worst case we enqueue a duplicate which will be idempotent
+    }
+    
+    if (!existingJobs || existingJobs.length === 0) {
+      // Skip transitions, go directly to executive summary
+      console.log("All sections complete, enqueuing GENERATE_EXEC_SUMMARY");
       await enqueueJob({
-        type: "GENERATE_TRANSITIONS",
+        type: "GENERATE_EXEC_SUMMARY",
         payloadJson: {},
         runId: run.id,
         workspaceId: run.workspaceId ?? null,
       });
+    } else {
+      console.log("GENERATE_EXEC_SUMMARY or ASSEMBLE job already exists, skipping");
     }
   }
 }
@@ -349,8 +369,6 @@ async function handleGenerateExecSummary(job) {
 }
 
 async function handleAssemble(job) {
-  const { assembleReportWithTransitions } = require("../src/lib/transitionsGenerator");
-  
   const run = await getRunById(job.runId);
   if (!run) throw new Error("Run not found");
   const template = run.templateSnapshot;
@@ -375,19 +393,21 @@ async function handleAssemble(job) {
     })
     .filter(Boolean);
 
-  // Get transitions
-  const transitions = run.transitionsJson || [];
-  
-  // Assemble report with transitions
-  const finalReport = assembleReportWithTransitions(orderedSections, transitions);
+  // Assemble report without transitions (simple concatenation with separators)
+  const finalReport = orderedSections
+    .map(section => {
+      const title = section.title ? `# ${section.title}\n\n` : '';
+      return title + section.content;
+    })
+    .join('\n\n---\n\n')
+    .trim();
   
   await updateRun(run.id, {
     status: "COMPLETED",
     completedAt: new Date().toISOString(),
     finalReport: {
       content: finalReport,
-      sections: orderedSections,
-      transitions: transitions
+      sections: orderedSections
     }
   });
   
@@ -542,7 +562,7 @@ async function handleJob(job) {
   if (job.type === "START_RUN") return handleStartRun(job);
   if (job.type === "GENERATE_BLUEPRINT") return handleGenerateBlueprint(job);
   if (job.type === "RUN_SECTION") return handleRunSection(job);
-  if (job.type === "GENERATE_TRANSITIONS") return handleGenerateTransitions(job);
+  // GENERATE_TRANSITIONS removed - sections go directly to executive summary
   if (job.type === "GENERATE_EXEC_SUMMARY") return handleGenerateExecSummary(job);
   if (job.type === "ASSEMBLE") return handleAssemble(job);
   if (job.type === "EXPORT") return handleExport(job);

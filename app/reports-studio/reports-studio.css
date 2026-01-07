@@ -35,6 +35,30 @@
   font-weight: 600;
 }
 
+/* Skeleton Loading */
+.skeleton-line {
+  background: linear-gradient(
+    90deg,
+    var(--bg-card) 0%,
+    var(--bg-card-hover) 50%,
+    var(--bg-card) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-md);
+  height: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
 /* Templates Section Grouping */
 .templates-section {
   margin-bottom: 2rem;

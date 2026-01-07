@@ -63,7 +63,7 @@ export default function ReportsStudioClient() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"master" | "regular">("master");
   const [createPanelsOpen, setCreatePanelsOpen] = useState({
     objectives: true,
@@ -106,6 +106,7 @@ export default function ReportsStudioClient() {
 
   async function loadTemplates() {
     try {
+      setLoading(true);
       const res = await fetch("/api/templates");
       if (res.ok) {
         const data = await res.json();
@@ -113,6 +114,8 @@ export default function ReportsStudioClient() {
       }
     } catch (error) {
       console.error("Failed to load templates:", error);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -803,10 +806,21 @@ export default function ReportsStudioClient() {
 
   return (
     <div className="page-container">
-      <div className="page-header-section">
-        <div className="page-header-content">
-          <h1>Reports Studio</h1>
-          <p>Create and manage report templates</p>
+      <div className="page-header-section" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        {/* Tabs Navigation */}
+        <div className="templates-tabs" style={{ marginBottom: 0, borderBottom: 'none' }}>
+          <button
+            className={`tab-button ${activeTab === "master" ? "active" : ""}`}
+            onClick={() => setActiveTab("master")}
+          >
+            ⭐ Master Templates ({masterTemplates.length})
+          </button>
+          <button
+            className={`tab-button ${activeTab === "regular" ? "active" : ""}`}
+            onClick={() => setActiveTab("regular")}
+          >
+            📋 Regular Templates ({regularTemplates.length})
+          </button>
         </div>
         <button className="btn-primary" onClick={() => setShowForm(!showForm)}>
           {showForm ? "✕ Cancel" : "+ New Report"}
@@ -1276,24 +1290,25 @@ export default function ReportsStudioClient() {
             />
           </div>
 
-          {/* Tabs Navigation */}
-          <div className="templates-tabs">
-            <button
-              className={`tab-button ${activeTab === "master" ? "active" : ""}`}
-              onClick={() => setActiveTab("master")}
-            >
-              ⭐ Master Templates ({masterTemplates.length})
-            </button>
-            <button
-              className={`tab-button ${activeTab === "regular" ? "active" : ""}`}
-              onClick={() => setActiveTab("regular")}
-            >
-              📋 Regular Templates ({regularTemplates.length})
-            </button>
-          </div>
+          {/* Loading Skeleton */}
+          {loading && (
+            <div className="saved-templates-list">
+              {[0, 1, 2].map((row) => (
+                <div key={`skeleton-${row}`} className="saved-template-card">
+                  <div className="saved-template-header">
+                    <div className="saved-template-info">
+                      <div className="skeleton-line" style={{ width: '60%', height: '1.5rem', marginBottom: '0.5rem' }} />
+                      <div className="skeleton-line" style={{ width: '80%', height: '1rem', marginBottom: '0.5rem' }} />
+                      <div className="skeleton-line" style={{ width: '40%', height: '1rem' }} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Master Templates Tab */}
-          {activeTab === "master" && masterTemplates.length > 0 && (
+          {!loading && activeTab === "master" && masterTemplates.length > 0 && (
             <div className="templates-section">
               <div className="saved-templates-list">
                 {masterTemplates.map((template) => {
@@ -1801,14 +1816,14 @@ export default function ReportsStudioClient() {
             </div>
           )}
 
-          {activeTab === "master" && masterTemplates.length === 0 && (
+          {!loading && activeTab === "master" && masterTemplates.length === 0 && (
             <div className="empty-state">
               <p>No master templates found.</p>
             </div>
           )}
 
           {/* Regular Templates Tab */}
-          {activeTab === "regular" && regularTemplates.length > 0 && (
+          {!loading && activeTab === "regular" && regularTemplates.length > 0 && (
             <div className="templates-section">
               <div className="saved-templates-list">
                 {regularTemplates.map((template) => {
@@ -2315,13 +2330,13 @@ export default function ReportsStudioClient() {
             </div>
           )}
 
-          {activeTab === "regular" && regularTemplates.length === 0 && (
+          {!loading && activeTab === "regular" && regularTemplates.length === 0 && (
             <div className="empty-state">
               <p>No regular templates found.</p>
             </div>
           )}
 
-          {filteredTemplates.length === 0 && (
+          {!loading && filteredTemplates.length === 0 && (
             <div className="empty-state">
               <p>No report templates found</p>
               <p>Click &quot;+ New Report&quot; to create your first template</p>

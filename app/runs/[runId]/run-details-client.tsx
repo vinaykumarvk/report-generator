@@ -524,7 +524,7 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
                   <div style={{ fontWeight: 600 }}>Final Assembly</div>
                   <div className="muted" style={{ fontSize: "0.875rem" }}>
                     {run.final_report_json 
-                      ? "✓ Complete" 
+                      ? <><Check size={14} className="inline-icon" /> Complete</>
                       : sections.every(s => s.status === "COMPLETED")
                       ? "In progress..."
                       : "Waiting for all sections..."}

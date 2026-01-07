@@ -562,7 +562,13 @@ async function handleJob(job) {
   if (job.type === "START_RUN") return handleStartRun(job);
   if (job.type === "GENERATE_BLUEPRINT") return handleGenerateBlueprint(job);
   if (job.type === "RUN_SECTION") return handleRunSection(job);
-  // GENERATE_TRANSITIONS removed - sections go directly to executive summary
+  // GENERATE_TRANSITIONS removed - skip old transitions jobs gracefully
+  if (job.type === "GENERATE_TRANSITIONS") {
+    console.log(`⏭️  Skipping GENERATE_TRANSITIONS job ${job.id} (transitions feature removed)`);
+    // Just complete it immediately - transitions are no longer needed
+    // The job will be marked as completed by processJob
+    return;
+  }
   if (job.type === "GENERATE_EXEC_SUMMARY") return handleGenerateExecSummary(job);
   if (job.type === "ASSEMBLE") return handleAssemble(job);
   if (job.type === "EXPORT") return handleExport(job);

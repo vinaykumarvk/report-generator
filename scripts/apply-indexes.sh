@@ -49,3 +49,4 @@ echo "  psql \$SUPABASE_DB_URL -c 'SELECT indexname FROM pg_indexes WHERE tablen
 
 
 
+

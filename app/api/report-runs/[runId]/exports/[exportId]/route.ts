@@ -51,40 +51,45 @@ export async function GET(
     exportRecord.format === "PDF"
       ? "application/pdf"
       : "text/markdown";
+  
+  // Fallback to file_path if storage_url is not available
   if (!exportRecord.file_path || !fs.existsSync(exportRecord.file_path)) {
-    if (exportRecord.format !== "MARKDOWN") {
-      return NextResponse.json({ error: "Export file missing" }, { status: 404 });
+    // For MARKDOWN, generate on-the-fly if file is missing
+    if (exportRecord.format === "MARKDOWN") {
+      const { data: run, error: runError } = (await supabase
+        .from("report_runs")
+        .select("id, template_version_snapshot_json, final_report_json")
+        .eq("id", params.runId)
+        .single()) as { data: any; error: any };
+      if (runError || !run) {
+        return NextResponse.json({ error: "Run not found" }, { status: 404 });
+      }
+      const createdAt = exportRecord.created_at || new Date().toISOString();
+      const document = buildMarkdownDocument(
+        {
+          id: String(run.id),
+          templateSnapshot: run.template_version_snapshot_json || undefined,
+          finalReport: run.final_report_json ?? null,
+        },
+        String(createdAt)
+      );
+      return new NextResponse(document, {
+        headers: {
+          "Content-Type": contentType,
+          "Content-Disposition": `attachment; filename="${exportRecord.id}.markdown"`,
+        },
+      });
     }
-    const { data: run, error: runError } = (await supabase
-      .from("report_runs")
-      .select("id, template_version_snapshot_json, final_report_json")
-      .eq("id", params.runId)
-      .single()) as { data: any; error: any };
-    if (runError || !run) {
-      return NextResponse.json({ error: "Run not found" }, { status: 404 });
-    }
-    const createdAt = exportRecord.created_at || new Date().toISOString();
-    const document = buildMarkdownDocument(
-      {
-        id: String(run.id),
-        templateSnapshot: run.template_version_snapshot_json || undefined,
-        finalReport: run.final_report_json ?? null,
-      },
-      String(createdAt)
-    );
-    return new NextResponse(document, {
-      headers: {
-        "Content-Type": contentType,
-        "Content-Disposition": `attachment; filename=\"${exportRecord.id}.markdown\"`,
-      },
-    });
+    // For PDF, file must exist
+    return NextResponse.json({ error: "Export file missing" }, { status: 404 });
   }
 
+  // Serve file from file_path
   const fileBuffer = fs.readFileSync(exportRecord.file_path);
   return new NextResponse(fileBuffer, {
     headers: {
       "Content-Type": contentType,
-      "Content-Disposition": `attachment; filename=\"${exportRecord.id}.${exportRecord.format.toLowerCase()}\"`,
+      "Content-Disposition": `attachment; filename="${exportRecord.id}.${exportRecord.format.toLowerCase()}"`,
     },
   });
 }

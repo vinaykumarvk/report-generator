@@ -214,3 +214,4 @@ echo -e "${YELLOW}   Especially: WORKER_TRIGGER_SECRET=${TRIGGER_SECRET}${NC}"
 echo ""
 
 
+

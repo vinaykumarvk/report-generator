@@ -318,3 +318,4 @@ The app now follows this principle - every UI element serves a purpose, with no 
 
 
 
+

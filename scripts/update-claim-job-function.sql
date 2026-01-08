@@ -109,3 +109,4 @@ GRANT EXECUTE ON FUNCTION claim_next_job(TEXT, INTEGER) TO authenticated, servic
 
 
 
+

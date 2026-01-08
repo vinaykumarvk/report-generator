@@ -9,12 +9,50 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const workspaceId = await getWorkspaceIdFromRequest(request);
   const supabase = supabaseAdmin();
-  const { data, error } = await supabase
+  
+  // Try relationship query first, fallback to separate queries if it fails
+  let { data, error } = await supabase
     .from("templates")
     .select("*, template_sections(*)")
     .or(`workspace_id.eq.${workspaceId},workspace_id.is.null`)
-    .order("updated_at", { ascending: false })
-    .order("order", { foreignTable: "template_sections", ascending: true });
+    .order("updated_at", { ascending: false });
+  
+  // If relationship query fails, use separate queries
+  if (error && (error.message.includes("relationship") || error.message.includes("foreignTable"))) {
+    // Fetch templates separately
+    const { data: templatesData, error: templatesError } = await supabase
+      .from("templates")
+      .select("*")
+      .or(`workspace_id.eq.${workspaceId},workspace_id.is.null`)
+      .order("updated_at", { ascending: false });
+    
+    if (templatesError) {
+      return NextResponse.json(
+        { error: templatesError.message || "Failed to load templates" },
+        { status: 500 }
+      );
+    }
+    
+    // Fetch sections separately and combine
+    if (templatesData && templatesData.length > 0) {
+      const templateIds = templatesData.map((t: any) => t.id);
+      const { data: sectionsData } = await supabase
+        .from("template_sections")
+        .select("*")
+        .in("template_id", templateIds)
+        .order("order", { ascending: true });
+      
+      // Combine data
+      data = templatesData.map((template: any) => ({
+        ...template,
+        template_sections: sectionsData?.filter((s: any) => s.template_id === template.id) || []
+      }));
+      error = null;
+    } else {
+      data = [];
+    }
+  }
+  
   if (error) {
     return NextResponse.json(
       { error: error.message || "Failed to load templates" },
@@ -26,12 +64,46 @@ export async function GET(request: NextRequest) {
   if (!templates.length) {
     const fallbackWorkspaceId = String(await getDefaultWorkspaceId());
     if (fallbackWorkspaceId !== workspaceId) {
-      const { data: fallbackData, error: fallbackError } = await supabase
+      // Try relationship query for fallback
+      let { data: fallbackData, error: fallbackError } = await supabase
         .from("templates")
         .select("*, template_sections(*)")
         .or(`workspace_id.eq.${fallbackWorkspaceId},workspace_id.is.null`)
-        .order("updated_at", { ascending: false })
-        .order("order", { foreignTable: "template_sections", ascending: true });
+        .order("updated_at", { ascending: false });
+      
+      // If relationship query fails, use separate queries
+      if (fallbackError && (fallbackError.message.includes("relationship") || fallbackError.message.includes("foreignTable"))) {
+        const { data: fallbackTemplatesData, error: fallbackTemplatesError } = await supabase
+          .from("templates")
+          .select("*")
+          .or(`workspace_id.eq.${fallbackWorkspaceId},workspace_id.is.null`)
+          .order("updated_at", { ascending: false });
+        
+        if (fallbackTemplatesError) {
+          return NextResponse.json(
+            { error: fallbackTemplatesError.message || "Failed to load templates" },
+            { status: 500 }
+          );
+        }
+        
+        if (fallbackTemplatesData && fallbackTemplatesData.length > 0) {
+          const fallbackTemplateIds = fallbackTemplatesData.map((t: any) => t.id);
+          const { data: fallbackSectionsData } = await supabase
+            .from("template_sections")
+            .select("*")
+            .in("template_id", fallbackTemplateIds)
+            .order("order", { ascending: true });
+          
+          fallbackData = fallbackTemplatesData.map((template: any) => ({
+            ...template,
+            template_sections: fallbackSectionsData?.filter((s: any) => s.template_id === template.id) || []
+          }));
+          fallbackError = null;
+        } else {
+          fallbackData = [];
+        }
+      }
+      
       if (fallbackError) {
         return NextResponse.json(
           { error: fallbackError.message || "Failed to load templates" },

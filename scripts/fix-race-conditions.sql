@@ -215,3 +215,4 @@ GRANT EXECUTE ON FUNCTION cleanup_stale_jobs(INTEGER) TO authenticated, service_
 
 
 
+

@@ -42,9 +42,12 @@ async function openExportLink(url: string, filename: string) {
       throw new Error(`Download failed: ${response.status} ${response.statusText}`);
     }
     
-    // Get the final URL (after any redirects)
-    const finalUrl = response.url;
-    const blob = await fetch(finalUrl).then(r => r.blob());
+    // Handle redirects - if response was redirected, use the final URL
+    let finalUrl = response.url;
+    
+    // If it's a redirect to external storage, fetch from there
+    // Otherwise, use the blob from the response directly
+    const blob = await response.blob();
     const blobUrl = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = blobUrl;
@@ -55,8 +58,14 @@ async function openExportLink(url: string, filename: string) {
     window.URL.revokeObjectURL(blobUrl);
   } catch (error) {
     console.error('Download error:', error);
-    // Fallback to window.open if fetch fails
-    window.open(url, "_blank", "noopener");
+    // Fallback: try direct link click
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.target = "_blank";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   }
 }
 

@@ -42,11 +42,7 @@ async function openExportLink(url: string, filename: string) {
       throw new Error(`Download failed: ${response.status} ${response.statusText}`);
     }
     
-    // Handle redirects - if response was redirected, use the final URL
-    let finalUrl = response.url;
-    
-    // If it's a redirect to external storage, fetch from there
-    // Otherwise, use the blob from the response directly
+    // Use the blob directly from the response (handles redirects automatically)
     const blob = await response.blob();
     const blobUrl = window.URL.createObjectURL(blob);
     const link = document.createElement("a");

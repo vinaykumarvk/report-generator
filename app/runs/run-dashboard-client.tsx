@@ -859,7 +859,7 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
                                       });
                                     }, 3000);
                                   }}
-                                  onExportError={(format, error) => {
+                                  onExportError={(_format, error) => {
                                     setActionStatus((prev) => ({
                                       ...prev,
                                       [run.id]: `Export failed: ${error}`,

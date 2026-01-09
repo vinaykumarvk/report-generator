@@ -429,19 +429,19 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
                   width: "32px", 
                   height: "32px", 
                   borderRadius: "50%",
-                  background: run.blueprint_json ? "var(--color-success)" : "var(--color-accent-light)",
+                  background: (run.status === "COMPLETED" || run.blueprint_json) ? "var(--color-success)" : "var(--color-accent-light)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   fontWeight: "bold",
-                  color: run.blueprint_json ? "white" : "var(--color-accent)"
+                  color: (run.status === "COMPLETED" || run.blueprint_json) ? "white" : "var(--color-accent)"
                 }}>
-                  {run.blueprint_json ? <Check size={16} /> : "1"}
+                  {(run.status === "COMPLETED" || run.blueprint_json) ? <Check size={16} /> : "1"}
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>Blueprint Generation</div>
                   <div className="muted" style={{ fontSize: "0.875rem" }}>
-                    {run.blueprint_json ? <><Check size={14} className="inline-icon" /> Complete</> : "In progress..."}
+                    {(run.status === "COMPLETED" || run.blueprint_json) ? <><Check size={14} className="inline-icon" /> Complete</> : "In progress..."}
                   </div>
                 </div>
               </div>
@@ -452,7 +452,7 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
                   width: "32px", 
                   height: "32px", 
                   borderRadius: "50%",
-                  background: sections.every(s => s.title?.toLowerCase().includes("executive summary") || s.status === "COMPLETED") 
+                  background: (run.status === "COMPLETED" || sections.every(s => s.title?.toLowerCase().includes("executive summary") || s.status === "COMPLETED"))
                     ? "var(--color-success)" 
                     : sections.some(s => !s.title?.toLowerCase().includes("executive summary") && (s.status === "QUEUED" || s.status === "RUNNING"))
                     ? "var(--color-accent)"
@@ -461,14 +461,16 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
                   alignItems: "center",
                   justifyContent: "center",
                   fontWeight: "bold",
-                  color: sections.every(s => s.title?.toLowerCase().includes("executive summary") || s.status === "COMPLETED") ? "white" : "var(--color-accent)"
+                  color: (run.status === "COMPLETED" || sections.every(s => s.title?.toLowerCase().includes("executive summary") || s.status === "COMPLETED")) ? "white" : "var(--color-accent)"
                 }}>
-                  {sections.every(s => s.title?.toLowerCase().includes("executive summary") || s.status === "COMPLETED") ? <Check size={16} /> : "2"}
+                  {(run.status === "COMPLETED" || sections.every(s => s.title?.toLowerCase().includes("executive summary") || s.status === "COMPLETED")) ? <Check size={16} /> : "2"}
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>Section Generation</div>
                   <div className="muted" style={{ fontSize: "0.875rem" }}>
-                    {sections.filter(s => !s.title?.toLowerCase().includes("executive summary") && s.status === "COMPLETED").length} / {sections.filter(s => !s.title?.toLowerCase().includes("executive summary")).length} sections complete
+                    {run.status === "COMPLETED" 
+                      ? <><Check size={14} className="inline-icon" /> Complete</>
+                      : `${sections.filter(s => !s.title?.toLowerCase().includes("executive summary") && s.status === "COMPLETED").length} / ${sections.filter(s => !s.title?.toLowerCase().includes("executive summary")).length} sections complete`}
                   </div>
                 </div>
               </div>
@@ -479,7 +481,7 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
                   width: "32px", 
                   height: "32px", 
                   borderRadius: "50%",
-                  background: sections.find(s => s.title?.toLowerCase().includes("executive summary"))?.status === "COMPLETED"
+                  background: (run.status === "COMPLETED" || sections.find(s => s.title?.toLowerCase().includes("executive summary"))?.status === "COMPLETED")
                     ? "var(--color-success)"
                     : sections.find(s => s.title?.toLowerCase().includes("executive summary"))?.status === "RUNNING"
                     ? "var(--color-accent)"
@@ -488,14 +490,14 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
                   alignItems: "center",
                   justifyContent: "center",
                   fontWeight: "bold",
-                  color: sections.find(s => s.title?.toLowerCase().includes("executive summary"))?.status === "COMPLETED" ? "white" : "var(--color-accent)"
+                  color: (run.status === "COMPLETED" || sections.find(s => s.title?.toLowerCase().includes("executive summary"))?.status === "COMPLETED") ? "white" : "var(--color-accent)"
                 }}>
-                  {sections.find(s => s.title?.toLowerCase().includes("executive summary"))?.status === "COMPLETED" ? <Check size={16} /> : "4"}
+                  {(run.status === "COMPLETED" || sections.find(s => s.title?.toLowerCase().includes("executive summary"))?.status === "COMPLETED") ? <Check size={16} /> : "4"}
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>Executive Summary Generation</div>
                   <div className="muted" style={{ fontSize: "0.875rem" }}>
-                    {sections.find(s => s.title?.toLowerCase().includes("executive summary"))?.status === "COMPLETED"
+                    {(run.status === "COMPLETED" || sections.find(s => s.title?.toLowerCase().includes("executive summary"))?.status === "COMPLETED")
                       ? <><Check size={14} className="inline-icon" /> Complete</>
                       : sections.find(s => s.title?.toLowerCase().includes("executive summary"))?.status === "RUNNING"
                       ? "In progress..."
@@ -512,19 +514,19 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
                   width: "32px", 
                   height: "32px", 
                   borderRadius: "50%",
-                  background: run.final_report_json ? "var(--color-success)" : "var(--color-accent-light)",
+                  background: (run.status === "COMPLETED" || run.final_report_json) ? "var(--color-success)" : "var(--color-accent-light)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   fontWeight: "bold",
-                  color: run.final_report_json ? "white" : "var(--color-accent)"
+                  color: (run.status === "COMPLETED" || run.final_report_json) ? "white" : "var(--color-accent)"
                 }}>
-                  {run.final_report_json ? <Check size={16} /> : "5"}
+                  {(run.status === "COMPLETED" || run.final_report_json) ? <Check size={16} /> : "5"}
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>Final Assembly</div>
                   <div className="muted" style={{ fontSize: "0.875rem" }}>
-                    {run.final_report_json 
+                    {(run.status === "COMPLETED" || run.final_report_json)
                       ? <><Check size={14} className="inline-icon" /> Complete</>
                       : sections.every(s => s.status === "COMPLETED")
                       ? "In progress..."

@@ -259,13 +259,24 @@ export default function ReportsStudioClient() {
   async function loadTemplates() {
     try {
       setLoading(true);
-      const res = await fetch("/api/templates");
+      const res = await fetch("/api/templates", {
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Pragma": "no-cache",
+        },
+      });
       if (res.ok) {
         const data = await res.json();
-        setTemplates(data);
+        console.log("[loadTemplates] Loaded templates:", data.length);
+        setTemplates(Array.isArray(data) ? data : []);
+      } else {
+        console.error("[loadTemplates] Failed to load templates, status:", res.status);
+        setTemplates([]);
       }
     } catch (error) {
-      console.error("Failed to load templates:", error);
+      console.error("[loadTemplates] Error loading templates:", error);
+      setTemplates([]);
     } finally {
       setLoading(false);
     }

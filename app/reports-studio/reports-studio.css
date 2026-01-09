@@ -7,6 +7,19 @@
   margin-right: 0.25rem;
 }
 
+/* Section Count Badge */
+.section-count-badge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.125rem 0.5rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
 /* Prevent horizontal scroll on mobile */
 .page-container {
   overflow-x: hidden;

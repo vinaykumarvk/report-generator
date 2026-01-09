@@ -76,12 +76,12 @@ export default function ReportsStudioClient() {
   const [createPanelsOpen, setCreatePanelsOpen] = useState({
     objectives: true,  // Keep objectives open (primary)
     sources: false,    // Collapse sources (advanced)
-    sections: false,   // Collapse sections (advanced)
+    sections: true,    // Keep sections open (users need to see sections they add)
   });
   const [editPanelsOpen, setEditPanelsOpen] = useState({
     objectives: true,  // Keep objectives open (primary)
     sources: false,    // Collapse sources (advanced)
-    sections: false,   // Collapse sections (advanced)
+    sections: true,    // Keep sections open (users need to see sections)
   });
   const [expandedTemplateId, setExpandedTemplateId] = useState<string | null>(null);
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
@@ -2026,7 +2026,15 @@ export default function ReportsStudioClient() {
                       {/* 3. SECTIONS */}
                       <div className="expanded-section panel-card">
                         <div className="expanded-section-header panel-header">
-                          <h4 className="expanded-section-title">3. Sections</h4>
+                          <h4 className="expanded-section-title">
+                            3. Sections
+                            {template.sections && template.sections.length > 0 && !isEditing && (
+                              <span className="section-count-badge">({template.sections.length})</span>
+                            )}
+                            {isEditing && editFormData.sections && editFormData.sections.length > 0 && (
+                              <span className="section-count-badge">({editFormData.sections.length})</span>
+                            )}
+                          </h4>
                           {isEditing && (
                             <div className="panel-header-actions">
                               <button className="btn-secondary" type="button" onClick={addEditSection}>
@@ -2047,6 +2055,22 @@ export default function ReportsStudioClient() {
                                 {editPanelsOpen.sections ? "▲" : "▼"}
                               </button>
                             </div>
+                          )}
+                          {!isEditing && (
+                            <button
+                              className="btn-icon"
+                              type="button"
+                              onClick={() =>
+                                setEditPanelsOpen((prev) => ({
+                                  ...prev,
+                                  sections: !prev.sections,
+                                }))
+                              }
+                              aria-label={editPanelsOpen.sections ? "Collapse sections" : "Expand sections"}
+                              title={editPanelsOpen.sections ? "Collapse" : "Expand"}
+                            >
+                              {editPanelsOpen.sections ? "▲" : "▼"}
+                            </button>
                           )}
                         </div>
                         {(!isEditing || editPanelsOpen.sections) && (

@@ -122,8 +122,10 @@ export async function GET(request: NextRequest) {
     };
     
     // Map sections to camelCase for frontend, sorted by order
-    if (template.template_sections) {
-      const sortedSections = [...template.template_sections].sort((a: any, b: any) => {
+    // Handle both relationship query result and separate query result
+    const sectionsArray = template.template_sections || template.sections || [];
+    if (Array.isArray(sectionsArray) && sectionsArray.length > 0) {
+      const sortedSections = [...sectionsArray].sort((a: any, b: any) => {
         const orderA = a.order ?? 0;
         const orderB = b.order ?? 0;
         return orderA - orderB;
@@ -133,13 +135,13 @@ export async function GET(request: NextRequest) {
         title: s.title,
         purpose: s.purpose,
         order: s.order,
-        outputFormat: s.output_format,
-        evidencePolicy: s.evidence_policy,
-        writingStyle: s.writing_style,
-        sourceMode: s.source_mode || 'inherit',
-        customConnectorIds: s.vector_policy_json?.connectorIds || [],
-        targetLengthMin: s.target_length_min,
-        targetLengthMax: s.target_length_max,
+        outputFormat: s.output_format || s.outputFormat,
+        evidencePolicy: s.evidence_policy || s.evidencePolicy,
+        writingStyle: s.writing_style || s.writingStyle,
+        sourceMode: s.source_mode || s.sourceMode || 'inherit',
+        customConnectorIds: s.vector_policy_json?.connectorIds || s.customConnectorIds || [],
+        targetLengthMin: s.target_length_min || s.targetLengthMin,
+        targetLengthMax: s.target_length_max || s.targetLengthMax,
         status: s.status,
       }));
       delete mappedTemplate.template_sections;

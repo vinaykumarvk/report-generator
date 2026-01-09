@@ -1,0 +1,157 @@
+require('dotenv').config({ path: '.env.local' });
+const { createClient } = require('@supabase/supabase-js');
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+(async () => {
+  console.log('🔧 Section Recovery - With Schema Check\n');
+  console.log('='.repeat(70));
+  
+  // Step 1: Check if template_id is UUID or integer
+  const { data: sample } = await supabase
+    .from('template_sections')
+    .select('template_id')
+    .limit(1)
+    .single();
+  
+  if (sample) {
+    const isUUID = typeof sample.template_id === 'string' && 
+                   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sample.template_id);
+    const isInteger = typeof sample.template_id === 'number';
+    
+    console.log(`\n📊 Schema Check:`);
+    console.log(`   template_id type: ${typeof sample.template_id}`);
+    console.log(`   Is UUID: ${isUUID ? '✅' : '❌'}`);
+    console.log(`   Is Integer: ${isInteger ? '✅' : '❌'}`);
+    
+    if (isInteger) {
+      console.log(`\n⚠️  CRITICAL: template_id is still integer type!`);
+      console.log(`   Cannot insert UUID sections until schema is migrated.`);
+      console.log(`\n💡 Required Migration:`);
+      console.log(`   1. Delete orphaned sections: DELETE FROM template_sections WHERE template_id = 2;`);
+      console.log(`   2. Run migration: scripts/migrate-template-sections-complete.sql`);
+      console.log(`   3. Then run this recovery script again`);
+      return;
+    }
+  }
+  
+  // Step 2: Check for orphaned sections
+  const { data: orphaned } = await supabase
+    .from('template_sections')
+    .select('id, template_id')
+    .limit(100);
+  
+  if (orphaned) {
+    const integerIds = orphaned.filter(s => typeof s.template_id === 'number');
+    if (integerIds.length > 0) {
+      console.log(`\n⚠️  Found ${integerIds.length} sections with integer template_id`);
+      console.log(`   These need to be deleted before recovery can proceed`);
+      return;
+    }
+  }
+  
+  // Step 3: Proceed with recovery
+  console.log(`\n✅ Schema is ready - proceeding with recovery...\n`);
+  
+  const { data: runs, error } = await supabase
+    .from('report_runs')
+    .select('id, template_id, template_version_snapshot_json, created_at')
+    .not('template_version_snapshot_json', 'is', null)
+    .order('created_at', { ascending: false });
+  
+  if (error) {
+    console.error('❌ Error:', error.message);
+    return;
+  }
+  
+  // Group by template_id and get the most recent snapshot for each template
+  const templateSnapshots = {};
+  runs.forEach(run => {
+    if (run.template_id && run.template_version_snapshot_json) {
+      const snapshot = run.template_version_snapshot_json;
+      if (snapshot.sections && Array.isArray(snapshot.sections) && snapshot.sections.length > 0) {
+        if (!templateSnapshots[run.template_id] || 
+            new Date(run.created_at) > new Date(templateSnapshots[run.template_id].created_at)) {
+          templateSnapshots[run.template_id] = {
+            template_id: run.template_id,
+            sections: snapshot.sections,
+            created_at: run.created_at,
+            run_id: run.id
+          };
+        }
+      }
+    }
+  });
+  
+  // Get template names
+  const templateIds = Object.keys(templateSnapshots);
+  const { data: templates } = await supabase
+    .from('templates')
+    .select('id, name')
+    .in('id', templateIds);
+  
+  const templateMap = {};
+  if (templates) {
+    templates.forEach(t => templateMap[t.id] = t.name);
+  }
+  
+  console.log(`Found ${Object.keys(templateSnapshots).length} templates to recover\n`);
+  
+  // Restore sections
+  let restored = 0;
+  let errors = 0;
+  
+  for (const [templateId, data] of Object.entries(templateSnapshots)) {
+    const templateName = templateMap[templateId] || templateId;
+    
+    // Check if sections already exist
+    const { data: existingSections } = await supabase
+      .from('template_sections')
+      .select('id')
+      .eq('template_id', templateId);
+    
+    if (existingSections && existingSections.length > 0) {
+      console.log(`⏭️  Skipping ${templateName} - already has ${existingSections.length} sections`);
+      continue;
+    }
+    
+    console.log(`📝 Restoring sections for: ${templateName}`);
+    
+    // Prepare sections
+    const sectionsToInsert = data.sections.map((section, idx) => ({
+      template_id: templateId,
+      title: section.title || `Section ${idx + 1}`,
+      purpose: section.purpose || null,
+      order: section.order || idx + 1,
+      output_format: section.outputFormat || section.output_format || 'NARRATIVE',
+      target_length_min: section.targetLengthMin || section.target_length_min || null,
+      target_length_max: section.targetLengthMax || section.target_length_max || null,
+      vector_policy_json: section.vectorPolicyJson || section.vector_policy_json || 
+                         (section.customConnectorIds ? { connectorIds: section.customConnectorIds } : null),
+      web_policy_json: section.webPolicyJson || section.web_policy_json || null,
+      quality_gates_json: section.qualityGatesJson || section.quality_gates_json || null,
+      status: section.status || 'DRAFT',
+      prompt: section.prompt || null,
+      source_mode: section.sourceMode || section.source_mode || 'inherit',
+      writing_style: section.writingStyle || section.writing_style || null,
+    }));
+    
+    const { error: insertError } = await supabase
+      .from('template_sections')
+      .insert(sectionsToInsert);
+    
+    if (insertError) {
+      console.error(`   ❌ Error: ${insertError.message}`);
+      errors++;
+    } else {
+      console.log(`   ✅ Restored ${sectionsToInsert.length} sections`);
+      restored += sectionsToInsert.length;
+    }
+  }
+  
+  console.log('\n' + '='.repeat(70));
+  console.log(`\n✅ Recovery Complete`);
+  console.log(`   Sections restored: ${restored}`);
+  console.log(`   Errors: ${errors}`);
+})();

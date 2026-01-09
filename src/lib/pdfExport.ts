@@ -168,21 +168,24 @@ async function renderPdfFromMarkdown(markdown: string): Promise<Uint8Array> {
   };
 
   const checkSpace = (needed: number) => {
-    if (y - needed < margin) {
+    // Ensure y is a valid number before checking
+    if (isNaN(y) || y - needed < margin) {
       addNewPage();
     }
   };
 
   const drawText = (text: string, fontSize: number, font: PDFFont, color = rgb(0.1, 0.12, 0.18)) => {
     checkSpace(lineHeight);
+    // Ensure y is a valid number
+    const yPos = isNaN(y) ? height - margin : y;
     page.drawText(text, {
       x: margin,
-      y,
+      y: yPos,
       size: fontSize,
       font,
       color,
     });
-    y -= lineHeight;
+    y = yPos - lineHeight;
   };
 
   const blocks = parseMarkdown(normalizePdfText(markdown));
@@ -213,11 +216,17 @@ async function renderPdfFromMarkdown(markdown: string): Promise<Uint8Array> {
         }
       }
       y -= 5;
-    } else if (block.type === "table" && block.rows) {
-      const colWidths = block.rows[0]?.map(() => (width - margin * 2) / (block.rows?.[0]?.length || 1)) || [];
+    } else if (block.type === "table" && block.rows && block.rows.length > 0) {
+      // Calculate column widths safely
+      const numCols = block.rows[0]?.length || 1;
+      const availableWidth = width - margin * 2;
+      const colWidth = numCols > 0 ? availableWidth / numCols : availableWidth;
+      const colWidths = block.rows[0]?.map(() => colWidth) || [colWidth];
       
       for (let rowIndex = 0; rowIndex < block.rows.length; rowIndex++) {
         const row = block.rows[rowIndex];
+        if (!row || row.length === 0) continue;
+        
         const isHeader = rowIndex === 0;
         const rowFont = isHeader ? boldFont : font;
         
@@ -225,19 +234,25 @@ async function renderPdfFromMarkdown(markdown: string): Promise<Uint8Array> {
         
         let x = margin;
         for (let colIndex = 0; colIndex < row.length; colIndex++) {
-          const cell = row[colIndex];
-          const cellWidth = colWidths[colIndex] - 10;
+          const cell = row[colIndex] || "";
+          const currentColWidth = colWidths[colIndex] || colWidth;
+          const cellWidth = Math.max(10, currentColWidth - 10); // Ensure minimum width
           const lines = wrapText(cell, rowFont, normalFontSize, cellWidth);
           
-          page.drawText(lines[0] || "", {
-            x,
-            y,
-            size: normalFontSize,
-            font: rowFont,
-            color: rgb(0.1, 0.12, 0.18),
-          });
+          // Ensure x is a valid number
+          const xPos = isNaN(x) ? margin : x;
           
-          x += colWidths[colIndex];
+          if (lines[0]) {
+            page.drawText(lines[0], {
+              x: xPos,
+              y: y,
+              size: normalFontSize,
+              font: rowFont,
+              color: rgb(0.1, 0.12, 0.18),
+            });
+          }
+          
+          x = xPos + currentColWidth;
         }
         
         // Draw line under header

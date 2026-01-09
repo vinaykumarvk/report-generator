@@ -30,6 +30,11 @@ type TemplateSnapshot = {
   id: string;
   name: string;
   defaultVectorStoreIds?: string[] | null;
+  sourcesJson?: Array<{
+    type?: string;
+    metadata?: { vectorStoreId?: string; fileIds?: string[] };
+    vectorStoreId?: string;
+  }> | null;
   sections: SectionSnapshot[];
 };
 
@@ -164,7 +169,15 @@ function resolveVectorIds(
   if (sectionIds.length > 0) {
     return sectionIds;
   }
-  return template.defaultVectorStoreIds || [];
+  const templateDefaults = template.defaultVectorStoreIds || [];
+  if (templateDefaults.length > 0) {
+    return templateDefaults;
+  }
+  const sourceIds = (template.sourcesJson || [])
+    .filter((source) => source?.type === "VECTOR")
+    .map((source) => source?.metadata?.vectorStoreId || source?.vectorStoreId)
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
+  return sourceIds;
 }
 
 function resolveVectorToolConfig(
@@ -353,20 +366,30 @@ export async function runSection(
   };
   const plan = stageEnabled(profile, "plan", true) ? planSection(section) : null;
   const retrieveEnabled = stageEnabled(profile, "retrieve", true);
-  const vectorPolicy = Boolean(section.evidencePolicy?.includes("VECTOR"));
   const webPolicy = Boolean(section.evidencePolicy?.includes("WEB"));
   const sourceOverrides = (runInput.sourceOverrides as Record<string, SourceOverride>) || {};
   const sourceOverride = sourceOverrides[section.id];
-  const vectorToolConfig =
-    retrieveEnabled && vectorPolicy
-      ? resolveVectorToolConfig(section, template, connectors, runInput)
-      : { vectorStoreIds: [] as string[] };
+  const vectorToolConfig = retrieveEnabled
+    ? resolveVectorToolConfig(section, template, connectors, runInput)
+    : { vectorStoreIds: [] as string[] };
   const evidence: EvidenceItem[] = [];
   const webToolConfig = {
     enabled:
       sourceOverride?.webSearchEnabled ??
       Boolean(retrieveEnabled && webPolicy),
   };
+  const logger = require("@/lib/logger").logger;
+  logger.info(
+    {
+      sectionId: section.id,
+      sectionTitle: section.title,
+      vectorStoreIds: vectorToolConfig.vectorStoreIds,
+      fileIds: vectorToolConfig.fileIds || [],
+      retrieveEnabled,
+      webSearchEnabled: Boolean(webToolConfig.enabled),
+    },
+    "[RunEngine] resolved tool config"
+  );
   const draft = stageEnabled(profile, "write", true)
     ? await writeSectionWithModel({
         section,

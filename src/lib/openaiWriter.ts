@@ -1,4 +1,7 @@
+import { logger } from "@/lib/logger";
+
 const OPENAI_BASE_URL = "https://api.openai.com/v1";
+const LOG_TOOL_PAYLOADS = process.env.LOG_TOOL_PAYLOADS === "true";
 
 export type WriterEvidenceItem = {
   id: string;
@@ -200,6 +203,20 @@ export async function runWriterPrompt(params: {
           ...(webSearch?.enabled ? [{ type: "web_search" }] : []),
         ]
       : undefined;
+
+  if (LOG_TOOL_PAYLOADS) {
+    logger.info(
+      {
+        sectionTitle: section.title,
+        model: getModel(),
+        tools: tools || [],
+        vectorStoreIds: fileSearch?.vectorStoreIds || [],
+        fileIds: fileSearch?.fileIds || [],
+        webSearchEnabled: Boolean(webSearch?.enabled),
+      },
+      "[OpenAI Writer] tools payload"
+    );
+  }
 
   const res = await fetchWithTimeout(
     `${OPENAI_BASE_URL}/responses`,

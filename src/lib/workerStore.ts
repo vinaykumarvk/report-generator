@@ -56,6 +56,7 @@ function mapTemplateSnapshot(raw: any) {
     name: raw.name,
     defaultVectorStoreIds:
       raw.default_vector_store_ids ?? raw.defaultVectorStoreIds ?? [],
+    sourcesJson: raw.sources_json ?? raw.sourcesJson ?? [],
     sections: sections.map(mapSectionSnapshot),
   };
 }

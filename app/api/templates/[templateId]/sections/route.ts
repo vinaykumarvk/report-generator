@@ -29,10 +29,13 @@ export async function POST(
     ? body.dependencies
     : [];
   
+  const orderValue = typeof body.order === "number" ? body.order : 1;
+  
   const insertData: any = {
     template_id: params.templateId,
     title: body.title,
-    order: typeof body.order === "number" ? body.order : 1,
+    order: orderValue,
+    order_index: orderValue, // Required field from old schema - map from order
     purpose: body.purpose || null,
     output_format: body.outputFormat || "NARRATIVE",
     writing_style: body.writingStyle || null,

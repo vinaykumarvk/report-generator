@@ -49,6 +49,8 @@ export async function POST(
     quality_gates_json: body.qualityGatesJson || null,
     prompt: body.prompt || null,
     status: body.status || "ACTIVE",
+    section_type: body.sectionType || "narrative", // Required field from old schema
+    is_editable: body.isEditable !== undefined ? body.isEditable : true, // Required field from old schema
   };
   
   // Only include dependencies if it's not empty (to use default from DB)

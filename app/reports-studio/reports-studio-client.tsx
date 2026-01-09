@@ -531,7 +531,22 @@ export default function ReportsStudioClient() {
         }
       }
 
-      showStatusChip("Template updated successfully!", "success");
+      // Verify sections were saved by reloading the template
+      const verifyRes = await fetch(`/api/templates/${editingTemplateId}`);
+      if (verifyRes.ok) {
+        const verifiedTemplate = await verifyRes.json();
+        const savedSectionsCount = verifiedTemplate.sections?.length || 0;
+        const expectedSectionsCount = orderedSections.length;
+        if (expectedSectionsCount > 0 && savedSectionsCount !== expectedSectionsCount) {
+          throw new Error(`Template updated but only ${savedSectionsCount} of ${expectedSectionsCount} sections were saved. Please try again.`);
+        }
+        showStatusChip(
+          `Report template saved successfully! ${savedSectionsCount > 0 ? `(${savedSectionsCount} section${savedSectionsCount > 1 ? 's' : ''} saved)` : ''}`,
+          "success"
+        );
+      } else {
+        showStatusChip("Report template saved successfully!", "success");
+      }
       setEditingTemplateId(null);
       setEditFormData({});
       setEditErrors({});
@@ -541,8 +556,8 @@ export default function ReportsStudioClient() {
       setSelectedFiles({});
       loadTemplates();
     } catch (error: any) {
-      console.error("Error saving template:", error);
-      showStatusChip(error.message || "Failed to update template", "error");
+      console.error("[saveTemplateEdits] Error:", error);
+      showStatusChip(error.message || "Could not save report template. Please try again.", "error");
     } finally {
       setLoading(false);
     }
@@ -1044,11 +1059,26 @@ export default function ReportsStudioClient() {
         });
       }
 
-      showStatusChip("Report template created successfully!", "success");
+      // Verify sections were created by reloading the template
+      const verifyRes = await fetch(`/api/templates/${template.id}`);
+      if (verifyRes.ok) {
+        const verifiedTemplate = await verifyRes.json();
+        const savedSectionsCount = verifiedTemplate.sections?.length || 0;
+        if (sections.length > 0 && savedSectionsCount === 0) {
+          throw new Error("Template created but sections were not saved. Please try again.");
+        }
+        showStatusChip(
+          `Report template saved successfully! ${savedSectionsCount > 0 ? `(${savedSectionsCount} section${savedSectionsCount > 1 ? 's' : ''} saved)` : ''}`,
+          "success"
+        );
+      } else {
+        showStatusChip("Report template saved successfully!", "success");
+      }
       resetForm();
       loadTemplates();
     } catch (error: any) {
-      showStatusChip(error.message || "Failed to create template", "error");
+      console.error("[handleSubmit] Error:", error);
+      showStatusChip(error.message || "Could not save report template. Please try again.", "error");
     } finally {
       setLoading(false);
     }

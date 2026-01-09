@@ -411,50 +411,43 @@
   margin-bottom: var(--space-2);
 }
 
-/* Ensure export buttons have readable text */
-.exports-actions button,
-.exports-actions .button {
-  /* If button has accent/colored background, ensure white text */
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-primary);
-  font-weight: 600;
-}
-
-/* If button has colored background (accent), use white text */
-.exports-actions button.button:not(.secondary),
-.exports-actions .button:not(.secondary) {
-  background: var(--accent-primary);
-  color: white !important;
-  border-color: var(--accent-primary);
-}
-
-.exports-actions button.secondary,
-.exports-actions .button.secondary {
+/* Ensure export buttons have readable text - High specificity */
+.exports-actions button.button.secondary,
+.exports-actions .button.secondary,
+.exports-actions button.secondary {
   background: var(--bg-tertiary) !important;
   color: var(--text-primary) !important;
   border: 1px solid var(--border-primary) !important;
+  font-weight: 600 !important;
 }
 
-.exports-actions button:hover,
-.exports-actions .button:hover {
-  background: var(--bg-card-hover);
-  color: var(--text-primary);
-  border-color: var(--border-secondary);
+.exports-actions button.button.secondary:hover,
+.exports-actions .button.secondary:hover,
+.exports-actions button.secondary:hover {
+  background: var(--bg-card-hover) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-secondary) !important;
 }
 
-/* Colored buttons should have white text on hover too */
+/* If button doesn't have secondary class, ensure white text on colored background */
+.exports-actions button.button:not(.secondary),
+.exports-actions .button:not(.secondary) {
+  background: var(--accent-primary) !important;
+  color: white !important;
+  border-color: var(--accent-primary) !important;
+}
+
 .exports-actions button.button:not(.secondary):hover,
 .exports-actions .button:not(.secondary):hover {
-  background: var(--accent-secondary);
+  background: var(--accent-secondary) !important;
   color: white !important;
-  border-color: var(--accent-secondary);
+  border-color: var(--accent-secondary) !important;
 }
 
 .exports-actions button:disabled,
 .exports-actions .button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
 }
 
 .export-item {

@@ -120,24 +120,42 @@ const supabase = createClient(supabaseUrl, supabaseKey);
     
     // Prepare sections - generate UUIDs for id column since default may not be set
     const { randomUUID } = require('crypto');
-    const sectionsToInsert = data.sections.map((section, idx) => ({
-      id: randomUUID(), // Explicitly generate UUID for id
-      template_id: templateId,
-      title: section.title || `Section ${idx + 1}`,
-      purpose: section.purpose || null,
-      order: section.order || idx + 1,
-      output_format: section.outputFormat || section.output_format || 'NARRATIVE',
-      target_length_min: section.targetLengthMin || section.target_length_min || null,
-      target_length_max: section.targetLengthMax || section.target_length_max || null,
-      vector_policy_json: section.vectorPolicyJson || section.vector_policy_json || 
-                         (section.customConnectorIds ? { connectorIds: section.customConnectorIds } : null),
-      web_policy_json: section.webPolicyJson || section.web_policy_json || null,
-      quality_gates_json: section.qualityGatesJson || section.quality_gates_json || null,
-      status: section.status || 'DRAFT',
-      prompt: section.prompt || null,
-      source_mode: section.sourceMode || section.source_mode || 'inherit',
-      writing_style: section.writingStyle || section.writing_style || null,
-    }));
+    const sectionsToInsert = data.sections.map((section, idx) => {
+      const sectionData = {
+        id: randomUUID(), // Explicitly generate UUID for id
+        template_id: templateId,
+        title: section.title || `Section ${idx + 1}`,
+        purpose: section.purpose || null,
+        order: section.order || idx + 1,
+        output_format: section.outputFormat || section.output_format || 'NARRATIVE',
+        target_length_min: section.targetLengthMin || section.target_length_min || null,
+        target_length_max: section.targetLengthMax || section.target_length_max || null,
+        vector_policy_json: section.vectorPolicyJson || section.vector_policy_json || 
+                           (section.customConnectorIds ? { connectorIds: section.customConnectorIds } : null),
+        web_policy_json: section.webPolicyJson || section.web_policy_json || null,
+        quality_gates_json: section.qualityGatesJson || section.quality_gates_json || null,
+        status: section.status || 'DRAFT',
+        prompt: section.prompt || null,
+        source_mode: section.sourceMode || section.source_mode || 'inherit',
+        writing_style: section.writingStyle || section.writing_style || null,
+      };
+      
+      // Add old schema columns if they exist and are required
+      // section_type (old schema)
+      if (section.section_type || section.sectionType) {
+        sectionData.section_type = section.section_type || section.sectionType;
+      } else {
+        sectionData.section_type = 'narrative'; // Default if required
+      }
+      
+      // order_index (old schema) - use same value as order
+      sectionData.order_index = section.order || idx + 1;
+      
+      // is_editable (old schema) - default to true
+      sectionData.is_editable = section.is_editable !== undefined ? section.is_editable : true;
+      
+      return sectionData;
+    });
     
     const { error: insertError } = await supabase
       .from('template_sections')

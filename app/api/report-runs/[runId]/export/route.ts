@@ -53,6 +53,27 @@ export async function POST(
       return NextResponse.json({ error: "Run not found" }, { status: 404 });
     }
 
+    // Check if run is completed before allowing export
+    if (run.status !== "COMPLETED") {
+      return NextResponse.json(
+        { error: "Run must be completed before exporting. Current status: " + run.status },
+        { status: 400 }
+      );
+    }
+
+    // Check if final report content exists
+    const finalReportContent = 
+      (run.final_report_json && typeof run.final_report_json === 'object' && run.final_report_json.content) ||
+      (typeof run.final_report_json === 'string' ? run.final_report_json : '') ||
+      '';
+    
+    if (!finalReportContent) {
+      return NextResponse.json(
+        { error: "No final report content available for export" },
+        { status: 400 }
+      );
+    }
+
   const workspaceId = run.workspace_id || (await getDefaultWorkspaceId());
   const exportId = crypto.randomUUID();
   const { error: exportError } = await supabase.from("exports").insert({
@@ -70,6 +91,7 @@ export async function POST(
       workspace_id: workspaceId,
       type: "EXPORT",
       status: "QUEUED",
+      priority: 50, // Higher priority than default (100) so exports process faster
       payload_json: { format, exportId },
       run_id: params.runId,
     })

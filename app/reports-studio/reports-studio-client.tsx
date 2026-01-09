@@ -1131,6 +1131,41 @@ export default function ReportsStudioClient() {
       {showForm && (
         <div className="report-form-container" role="region" aria-label="Create Report Template Form">
           <div className="report-form-card" aria-busy={loading} aria-live="polite">
+            {/* TEMPLATE NAME - Outside the three sections */}
+            <div className="form-group-compact" style={{ marginBottom: "1.5rem", paddingBottom: "1.5rem", borderBottom: "1px solid var(--border-primary)" }}>
+              <label className="form-label-compact" style={{ marginBottom: "0.5rem", fontWeight: 600, fontSize: "1rem" }}>Template Name *</label>
+              <input
+                type="text"
+                inputMode="text"
+                value={name}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setName(value);
+                  // Real-time validation
+                  if (createErrors.name && value.trim()) {
+                    setCreateErrors((prev) => ({ ...prev, name: undefined }));
+                  } else if (!value.trim()) {
+                    setCreateErrors((prev) => ({ ...prev, name: "Report name is required." }));
+                  }
+                }}
+                onBlur={(e) => {
+                  // Validate on blur
+                  if (!e.target.value.trim()) {
+                    setCreateErrors((prev) => ({ ...prev, name: "Report name is required." }));
+                  }
+                }}
+                placeholder="Report Name *"
+                aria-label="Report name"
+                aria-invalid={Boolean(createErrors.name)}
+                aria-describedby={createErrors.name ? "create-template-name-error" : undefined}
+              />
+              {createErrors.name && (
+                <div id="create-template-name-error" className="field-error" role="alert">
+                  {createErrors.name}
+                </div>
+              )}
+            </div>
+
             {/* SECTION 1: OBJECTIVES */}
             <div className="form-section panel-card">
               <div className="panel-header">
@@ -1138,7 +1173,7 @@ export default function ReportsStudioClient() {
                   <h2 className="form-section-title">
                     <span className="section-number">1</span>
                     <span>Objectives</span>
-                    {name && !createErrors.name && (
+                    {description && (
                       <span className="section-completion-check" aria-label="Section completed"><Check size={12} /></span>
                     )}
                   </h2>
@@ -1162,47 +1197,27 @@ export default function ReportsStudioClient() {
               {createPanelsOpen.objectives && (
                 <div className="panel-body">
               
-              {/* Row 1: Name */}
-              <div className="form-group-compact">
-                <input
-                  type="text"
-                  inputMode="text"
-                  value={name}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setName(value);
-                    // Real-time validation
-                    if (createErrors.name && value.trim()) {
-                      setCreateErrors((prev) => ({ ...prev, name: undefined }));
-                    } else if (!value.trim()) {
-                      setCreateErrors((prev) => ({ ...prev, name: "Report name is required." }));
-                    }
-                  }}
-                  onBlur={(e) => {
-                    // Validate on blur
-                    if (!e.target.value.trim()) {
-                      setCreateErrors((prev) => ({ ...prev, name: "Report name is required." }));
-                    }
-                  }}
-                  placeholder="Report Name *"
-                  aria-label="Report name"
-                  aria-invalid={Boolean(createErrors.name)}
-                  aria-describedby={createErrors.name ? "create-template-name-error" : undefined}
-                />
-                {createErrors.name && (
-                  <div id="create-template-name-error" className="field-error" role="alert">
-                    {createErrors.name}
-                  </div>
-                )}
-              </div>
-
-              {/* Row 2: Description */}
+              {/* Row 1: Description */}
               <div className="form-group-compact">
                 <textarea
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  onChange={(e) => {
+                    setDescription(e.target.value);
+                    // Auto-expand textarea
+                    e.target.style.height = 'auto';
+                    e.target.style.height = e.target.scrollHeight + 'px';
+                  }}
+                  onPaste={(e) => {
+                    // Auto-expand on paste
+                    setTimeout(() => {
+                      const target = e.target as HTMLTextAreaElement;
+                      target.style.height = 'auto';
+                      target.style.height = target.scrollHeight + 'px';
+                    }, 0);
+                  }}
                   placeholder="Description"
                   rows={3}
+                  style={{ resize: 'vertical', minHeight: '60px', overflow: 'hidden' }}
                   aria-label="Report description"
                 />
               </div>
@@ -1667,9 +1682,23 @@ export default function ReportsStudioClient() {
                       <div className="form-group-compact">
                         <textarea
                           value={section.purpose || ""}
-                          onChange={(e) => updateSection(index, "purpose", e.target.value)}
+                          onChange={(e) => {
+                            updateSection(index, "purpose", e.target.value);
+                            // Auto-expand textarea
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          onPaste={(e) => {
+                            // Auto-expand on paste
+                            setTimeout(() => {
+                              const target = e.target as HTMLTextAreaElement;
+                              target.style.height = 'auto';
+                              target.style.height = target.scrollHeight + 'px';
+                            }, 0);
+                          }}
                           placeholder="Purpose"
                           rows={3}
+                          style={{ resize: 'vertical', minHeight: '60px', overflow: 'hidden' }}
                           aria-label={`Section ${index + 1} purpose`}
                         />
                       </div>
@@ -1849,6 +1878,30 @@ export default function ReportsStudioClient() {
                   {/* EXPANDED CONTENT */}
                   {isExpanded && (
                     <div className="saved-template-expanded">
+                      {/* TEMPLATE NAME - Outside the three sections (Edit Mode) */}
+                      {isEditing && (
+                        <div className="form-group-compact" style={{ marginBottom: "1.5rem", paddingBottom: "1.5rem", borderBottom: "1px solid var(--border-primary)" }}>
+                          <label className="form-label-compact" style={{ marginBottom: "0.5rem", fontWeight: 600, fontSize: "1rem" }}>Template Name *</label>
+                          <input
+                            type="text"
+                            value={editFormData.name || ""}
+                            onChange={(e) => {
+                              if (editErrors.name) setEditErrors((prev) => ({ ...prev, name: undefined }));
+                              setEditFormData({...editFormData, name: e.target.value});
+                            }}
+                            placeholder="Report Name *"
+                            aria-label="Report name"
+                            aria-invalid={Boolean(editErrors.name)}
+                            aria-describedby={editErrors.name ? "edit-template-name-error" : undefined}
+                          />
+                          {editErrors.name && (
+                            <div id="edit-template-name-error" className="field-error" role="alert">
+                              {editErrors.name}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {/* 1. OBJECTIVES */}
                       <div className="expanded-section panel-card">
                         <div className="panel-header">
@@ -1875,30 +1928,25 @@ export default function ReportsStudioClient() {
                           {isEditing ? (
                             <>
                               <div className="form-group-compact">
-                                <input
-                                  type="text"
-                                  value={editFormData.name || ""}
-                                  onChange={(e) => {
-                                    if (editErrors.name) setEditErrors((prev) => ({ ...prev, name: undefined }));
-                                    setEditFormData({...editFormData, name: e.target.value});
-                                  }}
-                                  placeholder="Report Name *"
-                                  aria-label="Report name"
-                                  aria-invalid={Boolean(editErrors.name)}
-                                  aria-describedby={editErrors.name ? "edit-template-name-error" : undefined}
-                                />
-                                {editErrors.name && (
-                                  <div id="edit-template-name-error" className="field-error" role="alert">
-                                    {editErrors.name}
-                                  </div>
-                                )}
-                              </div>
-                              <div className="form-group-compact">
                                 <textarea
                                   value={editFormData.description || ""}
-                                  onChange={(e) => setEditFormData({...editFormData, description: e.target.value})}
+                                  onChange={(e) => {
+                                    setEditFormData({...editFormData, description: e.target.value});
+                                    // Auto-expand textarea
+                                    e.target.style.height = 'auto';
+                                    e.target.style.height = e.target.scrollHeight + 'px';
+                                  }}
+                                  onPaste={(e) => {
+                                    // Auto-expand on paste
+                                    setTimeout(() => {
+                                      const target = e.target as HTMLTextAreaElement;
+                                      target.style.height = 'auto';
+                                      target.style.height = target.scrollHeight + 'px';
+                                    }, 0);
+                                  }}
                                   placeholder="Description"
                                   rows={3}
+                                  style={{ resize: 'vertical', minHeight: '60px', overflow: 'hidden' }}
                                   aria-label="Report description"
                                 />
                               </div>
@@ -2200,9 +2248,21 @@ export default function ReportsStudioClient() {
                                             const updatedSections = [...(editFormData.sections || [])];
                                             updatedSections[idx] = {...updatedSections[idx], purpose: e.target.value};
                                             setEditFormData({...editFormData, sections: updatedSections});
+                                            // Auto-expand textarea
+                                            e.target.style.height = 'auto';
+                                            e.target.style.height = e.target.scrollHeight + 'px';
+                                          }}
+                                          onPaste={(e) => {
+                                            // Auto-expand on paste
+                                            setTimeout(() => {
+                                              const target = e.target as HTMLTextAreaElement;
+                                              target.style.height = 'auto';
+                                              target.style.height = target.scrollHeight + 'px';
+                                            }, 0);
                                           }}
                                           placeholder="Purpose"
                                           rows={2}
+                                          style={{ resize: 'vertical', minHeight: '50px', overflow: 'hidden' }}
                                           aria-label={`Section ${idx + 1} purpose`}
                                         />
                                       </div>

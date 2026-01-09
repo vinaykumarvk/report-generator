@@ -90,7 +90,7 @@ export async function POST(
         .select("id")
         .eq("run_id", params.runId)
         .eq("type", "EXPORT")
-        .eq("payload_json->>exportId", existingExport.id)
+        .eq("payload_json->>exportId", String(existingExport.id))
         .in("status", ["QUEUED", "RUNNING"])
         .limit(1)
         .maybeSingle();

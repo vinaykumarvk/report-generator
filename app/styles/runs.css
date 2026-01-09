@@ -411,6 +411,27 @@
   margin-bottom: var(--space-2);
 }
 
+/* Ensure export buttons have readable text */
+.exports-actions button,
+.exports-actions .button {
+  background: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-primary) !important;
+}
+
+.exports-actions button:hover,
+.exports-actions .button:hover {
+  background: var(--bg-card-hover) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-secondary) !important;
+}
+
+.exports-actions button:disabled,
+.exports-actions .button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .export-item {
   display: flex;
   align-items: center;

@@ -384,7 +384,7 @@ export async function runSection(
       sectionId: section.id,
       sectionTitle: section.title,
       vectorStoreIds: vectorToolConfig.vectorStoreIds,
-      fileIds: vectorToolConfig.fileIds || [],
+      fileIds: ('fileIds' in vectorToolConfig && vectorToolConfig.fileIds) || [],
       retrieveEnabled,
       webSearchEnabled: Boolean(webToolConfig.enabled),
     },

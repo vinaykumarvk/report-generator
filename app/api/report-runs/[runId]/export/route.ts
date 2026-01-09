@@ -125,7 +125,13 @@ export async function POST(
         .select("id,type,run_id,section_run_id,workspace_id")
         .single()) as { data: any; error: any };
       assertNoSupabaseError(jobError, "Failed to enqueue export job");
+      if (!jobData) {
+        throw new Error("Job was created but no data returned");
+      }
       job = jobData;
+      if (!job) {
+        throw new Error("Job data is invalid");
+      }
       await notifyJobQueued({
         id: String(job.id),
         type: String(job.type),

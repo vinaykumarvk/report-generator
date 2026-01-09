@@ -38,7 +38,36 @@ BEGIN
   END IF;
 END $$;
 
--- Step 3: Migrate template_id from integer to UUID
+-- Step 3: Migrate id column from integer to UUID (if needed)
+-- Check if id is integer and needs conversion
+DO $$ 
+BEGIN
+  -- Check if id column is integer type
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'template_sections' 
+    AND column_name = 'id' 
+    AND data_type = 'integer'
+  ) THEN
+    -- Drop primary key constraint first
+    ALTER TABLE template_sections DROP CONSTRAINT IF EXISTS template_sections_pkey;
+    
+    -- Change id column type from integer to UUID
+    -- Generate new UUIDs for existing rows
+    ALTER TABLE template_sections 
+      ALTER COLUMN id TYPE uuid USING gen_random_uuid();
+    
+    -- Recreate primary key
+    ALTER TABLE template_sections 
+      ADD PRIMARY KEY (id);
+    
+    -- Set default for future inserts
+    ALTER TABLE template_sections 
+      ALTER COLUMN id SET DEFAULT gen_random_uuid();
+  END IF;
+END $$;
+
+-- Step 4: Migrate template_id from integer to UUID
 -- This is the critical step - we need to:
 -- 1. Drop the foreign key constraint
 -- 2. Change the column type
@@ -61,11 +90,11 @@ ALTER TABLE template_sections
   REFERENCES templates(id) 
   ON DELETE CASCADE;
 
--- Step 4: Ensure created_at and updated_at exist
+-- Step 5: Ensure created_at and updated_at exist
 ALTER TABLE template_sections ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
 ALTER TABLE template_sections ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
 
--- Step 5: Create index on template_id for performance
+-- Step 6: Create index on template_id for performance
 CREATE INDEX IF NOT EXISTS idx_template_sections_template_id 
   ON template_sections(template_id);
 

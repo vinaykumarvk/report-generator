@@ -987,7 +987,7 @@ export default function ReportsStudioClient() {
       }));
       setSections(orderedSections);
       for (const section of orderedSections) {
-        await fetch(`/api/templates/${template.id}/sections`, {
+        const sectionRes = await fetch(`/api/templates/${template.id}/sections`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1004,6 +1004,10 @@ export default function ReportsStudioClient() {
             status: "ACTIVE",
           }),
         });
+        if (!sectionRes.ok) {
+          const errorData = await sectionRes.json().catch(() => ({}));
+          throw new Error(errorData.error || `Failed to create section: ${section.title}`);
+        }
       }
 
       // Step 3: Create connectors if needed

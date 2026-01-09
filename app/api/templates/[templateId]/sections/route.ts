@@ -23,32 +23,52 @@ export async function POST(
     (body.sourceMode === "custom"
       ? { connectorIds: Array.isArray(body.customConnectorIds) ? body.customConnectorIds : [] }
       : null);
+  
+  // Prepare dependencies - ensure it's a text array or empty array
+  const dependencies = Array.isArray(body.dependencies) && body.dependencies.length > 0
+    ? body.dependencies
+    : [];
+  
+  const insertData: any = {
+    template_id: params.templateId,
+    title: body.title,
+    order: typeof body.order === "number" ? body.order : 1,
+    purpose: body.purpose || null,
+    output_format: body.outputFormat || "NARRATIVE",
+    writing_style: body.writingStyle || null,
+    source_mode: body.sourceMode || "inherit",
+    target_length_min: Number.isFinite(body.targetLengthMin)
+      ? body.targetLengthMin
+      : null,
+    target_length_max: Number.isFinite(body.targetLengthMax)
+      ? body.targetLengthMax
+      : null,
+    evidence_policy: body.evidencePolicy || null,
+    vector_policy_json: vectorPolicyJson,
+    web_policy_json: body.webPolicyJson || null,
+    quality_gates_json: body.qualityGatesJson || null,
+    prompt: body.prompt || null,
+    status: body.status || "ACTIVE",
+  };
+  
+  // Only include dependencies if it's not empty (to use default from DB)
+  if (dependencies.length > 0) {
+    insertData.dependencies = dependencies;
+  }
+  
   const { data: section, error: createError } = await supabase
     .from("template_sections")
-    .insert({
-      template_id: params.templateId,
-      title: body.title,
-      order: typeof body.order === "number" ? body.order : 1,
-      purpose: body.purpose || null,
-      output_format: body.outputFormat || "NARRATIVE",
-      writing_style: body.writingStyle || null,
-      source_mode: body.sourceMode || "inherit",
-      target_length_min: Number.isFinite(body.targetLengthMin)
-        ? body.targetLengthMin
-        : null,
-      target_length_max: Number.isFinite(body.targetLengthMax)
-        ? body.targetLengthMax
-        : null,
-      dependencies: Array.isArray(body.dependencies) ? body.dependencies : [],
-      evidence_policy: body.evidencePolicy || null,
-      vector_policy_json: vectorPolicyJson,
-      web_policy_json: body.webPolicyJson || null,
-      quality_gates_json: body.qualityGatesJson || null,
-      prompt: body.prompt || null,
-    })
+    .insert(insertData)
     .select("*")
     .single();
-  assertNoSupabaseError(createError, "Failed to create section");
+  
+  if (createError) {
+    console.error("[POST /api/templates/[templateId]/sections] Error:", createError);
+    return NextResponse.json(
+      { error: createError.message || "Failed to create section" },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json(section, { status: 201 });
 }

@@ -444,6 +444,7 @@ export default function ReportsStudioClient() {
         isMaster,
       };
 
+      setLoading(true);
       const res = await fetch(`/api/templates/${editingTemplateId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -452,12 +453,49 @@ export default function ReportsStudioClient() {
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.message || "Failed to update template");
+        const errorMessage = errorData.error || errorData.message || `Failed to update template (${res.status})`;
+        throw new Error(errorMessage);
       }
 
+      const updatedTemplate = await res.json().catch(() => null);
+      if (!updatedTemplate) {
+        throw new Error("Failed to parse response from server");
+      }
+
+      // Update existing sections and create new ones
+      const existingSections = orderedSections.filter(
+        (section) => section.id && !section.id.startsWith("temp-")
+      );
       const newSections = orderedSections.filter(
         (section) => !section.id || section.id.startsWith("temp-")
       );
+
+      // Update existing sections
+      for (const section of existingSections) {
+        const updateRes = await fetch(`/api/templates/${editingTemplateId}/sections/${section.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: section.title,
+            purpose: section.purpose,
+            order: section.order,
+            outputFormat: section.outputFormat,
+            evidencePolicy: section.evidencePolicy,
+            targetLengthMin: section.targetLengthMin,
+            targetLengthMax: section.targetLengthMax,
+            sourceMode: section.sourceMode,
+            writingStyle: section.writingStyle,
+            vectorPolicyJson: section.vectorPolicyJson,
+            status: "ACTIVE",
+          }),
+        });
+        if (!updateRes.ok) {
+          const errorData = await updateRes.json().catch(() => ({}));
+          throw new Error(errorData.error || `Failed to update section: ${section.title}`);
+        }
+      }
+
+      // Create new sections
       for (const section of newSections) {
         const createRes = await fetch(`/api/templates/${editingTemplateId}/sections`, {
           method: "POST",
@@ -473,28 +511,29 @@ export default function ReportsStudioClient() {
             sourceMode: section.sourceMode,
             writingStyle: section.writingStyle,
             vectorPolicyJson: section.vectorPolicyJson,
-            customConnectorIds: section.customConnectorIds,
             status: "ACTIVE",
           }),
         });
         if (!createRes.ok) {
-          throw new Error("Failed to create section");
+          const errorData = await createRes.json().catch(() => ({}));
+          throw new Error(errorData.error || `Failed to create section: ${section.title}`);
         }
       }
 
-      if (res.ok) {
-        showStatusChip("Template updated successfully!", "success");
-        setEditingTemplateId(null);
-        setEditFormData({});
-        setEditErrors({});
-        setEditSectionErrors({});
-        setSelectedConnectorTypes([]);
-        setSelectedVectorStores([]);
-        setSelectedFiles({});
-        loadTemplates();
-      }
+      showStatusChip("Template updated successfully!", "success");
+      setEditingTemplateId(null);
+      setEditFormData({});
+      setEditErrors({});
+      setEditSectionErrors({});
+      setSelectedConnectorTypes([]);
+      setSelectedVectorStores([]);
+      setSelectedFiles({});
+      loadTemplates();
     } catch (error: any) {
+      console.error("Error saving template:", error);
       showStatusChip(error.message || "Failed to update template", "error");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -717,7 +756,13 @@ export default function ReportsStudioClient() {
   async function loadVectorStores() {
     console.log("loadVectorStores called");
     try {
-      const res = await fetch("/api/openai/vector-stores");
+      const res = await fetch("/api/openai/vector-stores", {
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Pragma": "no-cache",
+        },
+      });
       console.log("Vector stores response:", res.status);
       if (res.ok) {
         const data = await res.json();

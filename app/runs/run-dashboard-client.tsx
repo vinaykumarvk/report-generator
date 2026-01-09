@@ -364,7 +364,13 @@ export default function RunDashboardClient({ initialTab }: { initialTab?: "creat
     if (activeTab !== "create") return;
     const loadVectorStores = async () => {
       try {
-        const res = await fetch("/api/openai/vector-stores");
+        const res = await fetch("/api/openai/vector-stores", {
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+          },
+        });
         if (!res.ok) return;
         const data = await res.json();
         const stores = Array.isArray(data) ? data : (data.data || []);

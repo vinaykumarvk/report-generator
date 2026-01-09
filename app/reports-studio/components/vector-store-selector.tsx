@@ -45,7 +45,13 @@ export default function VectorStoreSelector({
     console.log("[VectorStoreSelector] loadVectorStores called");
     setLoadingVectorStores(true);
     try {
-      const res = await fetch("/api/openai/vector-stores");
+      const res = await fetch("/api/openai/vector-stores", {
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Pragma": "no-cache",
+        },
+      });
       console.log("[VectorStoreSelector] Response status:", res.status);
       if (res.ok) {
         const data = await res.json();
@@ -68,7 +74,13 @@ export default function VectorStoreSelector({
   async function loadVectorStoreFiles(vectorStoreId: string) {
     setLoadingFiles((prev) => ({ ...prev, [vectorStoreId]: true }));
     try {
-      const res = await fetch(`/api/openai/vector-stores/${vectorStoreId}/files`);
+      const res = await fetch(`/api/openai/vector-stores/${vectorStoreId}/files`, {
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Pragma": "no-cache",
+        },
+      });
       if (res.ok) {
         const data = await res.json();
         setVectorStoreFiles((prev) => ({ ...prev, [vectorStoreId]: data }));

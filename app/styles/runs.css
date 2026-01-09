@@ -461,14 +461,26 @@
 }
 
 .export-link {
-  color: var(--accent-primary);
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 0.9375rem;
+  background: var(--accent-primary) !important;
+  color: white !important;
+  text-decoration: none !important;
+  font-weight: 600 !important;
+  font-size: 0.9375rem !important;
+  padding: var(--space-2) var(--space-4) !important;
+  border-radius: var(--radius-md) !important;
+  border: 1px solid var(--accent-primary) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all var(--transition-base) !important;
 }
 
 .export-link:hover {
-  text-decoration: underline;
+  background: var(--accent-secondary) !important;
+  color: white !important;
+  border-color: var(--accent-secondary) !important;
+  text-decoration: none !important;
+  transform: translateY(-1px) !important;
 }
 
 .tab-button,

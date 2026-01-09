@@ -226,22 +226,43 @@ export async function replaceSectionArtifacts(
   artifacts: Array<{ type: string; content: unknown }>
 ) {
   const supabase = supabaseAdmin();
+  if (!artifacts.length) {
+    const { error: deleteError } = await supabase
+      .from("section_artifacts")
+      .delete()
+      .eq("section_run_id", sectionRunId);
+    assertNoSupabaseError(deleteError, "Failed to clear section artifacts");
+    return;
+  }
+
+  const { data: inserted, error: insertError } = await supabase
+    .from("section_artifacts")
+    .insert(
+      artifacts.map((artifact) => ({
+        section_run_id: sectionRunId,
+        type: artifact.type,
+        content_json: artifact.content,
+        content_markdown:
+          typeof artifact.content === "string" ? artifact.content : null,
+      }))
+    )
+    .select("id");
+  assertNoSupabaseError(insertError, "Failed to insert section artifacts");
+
+  const insertedIds = (inserted || [])
+    .map((row: any) => row?.id)
+    .filter((id: unknown) => typeof id === "string");
+  if (!insertedIds.length) {
+    throw new Error("Failed to insert section artifacts");
+  }
+
+  const idList = insertedIds.map((id: string) => `'${id}'`).join(",");
   const { error: deleteError } = await supabase
     .from("section_artifacts")
     .delete()
-    .eq("section_run_id", sectionRunId);
+    .eq("section_run_id", sectionRunId)
+    .not("id", "in", `(${idList})`);
   assertNoSupabaseError(deleteError, "Failed to clear section artifacts");
-  if (!artifacts.length) return;
-  const { error } = await supabase.from("section_artifacts").insert(
-    artifacts.map((artifact) => ({
-      section_run_id: sectionRunId,
-      type: artifact.type,
-      content_json: artifact.content,
-      content_markdown:
-        typeof artifact.content === "string" ? artifact.content : null,
-    }))
-  );
-  assertNoSupabaseError(error, "Failed to insert section artifacts");
 }
 
 export async function listConnectors() {

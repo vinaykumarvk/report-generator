@@ -269,14 +269,26 @@ export default function ReportsStudioClient() {
       if (res.ok) {
         const data = await res.json();
         console.log("[loadTemplates] Loaded templates:", data.length);
-        setTemplates(Array.isArray(data) ? data : []);
+        const templatesArray = Array.isArray(data) ? data : [];
+        setTemplates(templatesArray);
+        
+        // If we got a 200 but no templates, log it for debugging
+        if (templatesArray.length === 0) {
+          console.warn("[loadTemplates] API returned 200 but no templates found");
+        }
       } else {
-        console.error("[loadTemplates] Failed to load templates, status:", res.status);
+        const errorText = await res.text().catch(() => "");
+        console.error("[loadTemplates] Failed to load templates, status:", res.status, "Response:", errorText.substring(0, 200));
         setTemplates([]);
+        // Show error to user if API fails
+        if (res.status >= 500) {
+          showStatusChip("Failed to load templates. Please refresh the page.", "error");
+        }
       }
     } catch (error) {
       console.error("[loadTemplates] Error loading templates:", error);
       setTemplates([]);
+      showStatusChip("Failed to load templates. Please refresh the page.", "error");
     } finally {
       setLoading(false);
     }

@@ -576,7 +576,10 @@ async function handleJob(job) {
 
 async function processJob(job) {
   const heartbeatTimer = setInterval(() => {
-    void heartbeat(job);
+    void heartbeat(job).catch((err) => {
+      const message = err instanceof Error ? err.message : String(err);
+      console.warn(`⚠️  Heartbeat failed for job ${job.id}: ${message}`);
+    });
   }, HEARTBEAT_INTERVAL_MS);
 
   try {

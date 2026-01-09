@@ -74,47 +74,88 @@ export async function POST(
       );
     }
 
-  const workspaceId = run.workspace_id || (await getDefaultWorkspaceId());
-  const exportId = crypto.randomUUID();
-  const { error: exportError } = await supabase.from("exports").insert({
-    id: exportId,
-    report_run_id: params.runId,
-    workspace_id: workspaceId,
-    format,
-    status: "QUEUED",
-  });
-  assertNoSupabaseError(exportError, "Failed to create export record");
+    const workspaceId = run.workspace_id || (await getDefaultWorkspaceId());
+    const { data: existingExport } = await supabase
+      .from("exports")
+      .select("id,status")
+      .eq("report_run_id", params.runId)
+      .eq("format", format)
+      .in("status", ["QUEUED", "RUNNING"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (existingExport) {
+      const { data: existingJob } = await supabase
+        .from("jobs")
+        .select("id")
+        .eq("run_id", params.runId)
+        .eq("type", "EXPORT")
+        .eq("payload_json->>exportId", existingExport.id)
+        .in("status", ["QUEUED", "RUNNING"])
+        .limit(1)
+        .maybeSingle();
+      return NextResponse.json(
+        { jobId: existingJob?.id ?? null, exportId: existingExport.id },
+        { status: 202 }
+      );
+    }
 
-  const { data: job, error: jobError } = (await (supabase
-    .from("jobs") as any)
-    .insert({
+    const exportId = crypto.randomUUID();
+    const { error: exportError } = await supabase.from("exports").insert({
+      id: exportId,
+      report_run_id: params.runId,
       workspace_id: workspaceId,
-      type: "EXPORT",
+      format,
       status: "QUEUED",
-      priority: 50, // Higher priority than default (100) so exports process faster
-      payload_json: { format, exportId },
-      run_id: params.runId,
-    })
-    .select("id,type,run_id,section_run_id,workspace_id")
-    .single()) as { data: any; error: any };
-  assertNoSupabaseError(jobError, "Failed to enqueue export job");
-  await notifyJobQueued({
-    id: String(job.id),
-    type: String(job.type),
-    runId: job.run_id ? String(job.run_id) : null,
-    sectionRunId: job.section_run_id ? String(job.section_run_id) : null,
-    workspaceId: job.workspace_id ? String(job.workspace_id) : null,
-  });
+    });
+    assertNoSupabaseError(exportError, "Failed to create export record");
 
-  const { error: eventError } = await (supabase.from("run_events") as any).insert({
-    run_id: params.runId,
-    workspace_id: workspaceId,
-    type: "EXPORT_REQUESTED",
-    payload_json: { jobId: job.id, format, exportId },
-  });
-  assertNoSupabaseError(eventError, "Failed to write run event");
+    let job = null as { id: string; type: string; run_id: string | null; section_run_id: string | null; workspace_id: string | null } | null;
+    try {
+      const { data: jobData, error: jobError } = (await (supabase
+        .from("jobs") as any)
+        .insert({
+          workspace_id: workspaceId,
+          type: "EXPORT",
+          status: "QUEUED",
+          priority: 50, // Higher priority than default (100) so exports process faster
+          payload_json: { format, exportId },
+          run_id: params.runId,
+        })
+        .select("id,type,run_id,section_run_id,workspace_id")
+        .single()) as { data: any; error: any };
+      assertNoSupabaseError(jobError, "Failed to enqueue export job");
+      job = jobData;
+      await notifyJobQueued({
+        id: String(job.id),
+        type: String(job.type),
+        runId: job.run_id ? String(job.run_id) : null,
+        sectionRunId: job.section_run_id ? String(job.section_run_id) : null,
+        workspaceId: job.workspace_id ? String(job.workspace_id) : null,
+      });
+    } catch (jobError) {
+      const message = jobError instanceof Error ? jobError.message : String(jobError);
+      await supabase
+        .from("exports")
+        .update({ status: "FAILED", error_message: message })
+        .eq("id", exportId);
+      throw jobError;
+    }
 
-  return NextResponse.json({ jobId: job.id, exportId }, { status: 202 });
+    try {
+      const { error: eventError } = await (supabase.from("run_events") as any).insert({
+        run_id: params.runId,
+        workspace_id: workspaceId,
+        type: "EXPORT_REQUESTED",
+        payload_json: { jobId: job?.id, format, exportId },
+      });
+      assertNoSupabaseError(eventError, "Failed to write run event");
+    } catch (eventError) {
+      const message = eventError instanceof Error ? eventError.message : String(eventError);
+      console.warn(`[Export] Non-fatal event write failed for run ${params.runId}: ${message}`);
+    }
+
+    return NextResponse.json({ jobId: job?.id, exportId }, { status: 202 });
   } catch (error) {
     console.error('Error creating export:', error);
     return NextResponse.json(

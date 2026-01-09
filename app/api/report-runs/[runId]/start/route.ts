@@ -27,16 +27,17 @@ export async function POST(
   }
 
   const workspaceId = run.workspace_id || (await getDefaultWorkspaceId());
-  const { data: updated, error: updateError } = (await (supabase
-    .from("report_runs") as any)
-    .update({
-      status: "RUNNING",
-      started_at: new Date().toISOString(),
-    })
-    .eq("id", params.runId)
-    .select("*")
-    .single()) as { data: any; error: any };
-  assertNoSupabaseError(updateError, "Failed to update report run");
+  const { data: existingJob } = await supabase
+    .from("jobs")
+    .select("id,type,run_id,section_run_id,workspace_id")
+    .eq("run_id", params.runId)
+    .eq("type", "START_RUN")
+    .in("status", ["QUEUED", "RUNNING"])
+    .limit(1)
+    .maybeSingle();
+  if (existingJob) {
+    return NextResponse.json({ runId: run.id, jobId: existingJob.id }, { status: 202 });
+  }
 
   const { data: job, error: jobError } = (await (supabase
     .from("jobs") as any)
@@ -58,21 +59,34 @@ export async function POST(
     workspaceId: job.workspace_id ? String(job.workspace_id) : null,
   });
 
-  const { error: eventError } = await (supabase.from("run_events") as any).insert({
-    run_id: run.id,
-    workspace_id: workspaceId,
-    type: "RUN_STARTED",
-    payload_json: {},
-  });
-  assertNoSupabaseError(eventError, "Failed to write run event");
-  const { error: auditError } = await (supabase.from("audit_logs") as any).insert({
-    workspace_id: workspaceId,
-    action_type: "RUN_STARTED",
-    target_type: "ReportRun",
-    target_id: run.id,
-    details_json: {},
-  });
-  assertNoSupabaseError(auditError, "Failed to write audit log");
+  try {
+    const { error: updateError } = await (supabase.from("report_runs") as any)
+      .update({
+        status: "RUNNING",
+        started_at: new Date().toISOString(),
+      })
+      .eq("id", params.runId);
+    assertNoSupabaseError(updateError, "Failed to update report run");
 
-  return NextResponse.json({ runId: updated.id, jobId: job.id });
+    const { error: eventError } = await (supabase.from("run_events") as any).insert({
+      run_id: run.id,
+      workspace_id: workspaceId,
+      type: "RUN_STARTED",
+      payload_json: {},
+    });
+    assertNoSupabaseError(eventError, "Failed to write run event");
+    const { error: auditError } = await (supabase.from("audit_logs") as any).insert({
+      workspace_id: workspaceId,
+      action_type: "RUN_STARTED",
+      target_type: "ReportRun",
+      target_id: run.id,
+      details_json: {},
+    });
+    assertNoSupabaseError(auditError, "Failed to write audit log");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[StartRun] Non-fatal update failed for run ${run.id}: ${message}`);
+  }
+
+  return NextResponse.json({ runId: run.id, jobId: job.id }, { status: 202 });
 }

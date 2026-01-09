@@ -116,60 +116,17 @@ async function claimNextJob(workerId) {
 }
 
 async function claimJobById(jobId, workerId) {
-  const now = nowIso();
-  // First check if job is claimable (not locked or lock expired)
-  const { data: checkJob } = await supabase
-    .from("jobs")
-    .select("id, status, lock_expires_at, scheduled_at")
-    .eq("id", jobId)
-    .single();
-  
-  if (!checkJob) return null;
-  if (checkJob.status !== "QUEUED") return null;
-  if (new Date(checkJob.scheduled_at) > new Date(now)) return null;
-  
-  // Check if lock is expired or null
-  const lockExpired = !checkJob.lock_expires_at || new Date(checkJob.lock_expires_at) <= new Date(now);
-  if (!lockExpired) return null;
-  
-  // Now claim the job
-  const { data, error } = await supabase
-    .from("jobs")
-    .update({
-      status: "RUNNING",
-      locked_by: workerId,
-      locked_at: now,
-      lock_expires_at: new Date(Date.now() + LOCK_SECONDS * 1000).toISOString(),
-      updated_at: now,
-    })
-    .eq("id", jobId)
-    .eq("status", "QUEUED")
-    .select("*")
-    .single();
+  const { data, error } = await supabase.rpc("claim_job_by_id", {
+    job_id: jobId,
+    worker_id: workerId,
+    lease_seconds: LOCK_SECONDS,
+  });
   if (error) {
-    if (error.code === "PGRST116") {
-      return null;
-    }
     throw new Error(error.message || "Failed to claim job by id");
   }
-  if (!data) return null;
-
-  const attemptCount = (data.attempt_count ?? 0) + 1;
-  const { error: incrementError } = await supabase
-    .from("jobs")
-    .update({
-      attempt_count: attemptCount,
-      updated_at: nowIso(),
-    })
-    .eq("id", jobId);
-  if (incrementError) {
-    throw new Error(incrementError.message || "Failed to update job attempt count");
-  }
-
-  return mapJob({
-    ...data,
-    attempt_count: attemptCount,
-  });
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null;
+  return mapJob(row);
 }
 
 async function completeJob(job) {

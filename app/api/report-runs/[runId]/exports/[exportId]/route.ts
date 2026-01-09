@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
+import { Readable } from "stream";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { buildMarkdownDocument } from "@/lib/exporter";
 
@@ -85,8 +86,8 @@ export async function GET(
   }
 
   // Serve file from file_path
-  const fileBuffer = fs.readFileSync(exportRecord.file_path);
-  return new NextResponse(fileBuffer, {
+  const fileStream = fs.createReadStream(exportRecord.file_path);
+  return new NextResponse(Readable.toWeb(fileStream) as any, {
     headers: {
       "Content-Type": contentType,
       "Content-Disposition": `attachment; filename="${exportRecord.id}.${exportRecord.format.toLowerCase()}"`,

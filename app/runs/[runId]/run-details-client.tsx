@@ -419,7 +419,7 @@ export default function RunDetailsClient({ runId }: { runId: string }) {
 
 
         {/* Phase 1 Progress Indicator */}
-        {run && run.status === "RUNNING" && (
+        {run && (run.status === "RUNNING" || run.status === "COMPLETED") && (
           <div className="card">
             <h2>⚙️ Generation Progress</h2>
             <div style={{ display: "grid", gap: "1rem", marginTop: "1rem" }}>

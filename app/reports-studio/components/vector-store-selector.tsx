@@ -163,90 +163,104 @@ export default function VectorStoreSelector({
       )}
 
       {sortedVectorStores.length === 0 && availableVectorStores.length === 0 && !loadingVectorStores && (
-        <p className="info-message">No vector stores found. Click &quot;Sync Stores&quot; to load.</p>
+        <div style={{ marginBottom: "1rem" }}>
+          <p className="info-message" style={{ marginBottom: "0.5rem" }}>
+            No vector stores found. Click the button below to load vector stores from OpenAI.
+          </p>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={loadVectorStores}
+            style={{ padding: "0.5rem 1rem", fontSize: "0.875rem" }}
+          >
+            Load Vector Stores
+          </button>
+        </div>
       )}
 
-      <div className="vector-store-grid">
-        {sortedVectorStores.map((vs) => {
-          console.log("[VectorStoreSelector] Rendering store:", vs.name, vs.id);
-          return (
-          <div
-            key={vs.id}
-            className={`vector-store-card ${
-              selectedVectorStores.includes(vs.id) ? "selected" : ""
-            }`}
-          >
-            <label className="vector-store-label">
-              <input
-                type="checkbox"
-                checked={selectedVectorStores.includes(vs.id)}
-                onChange={() => handleVectorStoreToggle(vs.id)}
-              />
-              <span className="vector-store-name">
-                {vs.name} - {vs.id}
-              </span>
-            </label>
+      {sortedVectorStores.length > 0 && (
+        <div className="vector-store-grid">
+          {sortedVectorStores.map((vs) => {
+            console.log("[VectorStoreSelector] Rendering store:", vs.name, vs.id);
+            return (
+            <div
+              key={vs.id}
+              className={`vector-store-card ${
+                selectedVectorStores.includes(vs.id) ? "selected" : ""
+              }`}
+            >
+              <label className="vector-store-label">
+                <input
+                  type="checkbox"
+                  checked={selectedVectorStores.includes(vs.id)}
+                  onChange={() => handleVectorStoreToggle(vs.id)}
+                />
+                <span className="vector-store-name">
+                  {vs.name} - {vs.id}
+                </span>
+              </label>
 
-            {selectedVectorStores.includes(vs.id) && (
-              <div className="vector-store-actions">
-                <button
-                  className="btn-text"
-                  onClick={() => toggleSpecificFiles(vs.id)}
-                >
-                  {expandedVectorStore === vs.id
-                    ? "▼ Hide Files"
-                    : "▶ Select Specific Files"}
-                </button>
-              </div>
-            )}
+              {selectedVectorStores.includes(vs.id) && (
+                <div className="vector-store-actions">
+                  <button
+                    className="btn-text"
+                    onClick={() => toggleSpecificFiles(vs.id)}
+                  >
+                    {expandedVectorStore === vs.id
+                      ? "▼ Hide Files"
+                      : "▶ Select Specific Files"}
+                  </button>
+                </div>
+              )}
 
-            {expandedVectorStore === vs.id && (
-              <div className="vector-files-section">
-                {loadingFiles[vs.id] && <p>Loading files...</p>}
+              {expandedVectorStore === vs.id && (
+                <div className="vector-files-section">
+                  {loadingFiles[vs.id] && <p>Loading files...</p>}
 
-                {!loadingFiles[vs.id] && vectorStoreFiles[vs.id] && (
-                  <>
-                    <input
-                      type="text"
-                      className="search-input"
-                      placeholder="Search files..."
-                      value={fileSearchTerms[vs.id] || ""}
-                      onChange={(e) =>
-                        setFileSearchTerms({
-                          ...fileSearchTerms,
-                          [vs.id]: e.target.value,
-                        })
-                      }
-                    />
-                    <div className="file-list">
-                      {vectorStoreFiles[vs.id]
-                        .filter((file) =>
-                          file.filename
-                            .toLowerCase()
-                            .includes((fileSearchTerms[vs.id] || "").toLowerCase())
-                        )
-                        .sort((a, b) => a.filename.localeCompare(b.filename))
-                        .map((file) => (
-                          <label key={file.id} className="file-item">
-                            <input
-                              type="checkbox"
-                              checked={(selectedFiles[vs.id] || []).includes(
-                                file.id
-                              )}
-                              onChange={() => handleFileToggle(vs.id, file.id)}
-                            />
-                            {file.filename}
-                          </label>
-                        ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        );
-        })}
-      </div>
+                  {!loadingFiles[vs.id] && vectorStoreFiles[vs.id] && (
+                    <>
+                      <input
+                        type="text"
+                        className="search-input"
+                        placeholder="Search files..."
+                        value={fileSearchTerms[vs.id] || ""}
+                        onChange={(e) =>
+                          setFileSearchTerms({
+                            ...fileSearchTerms,
+                            [vs.id]: e.target.value,
+                          })
+                        }
+                      />
+                      <div className="file-list">
+                        {vectorStoreFiles[vs.id]
+                          .filter((file) =>
+                            file.filename
+                              .toLowerCase()
+                              .includes((fileSearchTerms[vs.id] || "").toLowerCase())
+                          )
+                          .sort((a, b) => a.filename.localeCompare(b.filename))
+                          .map((file) => (
+                            <label key={file.id} className="file-item">
+                              <input
+                                type="checkbox"
+                                checked={(selectedFiles[vs.id] || []).includes(
+                                  file.id
+                                )}
+                                onChange={() => handleFileToggle(vs.id, file.id)}
+                              />
+                              {file.filename}
+                            </label>
+                          ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+          })}
+        </div>
+      )}
     </div>
   );
 }

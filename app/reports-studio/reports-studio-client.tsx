@@ -1693,7 +1693,14 @@ export default function ReportsStudioClient() {
                           />
                           <select
                             value={section.sourceMode || ""}
-                            onChange={(e) => updateSection(index, "sourceMode", e.target.value as "inherit" | "custom")}
+                            onChange={(e) => {
+                              const newSourceMode = e.target.value as "inherit" | "custom";
+                              updateSection(index, "sourceMode", newSourceMode);
+                              // Ensure section is expanded when custom is selected
+                              if (newSourceMode === "custom" && section.isCollapsed) {
+                                toggleSectionCollapse(index);
+                              }
+                            }}
                             className={!section.sourceMode ? "placeholder-select" : ""}
                             aria-label={`Section ${index + 1} source mode`}
                           >
@@ -1712,6 +1719,25 @@ export default function ReportsStudioClient() {
                           </div>
                         )}
                       </div>
+
+                      {/* Custom Source Details (if custom selected) - Show immediately after source mode */}
+                      {section.sourceMode === "custom" && (
+                        <div className="form-group-compact">
+                          <div className="custom-source-selector-wrapper">
+                            <h4 className="custom-source-title">Custom Sources for this Section</h4>
+                            <p className="custom-source-summary">
+                              Selected: {formatCustomSources(section.customConnectorIds)}
+                            </p>
+                            <VectorStoreSelector
+                              selectedVectorStores={section.customConnectorIds || []}
+                              onVectorStoreChange={(storeIds) => updateSection(index, "customConnectorIds", storeIds)}
+                              selectedFiles={{}}
+                              onFileChange={() => {}}
+                              maxStores={2}
+                            />
+                          </div>
+                        </div>
+                      )}
 
                       {/* Writing Style Dropdown */}
                       <div className="form-group-compact">
@@ -1759,25 +1785,6 @@ export default function ReportsStudioClient() {
                           aria-label={`Section ${index + 1} purpose`}
                         />
                       </div>
-
-                      {/* Custom Source Details (if custom selected) */}
-                      {section.sourceMode === "custom" && (
-                        <div className="form-group-compact">
-                          <div className="custom-source-selector-wrapper">
-                            <h4 className="custom-source-title">Custom Sources for this Section</h4>
-                            <p className="custom-source-summary">
-                              Selected: {formatCustomSources(section.customConnectorIds)}
-                            </p>
-                            <VectorStoreSelector
-                              selectedVectorStores={section.customConnectorIds || []}
-                              onVectorStoreChange={(storeIds) => updateSection(index, "customConnectorIds", storeIds)}
-                              selectedFiles={{}}
-                              onFileChange={() => {}}
-                              maxStores={2}
-                            />
-                          </div>
-                        </div>
-                      )}
 
                       {/* Collapse Button */}
                       <div className="section-card-footer">
@@ -2397,8 +2404,9 @@ export default function ReportsStudioClient() {
                                           <select
                                             value={section.sourceMode || ""}
                                             onChange={(e) => {
+                                              const newSourceMode = e.target.value as "inherit" | "custom";
                                               const updatedSections = [...(editFormData.sections || [])];
-                                              updatedSections[idx] = {...updatedSections[idx], sourceMode: e.target.value as "inherit" | "custom"};
+                                              updatedSections[idx] = {...updatedSections[idx], sourceMode: newSourceMode};
                                               setEditFormData({...editFormData, sections: updatedSections});
                                             }}
                                             className={!section.sourceMode ? "placeholder-select" : ""}
@@ -2419,6 +2427,7 @@ export default function ReportsStudioClient() {
                                           </div>
                                         )}
                                       </div>
+                                      {/* Custom Source Details (if custom selected) - Show immediately after source mode */}
                                       {section.sourceMode === "custom" && (
                                         <div className="form-group-compact">
                                           <div className="custom-source-selector-wrapper">
@@ -2426,6 +2435,17 @@ export default function ReportsStudioClient() {
                                             <p className="custom-source-summary">
                                               Selected: {formatCustomSources(section.customConnectorIds)}
                                             </p>
+                                            <VectorStoreSelector
+                                              selectedVectorStores={section.customConnectorIds || []}
+                                              onVectorStoreChange={(storeIds) => {
+                                                const updatedSections = [...(editFormData.sections || [])];
+                                                updatedSections[idx] = {...updatedSections[idx], customConnectorIds: storeIds};
+                                                setEditFormData({...editFormData, sections: updatedSections});
+                                              }}
+                                              selectedFiles={{}}
+                                              onFileChange={() => {}}
+                                              maxStores={2}
+                                            />
                                           </div>
                                         </div>
                                       )}

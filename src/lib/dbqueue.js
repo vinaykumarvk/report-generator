@@ -24,7 +24,12 @@ if (!process.env.SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_URL) {
 
 const LOCK_SECONDS = 5 * 60;
 
+// Lazy-initialized Supabase client to avoid build-time errors
+let _supabaseClient = null;
+
 function getSupabaseClient() {
+  if (_supabaseClient) return _supabaseClient;
+  
   const url =
     process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -33,12 +38,11 @@ function getSupabaseClient() {
       "Supabase credentials missing. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY."
     );
   }
-  return createClient(url, serviceKey, {
+  _supabaseClient = createClient(url, serviceKey, {
     auth: { persistSession: false },
   });
+  return _supabaseClient;
 }
-
-const supabase = getSupabaseClient();
 
 function nowIso() {
   return new Date().toISOString();
@@ -68,6 +72,7 @@ function mapJob(row) {
 }
 
 async function enqueueJob(params) {
+  const supabase = getSupabaseClient();
   const payload = {
     type: params.type,
     status: "QUEUED",
@@ -104,6 +109,7 @@ async function enqueueJob(params) {
 }
 
 async function claimNextJob(workerId) {
+  const supabase = getSupabaseClient();
   const { data, error } = await supabase.rpc("claim_next_job", {
     worker_id: workerId,
     lease_seconds: LOCK_SECONDS,
@@ -116,6 +122,7 @@ async function claimNextJob(workerId) {
 }
 
 async function claimJobById(jobId, workerId) {
+  const supabase = getSupabaseClient();
   const { data, error } = await supabase.rpc("claim_job_by_id", {
     job_id: jobId,
     worker_id: workerId,
@@ -130,6 +137,7 @@ async function claimJobById(jobId, workerId) {
 }
 
 async function completeJob(job) {
+  const supabase = getSupabaseClient();
   const { error } = await supabase
     .from("jobs")
     .update({
@@ -146,6 +154,7 @@ async function completeJob(job) {
 }
 
 async function failJob(job, errorMessage) {
+  const supabase = getSupabaseClient();
   const now = new Date();
   if (job.attemptCount >= job.maxAttempts) {
     const { error } = await supabase
@@ -189,6 +198,7 @@ async function failJob(job, errorMessage) {
 }
 
 async function heartbeat(job) {
+  const supabase = getSupabaseClient();
   const { error } = await supabase
     .from("jobs")
     .update({

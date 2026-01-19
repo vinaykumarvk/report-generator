@@ -56,6 +56,147 @@ async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Recovery check: Periodically scan for runs that have all sections completed
+ * but are missing the GENERATE_EXEC_SUMMARY job. This is a safety net to catch
+ * edge cases where the trigger didn't fire (e.g., sections completed before worker processed them).
+ * 
+ * @param {string} workerId - The worker ID performing the check
+ */
+/**
+ * Recovery check: Periodically scan for runs that have all sections completed
+ * but are missing the GENERATE_EXEC_SUMMARY job. This is a safety net to catch
+ * edge cases where the trigger didn't fire (e.g., sections completed before worker processed them).
+ * 
+ * This function is called periodically by the worker polling loop to catch any missed triggers.
+ */
+async function performRecoveryCheck() {
+  try {
+    const { supabaseAdmin } = require("../src/lib/supabaseAdmin");
+    const supabase = supabaseAdmin();
+    
+    // Find runs that are RUNNING and don't have GENERATE_EXEC_SUMMARY or ASSEMBLE jobs
+    // Limit to recent runs (last 24 hours) to avoid scanning too much data
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    
+    const { data: runs, error: runsError } = await supabase
+      .from("report_runs")
+      .select("id, workspace_id, status, created_at")
+      .eq("status", "RUNNING")
+      .gte("created_at", twentyFourHoursAgo)
+      .limit(50); // Check up to 50 runs at a time
+    
+    if (runsError) {
+      console.warn("⚠️  Recovery check: Error fetching runs:", runsError.message);
+      return;
+    }
+    
+    if (!runs || runs.length === 0) {
+      return; // No runs to check
+    }
+    
+    let checkedCount = 0;
+    let triggeredCount = 0;
+    
+    for (const run of runs) {
+      try {
+        // Check if this run already has GENERATE_EXEC_SUMMARY or ASSEMBLE job
+        const { data: existingJobs } = await supabase
+          .from("jobs")
+          .select("id")
+          .eq("run_id", run.id)
+          .in("type", ["GENERATE_EXEC_SUMMARY", "ASSEMBLE"])
+          .in("status", ["QUEUED", "RUNNING", "COMPLETED"])
+          .limit(1);
+        
+        if (existingJobs && existingJobs.length > 0) {
+          continue; // Job already exists, skip
+        }
+        
+        // Check if all sections are completed
+        const triggered = await checkAndTriggerExecutiveSummary(run.id, run.workspace_id);
+        checkedCount++;
+        
+        if (triggered) {
+          triggeredCount++;
+          console.log(`🔧 Recovery: Triggered GENERATE_EXEC_SUMMARY for run ${run.id}`);
+        }
+      } catch (err) {
+        // Log but continue checking other runs
+        console.warn(`⚠️  Recovery check failed for run ${run.id}:`, err instanceof Error ? err.message : String(err));
+      }
+    }
+    
+    if (checkedCount > 0) {
+      console.log(`🔍 Recovery check complete: Checked ${checkedCount} runs, triggered ${triggeredCount} executive summary jobs`);
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn("⚠️  Recovery check error:", message);
+  }
+}
+
+/**
+ * Check if all non-executive summary sections are completed and trigger executive summary generation.
+ * This is a reusable function that can be called from multiple places to ensure the executive summary
+ * job is created even if sections complete before the worker processes them.
+ * 
+ * @param {string} runId - The report run ID
+ * @param {string} workspaceId - The workspace ID (optional)
+ * @returns {Promise<boolean>} - Returns true if executive summary job was enqueued, false otherwise
+ */
+async function checkAndTriggerExecutiveSummary(runId, workspaceId = null) {
+  try {
+    const all = await listSectionRuns(runId);
+    
+    // Check if all non-executive-summary sections are done
+    const allNonExecDone = all.every((item) => {
+      const isExecSummary = item.title && item.title.toLowerCase().includes("executive summary");
+      return isExecSummary || item.status === "COMPLETED";
+    });
+    
+    if (!allNonExecDone) {
+      // Not all sections are done yet
+      return false;
+    }
+    
+    // Check if executive summary or assemble job already exists
+    const { supabaseAdmin } = require("../src/lib/supabaseAdmin");
+    const supabase = supabaseAdmin();
+    const { data: existingJobs, error } = await supabase
+      .from("jobs")
+      .select("id")
+      .eq("run_id", runId)
+      .in("type", ["GENERATE_EXEC_SUMMARY", "ASSEMBLE"])
+      .in("status", ["QUEUED", "RUNNING", "COMPLETED"])
+      .limit(1);
+    
+    if (error) {
+      console.error("Error checking for existing jobs:", error);
+      // Continue anyway - worst case we enqueue a duplicate which will be idempotent
+    }
+    
+    if (existingJobs && existingJobs.length > 0) {
+      // Job already exists or was already completed
+      return false;
+    }
+    
+    // All sections are complete and no executive summary job exists - enqueue it
+    console.log(`✅ All sections complete for run ${runId}, enqueuing GENERATE_EXEC_SUMMARY`);
+    await enqueueJob({
+      type: "GENERATE_EXEC_SUMMARY",
+      payloadJson: {},
+      runId: runId,
+      workspaceId: workspaceId ?? null,
+    });
+    return true;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`Error in checkAndTriggerExecutiveSummary for run ${runId}:`, message);
+    return false;
+  }
+}
+
 async function handleStartRun(job) {
   const run = await getRunById(job.runId);
   if (!run) throw new Error("Run not found");
@@ -120,6 +261,8 @@ async function handleGenerateBlueprint(job) {
 
   // Enqueue section generation jobs (parallel) - exclude Executive Summary
   const sectionRuns = await listSectionRuns(run.id);
+  let enqueuedSectionJobs = 0;
+  
   for (const sectionRun of sectionRuns) {
     // Skip Executive Summary - it will be generated last
     if (sectionRun.title && sectionRun.title.toLowerCase().includes("executive summary")) {
@@ -127,14 +270,28 @@ async function handleGenerateBlueprint(job) {
       continue;
     }
     
-    await enqueueJob({
-      type: "RUN_SECTION",
-      payloadJson: { cohesionBlueprint },
-      runId: run.id,
-      sectionRunId: sectionRun.id,
-      workspaceId: run.workspaceId ?? null,
-    });
+    // Only enqueue if section is not already completed
+    if (sectionRun.status !== "COMPLETED") {
+      await enqueueJob({
+        type: "RUN_SECTION",
+        payloadJson: { cohesionBlueprint },
+        runId: run.id,
+        sectionRunId: sectionRun.id,
+        workspaceId: run.workspaceId ?? null,
+      });
+      enqueuedSectionJobs++;
+    } else {
+      console.log(`  ⏭️  Skipping "${sectionRun.title}" (already COMPLETED)`);
+    }
   }
+  
+  // CRITICAL FIX: Always check if executive summary should be triggered after blueprint generation
+  // This handles multiple scenarios:
+  // 1. Sections that complete before worker processes them
+  // 2. Sections that are already COMPLETED when blueprint is generated
+  // 3. Race conditions where sections complete between job creation and processing
+  console.log("🔍 Checking if executive summary should be triggered...");
+  await checkAndTriggerExecutiveSummary(run.id, run.workspaceId ?? null);
 }
 
 async function handleRunSection(job) {
@@ -209,44 +366,9 @@ async function handleRunSection(job) {
     await upsertScore(run.id, updatedSectionRun.id, scores.content);
   }
 
-  const all = await listSectionRuns(run.id);
-  // Check if all non-executive-summary sections are done
-  const allNonExecDone = all.every((item) => {
-    const isExecSummary = item.title && item.title.toLowerCase().includes("executive summary");
-    return isExecSummary || item.status === "COMPLETED";
-  });
-  
-  if (allNonExecDone) {
-    // Check if executive summary or assemble job already exists
-    // We need to check for both GENERATE_EXEC_SUMMARY and ASSEMBLE jobs
-    const { supabaseAdmin } = require("../src/lib/supabaseAdmin");
-    const supabase = supabaseAdmin();
-    const { data: existingJobs, error } = await supabase
-      .from("jobs")
-      .select("id")
-      .eq("run_id", run.id)
-      .in("type", ["GENERATE_EXEC_SUMMARY", "ASSEMBLE"])
-      .in("status", ["QUEUED", "RUNNING", "COMPLETED"])
-      .limit(1);
-    
-    if (error) {
-      console.error("Error checking for existing jobs:", error);
-      // Continue anyway - worst case we enqueue a duplicate which will be idempotent
-    }
-    
-    if (!existingJobs || existingJobs.length === 0) {
-      // Skip transitions, go directly to executive summary
-      console.log("All sections complete, enqueuing GENERATE_EXEC_SUMMARY");
-      await enqueueJob({
-        type: "GENERATE_EXEC_SUMMARY",
-        payloadJson: {},
-        runId: run.id,
-        workspaceId: run.workspaceId ?? null,
-      });
-    } else {
-      console.log("GENERATE_EXEC_SUMMARY or ASSEMBLE job already exists, skipping");
-    }
-  }
+  // CRITICAL FIX: Use the reusable function to check and trigger executive summary
+  // This ensures consistency and handles edge cases
+  await checkAndTriggerExecutiveSummary(run.id, run.workspaceId ?? null);
 }
 
 async function handleGenerateTransitions(job) {
@@ -620,13 +742,29 @@ async function processJobOnce({ workerId, jobId }) {
 async function startPolling({ workerId }) {
   console.log(`🔄 Worker ${workerId} starting polling loop...`);
   let pollCount = 0;
+  let recoveryCheckCount = 0;
   const pollIntervalMs = Number(process.env.WORKER_POLL_INTERVAL_MS || DEFAULT_POLL_INTERVAL_MS);
+  // Run recovery check every 5 minutes (300 polls at 1s interval)
+  const RECOVERY_CHECK_INTERVAL = 300;
 
   while (true) {
     try {
       const job = await claimNextJob(workerId);
       if (!job) {
         pollCount++;
+        recoveryCheckCount++;
+        
+        // SAFEGUARD 3: Periodic recovery check for runs with completed sections but no exec summary job
+        if (recoveryCheckCount >= RECOVERY_CHECK_INTERVAL) {
+          recoveryCheckCount = 0;
+          try {
+            await performRecoveryCheck();
+          } catch (recoveryErr) {
+            const recoveryMsg = recoveryErr instanceof Error ? recoveryErr.message : String(recoveryErr);
+            console.warn("⚠️  Recovery check failed (non-critical):", recoveryMsg);
+          }
+        }
+        
         if (pollCount % 60 === 0) {
           console.log(`⏳ Polled ${pollCount} times, no jobs found. Still waiting...`);
         }
@@ -636,6 +774,7 @@ async function startPolling({ workerId }) {
 
       console.log(`✅ Claimed job: ${job.id} (${job.type})`);
       pollCount = 0;
+      recoveryCheckCount = 0;
 
       await processJob(job);
       console.log(`✅ Job processed: ${job.id}`);
@@ -644,6 +783,45 @@ async function startPolling({ workerId }) {
       console.error("❌ Error in polling loop:", message);
       await sleep(5000);
     }
+  }
+}
+
+/**
+ * SAFEGUARD 3: Periodic recovery check
+ * Finds runs where all sections are COMPLETED but GENERATE_EXEC_SUMMARY job doesn't exist
+ * This handles edge cases where the trigger was missed
+ */
+async function performRecoveryCheck() {
+  const { supabaseAdmin } = require("../src/lib/supabaseAdmin");
+  const supabase = supabaseAdmin();
+  
+  // Find runs in RUNNING status (not COMPLETED or FAILED)
+  const { data: runningRuns, error: runsError } = await supabase
+    .from("report_runs")
+    .select("id, workspace_id, status")
+    .eq("status", "RUNNING")
+    .limit(10); // Check up to 10 runs at a time to avoid overload
+  
+  if (runsError || !runningRuns || runningRuns.length === 0) {
+    return; // No runs to check or error (non-critical)
+  }
+
+  let recoveryCount = 0;
+  for (const run of runningRuns) {
+    try {
+      const triggered = await checkAndTriggerExecutiveSummary(run.id, run.workspace_id);
+      if (triggered) {
+        recoveryCount++;
+        console.log(`🔧 Recovery: Triggered GENERATE_EXEC_SUMMARY for run ${run.id}`);
+      }
+    } catch (err) {
+      // Log but don't fail - recovery is best effort
+      console.warn(`⚠️  Recovery check failed for run ${run.id}:`, err instanceof Error ? err.message : String(err));
+    }
+  }
+  
+  if (recoveryCount > 0) {
+    console.log(`✅ Recovery check: Triggered ${recoveryCount} executive summary job(s)`);
   }
 }
 

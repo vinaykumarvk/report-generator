@@ -2523,6 +2523,9 @@ export default function ReportsStudioClient() {
                       {/* ACTION BUTTONS */}
                       {isEditing && (
                         <div className="expanded-actions">
+                          <button className="btn-secondary" onClick={addEditSection}>
+                            + Add Section
+                          </button>
                           <button className="btn-secondary" onClick={cancelEditingTemplate}>
                             Cancel
                           </button>
@@ -3047,6 +3050,17 @@ export default function ReportsStudioClient() {
                                                 <p className="custom-source-summary">
                                                   Selected: {formatCustomSources(section.customConnectorIds)}
                                                 </p>
+                                                <VectorStoreSelector
+                                                  selectedVectorStores={section.customConnectorIds || []}
+                                                  onVectorStoreChange={(storeIds) => {
+                                                    const updatedSections = [...(editFormData.sections || [])];
+                                                    updatedSections[idx] = {...updatedSections[idx], customConnectorIds: storeIds};
+                                                    setEditFormData({...editFormData, sections: updatedSections});
+                                                  }}
+                                                  selectedFiles={{}}
+                                                  onFileChange={() => {}}
+                                                  maxStores={2}
+                                                />
                                               </div>
                                             </div>
                                           )}
@@ -3124,6 +3138,9 @@ export default function ReportsStudioClient() {
                           {/* ACTION BUTTONS */}
                           {isEditing && (
                             <div className="expanded-actions">
+                              <button className="btn-secondary" onClick={addEditSection}>
+                                + Add Section
+                              </button>
                               <button className="btn-secondary" onClick={cancelEditingTemplate}>
                                 Cancel
                               </button>

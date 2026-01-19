@@ -31,12 +31,7 @@ export async function POST(
     // 1. Fetch the original template with all its sections
     const { data: originalTemplate, error: fetchError } = await supabase
       .from("templates")
-      .select(
-        `
-        *,
-        sections:template_sections(*)
-      `
-      )
+      .select("*, template_sections(*)")
       .eq("id", templateId)
       .single();
 
@@ -60,6 +55,8 @@ export async function POST(
       status: "DRAFT", // Always start as draft
       version_number: 1, // Reset version
       default_vector_store_ids: originalTemplate.default_vector_store_ids || [],
+      sources_json: originalTemplate.sources_json || [],
+      is_master: false,
       history_json: {
         clonedFrom: {
           templateId: originalTemplate.id,
@@ -84,8 +81,8 @@ export async function POST(
     }
 
     // 3. Clone all sections
-    const sections: any[] = Array.isArray(originalTemplate.sections)
-      ? originalTemplate.sections
+    const sections: any[] = Array.isArray(originalTemplate.template_sections)
+      ? originalTemplate.template_sections
       : [];
     const clonedSections = [];
 
@@ -94,17 +91,22 @@ export async function POST(
         template_id: createdTemplate.id,
         title: section.title,
         purpose: section.purpose,
-        order: section.order,
-        output_format: section.output_format,
-        target_length_min: section.target_length_min,
-        target_length_max: section.target_length_max,
+        order: section.order ?? 1,
+        order_index: section.order_index ?? section.order ?? 1,
+        output_format: section.output_format ?? section.outputFormat ?? "NARRATIVE",
+        target_length_min: section.target_length_min ?? section.targetLengthMin ?? null,
+        target_length_max: section.target_length_max ?? section.targetLengthMax ?? null,
         dependencies: section.dependencies || [],
-        evidence_policy: section.evidence_policy,
-        vector_policy_json: section.vector_policy_json,
-        web_policy_json: section.web_policy_json,
-        quality_gates_json: section.quality_gates_json,
+        evidence_policy: section.evidence_policy ?? section.evidencePolicy ?? null,
+        vector_policy_json: section.vector_policy_json ?? section.vectorPolicyJson ?? null,
+        web_policy_json: section.web_policy_json ?? section.webPolicyJson ?? null,
+        quality_gates_json: section.quality_gates_json ?? section.qualityGatesJson ?? null,
+        source_mode: section.source_mode ?? section.sourceMode ?? "inherit",
+        writing_style: section.writing_style ?? section.writingStyle ?? null,
         status: "DRAFT", // Reset section status to draft
-        prompt: section.prompt,
+        prompt: section.prompt ?? null,
+        section_type: section.section_type ?? section.sectionType ?? "narrative",
+        is_editable: section.is_editable ?? section.isEditable ?? true,
       };
 
       const { data: createdSection, error: sectionError } = await supabase
@@ -154,6 +156,5 @@ export async function POST(
     );
   }
 }
-
 
 

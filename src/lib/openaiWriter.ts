@@ -1,4 +1,6 @@
 import { logger } from "@/lib/logger";
+import { withRetry } from "@/lib/apiRetry";
+import { fetchJson } from "@/lib/httpClient";
 
 const OPENAI_BASE_URL = "https://api.openai.com/v1";
 const LOG_TOOL_PAYLOADS = process.env.LOG_TOOL_PAYLOADS === "true";
@@ -98,29 +100,6 @@ function extractOutputText(data: any): string {
   return parts.join("");
 }
 
-async function fetchWithTimeout(
-  url: string,
-  options: RequestInit,
-  timeoutMs = 30000
-): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    return response;
-  } catch (error: unknown) {
-    clearTimeout(timeout);
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error(`Request to ${url} timed out after ${timeoutMs}ms`);
-    }
-    throw error;
-  }
-}
-
 export async function runWriterPrompt(params: {
   section: WriterSection;
   evidence: WriterEvidenceItem[];
@@ -218,28 +197,25 @@ export async function runWriterPrompt(params: {
     );
   }
 
-  const res = await fetchWithTimeout(
-    `${OPENAI_BASE_URL}/responses`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${getApiKey()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: getModel(),
-        input: prompt,
-        ...(tools ? { tools } : {}),
-      }),
-    },
-    300000 // 5 minutes
+  const data = await withRetry(
+    () =>
+      fetchJson(
+        `${OPENAI_BASE_URL}/responses`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${getApiKey()}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: getModel(),
+            input: prompt,
+            ...(tools ? { tools } : {}),
+          }),
+        },
+        300000 // 5 minutes
+      ),
+    { maxRetries: 3 }
   );
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`OpenAI writer request failed (${res.status}): ${errorText}`);
-  }
-
-  const data = await res.json();
   return extractOutputText(data);
 }

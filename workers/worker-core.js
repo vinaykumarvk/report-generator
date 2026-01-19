@@ -37,6 +37,7 @@ const {
   getSectionRunById,
   updateSectionRun,
   replaceSectionArtifacts,
+  hasFinalArtifact,
   listConnectors,
   addRunEvent,
   addAuditLog,
@@ -60,15 +61,6 @@ async function sleep(ms) {
  * Recovery check: Periodically scan for runs that have all sections completed
  * but are missing the GENERATE_EXEC_SUMMARY job. This is a safety net to catch
  * edge cases where the trigger didn't fire (e.g., sections completed before worker processed them).
- * 
- * @param {string} workerId - The worker ID performing the check
- */
-/**
- * Recovery check: Periodically scan for runs that have all sections completed
- * but are missing the GENERATE_EXEC_SUMMARY job. This is a safety net to catch
- * edge cases where the trigger didn't fire (e.g., sections completed before worker processed them).
- * 
- * This function is called periodically by the worker polling loop to catch any missed triggers.
  */
 async function performRecoveryCheck() {
   try {
@@ -145,14 +137,40 @@ async function performRecoveryCheck() {
  * @param {string} workspaceId - The workspace ID (optional)
  * @returns {Promise<boolean>} - Returns true if executive summary job was enqueued, false otherwise
  */
-async function checkAndTriggerExecutiveSummary(runId, workspaceId = null) {
+function isExecSummarySection(section) {
+  const sectionType = section?.sectionType ?? section?.section_type;
+  if (sectionType) {
+    return String(sectionType).toLowerCase().includes("executive");
+  }
+  return false;
+}
+
+async function checkAndTriggerExecutiveSummary(runOrId, workspaceId = null, templateSnapshot = null) {
   try {
+    const runId = typeof runOrId === "object" && runOrId?.id ? runOrId.id : runOrId;
+    let template = templateSnapshot;
+    if (!template && typeof runOrId === "object" && runOrId?.templateSnapshot) {
+      template = runOrId.templateSnapshot;
+    }
+    if (!template) {
+      const run = await getRunById(runId);
+      template = run?.templateSnapshot || null;
+    }
+
+    const execSummaryIds = new Set(
+      (template?.sections || [])
+        .filter((section) => isExecSummarySection(section))
+        .map((section) => section.id)
+    );
+
     const all = await listSectionRuns(runId);
     
     // Check if all non-executive-summary sections are done
     const allNonExecDone = all.every((item) => {
-      const isExecSummary = item.title && item.title.toLowerCase().includes("executive summary");
-      return isExecSummary || item.status === "COMPLETED";
+      const isExecSummary =
+        (item.templateSectionId && execSummaryIds.has(item.templateSectionId)) ||
+        (item.title && item.title.toLowerCase().includes("executive summary"));
+      return isExecSummary ? true : item.status === "COMPLETED";
     });
     
     if (!allNonExecDone) {
@@ -186,7 +204,7 @@ async function checkAndTriggerExecutiveSummary(runId, workspaceId = null) {
     await enqueueJob({
       type: "GENERATE_EXEC_SUMMARY",
       payloadJson: {},
-      runId: runId,
+      runId,
       workspaceId: workspaceId ?? null,
     });
     return true;
@@ -263,9 +281,18 @@ async function handleGenerateBlueprint(job) {
   const sectionRuns = await listSectionRuns(run.id);
   let enqueuedSectionJobs = 0;
   
+  const execSummaryIds = new Set(
+    (template.sections || [])
+      .filter((section) => isExecSummarySection(section))
+      .map((section) => section.id)
+  );
+
   for (const sectionRun of sectionRuns) {
     // Skip Executive Summary - it will be generated last
-    if (sectionRun.title && sectionRun.title.toLowerCase().includes("executive summary")) {
+    const isExecSummary =
+      (sectionRun.templateSectionId && execSummaryIds.has(sectionRun.templateSectionId)) ||
+      (sectionRun.title && sectionRun.title.toLowerCase().includes("executive summary"));
+    if (isExecSummary) {
       console.log(`  ⏭️  Skipping "${sectionRun.title}" (will generate after assembly)`);
       continue;
     }
@@ -291,11 +318,12 @@ async function handleGenerateBlueprint(job) {
   // 2. Sections that are already COMPLETED when blueprint is generated
   // 3. Race conditions where sections complete between job creation and processing
   console.log("🔍 Checking if executive summary should be triggered...");
-  await checkAndTriggerExecutiveSummary(run.id, run.workspaceId ?? null);
+  await checkAndTriggerExecutiveSummary(run, run.workspaceId ?? null, template);
 }
 
 async function handleRunSection(job) {
   const { formatBlueprintForSection } = require("../src/lib/blueprintGenerator");
+  const SECTION_TIMEOUT_MS = 15 * 60 * 1000;
   
   const run = await getRunById(job.runId);
   if (!run) throw new Error("Run not found");
@@ -303,6 +331,17 @@ async function handleRunSection(job) {
   if (!template) throw new Error("Template snapshot missing");
   const sectionRun = await getSectionRunById(job.sectionRunId);
   if (!sectionRun) throw new Error("Section run not found");
+  
+  // IDEMPOTENCY CHECK: Skip if section is already completed and has a FINAL artifact
+  if (sectionRun.status === "COMPLETED") {
+    const hasFinal = await hasFinalArtifact(sectionRun.id);
+    if (hasFinal) {
+      console.log(`⏭️  Section "${sectionRun.title}" is already COMPLETED, skipping regeneration`);
+      return; // Job will be marked as completed by processJob
+    }
+    console.warn(`⚠️  Section "${sectionRun.title}" marked COMPLETED but missing FINAL artifact; regenerating`);
+  }
+  
   const section = template.sections.find((item) => item.id === sectionRun.templateSectionId);
   if (!section) throw new Error("Section missing in template snapshot");
 
@@ -324,7 +363,8 @@ async function handleRunSection(job) {
   
   // Track timing
   const startTime = Date.now();
-  const updatedSectionRun = await runSection({
+  let timeoutId;
+  const sectionPromise = runSection({
     sectionRun: { ...sectionRun, artifacts: [] },
     section,
     template,
@@ -334,6 +374,17 @@ async function handleRunSection(job) {
     promptSet: run.promptSetSnapshot || null,
     blueprintGuidance, // Pass blueprint guidance to section generation
   });
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`Section generation timed out after ${SECTION_TIMEOUT_MS}ms`));
+    }, SECTION_TIMEOUT_MS);
+  });
+  let updatedSectionRun;
+  try {
+    updatedSectionRun = await Promise.race([sectionPromise, timeoutPromise]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
   const endTime = Date.now();
   const durationMs = endTime - startTime;
   
@@ -368,7 +419,7 @@ async function handleRunSection(job) {
 
   // CRITICAL FIX: Use the reusable function to check and trigger executive summary
   // This ensures consistency and handles edge cases
-  await checkAndTriggerExecutiveSummary(run.id, run.workspaceId ?? null);
+  await checkAndTriggerExecutiveSummary(run, run.workspaceId ?? null, template);
 }
 
 async function handleGenerateTransitions(job) {
@@ -433,6 +484,12 @@ async function handleGenerateExecSummary(job) {
   
   const run = await getRunById(job.runId);
   if (!run) throw new Error("Run not found");
+  const template = run.templateSnapshot;
+  const execSummaryIds = new Set(
+    (template?.sections || [])
+      .filter((section) => isExecSummarySection(section))
+      .map((section) => section.id)
+  );
   
   console.log("📊 Generating executive summary...");
   
@@ -441,7 +498,9 @@ async function handleGenerateExecSummary(job) {
   // Filter out executive summary section and get content
   const sectionsForSummary = sectionRuns
     .filter(sr => {
-      const isExecSummary = sr.title && sr.title.toLowerCase().includes("executive summary");
+      const isExecSummary =
+        (sr.templateSectionId && execSummaryIds.has(sr.templateSectionId)) ||
+        (sr.title && sr.title.toLowerCase().includes("executive summary"));
       return !isExecSummary && sr.status === "COMPLETED";
     })
     .map(sr => {
@@ -456,9 +515,12 @@ async function handleGenerateExecSummary(job) {
   const executiveSummaryContent = await generateHierarchicalExecutiveSummary(sectionsForSummary);
   
   // Find the executive summary section run
-  const execSummarySectionRun = sectionRuns.find(sr => 
-    sr.title && sr.title.toLowerCase().includes("executive summary")
-  );
+  const execSummarySectionRun = sectionRuns.find(sr => {
+    const isExecSummary =
+      (sr.templateSectionId && execSummaryIds.has(sr.templateSectionId)) ||
+      (sr.title && sr.title.toLowerCase().includes("executive summary"));
+    return isExecSummary;
+  });
 
   if (execSummarySectionRun) {
     // Update the executive summary section with generated content
@@ -573,6 +635,20 @@ async function handleExport(job) {
   console.log("📦 Export format:", format);
   
   try {
+    if (job.payloadJson?.exportId) {
+      const { supabaseAdmin } = require("../src/lib/supabaseAdmin");
+      const supabase = supabaseAdmin();
+      const { data: existingExport } = await supabase
+        .from("exports")
+        .select("id,status")
+        .eq("id", exportId)
+        .single();
+      if (existingExport?.status === "READY") {
+        console.log(`📦 Export ${exportId} already complete, skipping`);
+        return;
+      }
+    }
+
     // Create or update export record with status RUNNING
     if (job.payloadJson?.exportId) {
       await updateExportRecord(exportId, { status: "RUNNING", errorMessage: null });
@@ -712,16 +788,37 @@ async function processJob(job) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`❌ Job failed: ${job.id}`, message);
     await failJob(job, message || "Job failed");
+    
+    // Only mark run as FAILED if:
+    // 1. Job exceeded max attempts
+    // 2. AND it's not a retry of an already-completed section
     if (job.runId && job.attemptCount >= job.maxAttempts) {
-      await updateRun(job.runId, {
-        status: "FAILED",
-        completedAt: new Date().toISOString(),
-      });
-      await addRunEvent(job.runId, job.workspaceId, "JOB_FAILED", {
-        jobId: job.id,
-        type: job.type,
-        error: message || "Job failed",
-      });
+      // Check if this is a RUN_SECTION job for an already-completed section
+      let shouldMarkFailed = true;
+      if (job.type === "RUN_SECTION" && job.sectionRunId) {
+        try {
+          const sectionRun = await getSectionRunById(job.sectionRunId);
+          if (sectionRun && sectionRun.status === "COMPLETED") {
+            console.log(`⚠️  Job ${job.id} failed but section ${job.sectionRunId} is already COMPLETED, not marking run as FAILED`);
+            shouldMarkFailed = false;
+          }
+        } catch (checkErr) {
+          // If we can't check, proceed with marking as failed (safer)
+          console.warn(`⚠️  Could not check section status: ${checkErr instanceof Error ? checkErr.message : String(checkErr)}`);
+        }
+      }
+      
+      if (shouldMarkFailed) {
+        await updateRun(job.runId, {
+          status: "FAILED",
+          completedAt: new Date().toISOString(),
+        });
+        await addRunEvent(job.runId, job.workspaceId, "JOB_FAILED", {
+          jobId: job.id,
+          type: job.type,
+          error: message || "Job failed",
+        });
+      }
     }
     return { status: "failed", jobId: job.id, type: job.type, error: message };
   } finally {
@@ -739,7 +836,8 @@ async function processJobOnce({ workerId, jobId }) {
   return processJob(job);
 }
 
-async function startPolling({ workerId }) {
+async function startPolling({ workerId, shouldStop } = {}) {
+  const shouldStopPolling = typeof shouldStop === "function" ? shouldStop : () => false;
   console.log(`🔄 Worker ${workerId} starting polling loop...`);
   let pollCount = 0;
   let recoveryCheckCount = 0;
@@ -747,7 +845,7 @@ async function startPolling({ workerId }) {
   // Run recovery check every 5 minutes (300 polls at 1s interval)
   const RECOVERY_CHECK_INTERVAL = 300;
 
-  while (true) {
+  while (!shouldStopPolling()) {
     try {
       const job = await claimNextJob(workerId);
       if (!job) {
@@ -781,48 +879,14 @@ async function startPolling({ workerId }) {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error("❌ Error in polling loop:", message);
+      if (message.includes("claim_next_job") && message.includes("schema cache")) {
+        throw new Error(`Fatal DB function error: ${message}`);
+      }
       await sleep(5000);
     }
   }
-}
 
-/**
- * SAFEGUARD 3: Periodic recovery check
- * Finds runs where all sections are COMPLETED but GENERATE_EXEC_SUMMARY job doesn't exist
- * This handles edge cases where the trigger was missed
- */
-async function performRecoveryCheck() {
-  const { supabaseAdmin } = require("../src/lib/supabaseAdmin");
-  const supabase = supabaseAdmin();
-  
-  // Find runs in RUNNING status (not COMPLETED or FAILED)
-  const { data: runningRuns, error: runsError } = await supabase
-    .from("report_runs")
-    .select("id, workspace_id, status")
-    .eq("status", "RUNNING")
-    .limit(10); // Check up to 10 runs at a time to avoid overload
-  
-  if (runsError || !runningRuns || runningRuns.length === 0) {
-    return; // No runs to check or error (non-critical)
-  }
-
-  let recoveryCount = 0;
-  for (const run of runningRuns) {
-    try {
-      const triggered = await checkAndTriggerExecutiveSummary(run.id, run.workspace_id);
-      if (triggered) {
-        recoveryCount++;
-        console.log(`🔧 Recovery: Triggered GENERATE_EXEC_SUMMARY for run ${run.id}`);
-      }
-    } catch (err) {
-      // Log but don't fail - recovery is best effort
-      console.warn(`⚠️  Recovery check failed for run ${run.id}:`, err instanceof Error ? err.message : String(err));
-    }
-  }
-  
-  if (recoveryCount > 0) {
-    console.log(`✅ Recovery check: Triggered ${recoveryCount} executive summary job(s)`);
-  }
+  console.log("👋 Worker shutdown complete");
 }
 
 module.exports = {

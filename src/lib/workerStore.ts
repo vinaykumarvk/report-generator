@@ -41,6 +41,7 @@ function mapSectionSnapshot(raw: any) {
     targetLengthMin: raw.target_length_min ?? raw.targetLengthMin ?? 0,
     targetLengthMax: raw.target_length_max ?? raw.targetLengthMax ?? 0,
     dependencies: raw.dependencies ?? [],
+    sectionType: raw.section_type ?? raw.sectionType ?? null,
     vectorPolicyJson: raw.vector_policy_json ?? raw.vectorPolicyJson ?? null,
     webPolicyJson: raw.web_policy_json ?? raw.webPolicyJson ?? null,
     qualityGatesJson: raw.quality_gates_json ?? raw.qualityGatesJson ?? null,
@@ -257,13 +258,27 @@ export async function replaceSectionArtifacts(
     throw new Error("Failed to insert section artifacts");
   }
 
-  const idList = insertedIds.map((id: string) => `'${id}'`).join(",");
+  // Delete all artifacts for this section except the ones we just inserted
+  // Use SQL list syntax for "in" to avoid client compatibility issues
+  const idList = `(${insertedIds.map((id) => `"${id}"`).join(",")})`;
   const { error: deleteError } = await supabase
     .from("section_artifacts")
     .delete()
     .eq("section_run_id", sectionRunId)
-    .not("id", "in", `(${idList})`);
+    .not("id", "in", idList);
   assertNoSupabaseError(deleteError, "Failed to clear section artifacts");
+}
+
+export async function hasFinalArtifact(sectionRunId: string): Promise<boolean> {
+  const supabase = supabaseAdmin();
+  const { data, error } = await supabase
+    .from("section_artifacts")
+    .select("id")
+    .eq("section_run_id", sectionRunId)
+    .eq("type", "FINAL")
+    .limit(1);
+  assertNoSupabaseError(error, "Failed to check section artifacts");
+  return Array.isArray(data) && data.length > 0;
 }
 
 export async function listConnectors() {

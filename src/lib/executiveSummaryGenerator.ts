@@ -5,6 +5,9 @@
  * to work within LLM token limits while maintaining quality.
  */
 
+import { withRetry } from "@/lib/apiRetry";
+import { fetchJson } from "@/lib/httpClient";
+
 const OPENAI_BASE_URL = "https://api.openai.com/v1";
 
 function getApiKey() {
@@ -50,33 +53,30 @@ async function runResponsesPrompt(params: {
   maxOutputTokens: number;
   temperature: number;
 }) {
-  const res = await fetchWithTimeout(
-    `${OPENAI_BASE_URL}/responses`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${getApiKey()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: getModel(),
-        input: [
-          { role: "system", content: params.system },
-          { role: "user", content: params.prompt },
-        ],
-        temperature: params.temperature,
-        max_output_tokens: params.maxOutputTokens,
-      }),
-    },
-    60000
+  const data = await withRetry(
+    () =>
+      fetchJson(
+        `${OPENAI_BASE_URL}/responses`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${getApiKey()}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: getModel(),
+            input: [
+              { role: "system", content: params.system },
+              { role: "user", content: params.prompt },
+            ],
+            temperature: params.temperature,
+            max_output_tokens: params.maxOutputTokens,
+          }),
+        },
+        60000
+      ),
+    { maxRetries: 3 }
   );
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Prompt failed (${res.status}): ${errorText}`);
-  }
-
-  const data = await res.json();
   const content = extractOutputText(data);
 
   if (!content) {
@@ -84,29 +84,6 @@ async function runResponsesPrompt(params: {
   }
 
   return content.trim();
-}
-
-async function fetchWithTimeout(
-  url: string,
-  options: RequestInit,
-  timeoutMs = 60000
-): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    return response;
-  } catch (error: unknown) {
-    clearTimeout(timeout);
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error(`Request to ${url} timed out after ${timeoutMs}ms`);
-    }
-    throw error;
-  }
 }
 
 export type SectionForSummary = {

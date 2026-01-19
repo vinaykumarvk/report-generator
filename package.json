@@ -27,7 +27,9 @@
     "pino-pretty": "11.2.2",
     "react": "18.3.1",
     "react-dom": "18.3.1",
+    "ts-node": "10.9.2",
     "tsconfig-paths": "4.2.0",
+    "typescript": "5.6.3",
     "zod": "3.23.8"
   },
   "devDependencies": {
@@ -45,8 +47,6 @@
     "jest-environment-jsdom": "29.7.0",
     "playwright-core": "1.41.2",
     "prettier": "3.3.3",
-    "ts-jest": "29.2.5",
-    "ts-node": "10.9.2",
-    "typescript": "5.6.3"
+    "ts-jest": "29.2.5"
   }
 }

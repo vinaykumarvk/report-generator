@@ -60,7 +60,7 @@ Added index `idx_jobs_expired_running` to speed up queries for expired `RUNNING`
 
 ## Files
 
-1. **`scripts/fix-claim-next-job-comprehensive.sql`**
+1. **`scripts/fix-claim-next-job-comprehensive-clean.sql`**
    - Main migration script with enhanced `claim_next_job` function
    - Reaper function
    - Index creation
@@ -80,10 +80,10 @@ Added index `idx_jobs_expired_running` to speed up queries for expired `RUNNING`
 
 ```sql
 -- Run in Supabase SQL Editor or via psql
-\i scripts/fix-claim-next-job-comprehensive.sql
+\i scripts/fix-claim-next-job-comprehensive-clean.sql
 ```
 
-Or copy-paste the SQL from `scripts/fix-claim-next-job-comprehensive.sql` into your Supabase SQL Editor.
+Or copy-paste the SQL from `scripts/fix-claim-next-job-comprehensive-clean.sql` into your Supabase SQL Editor.
 
 ### Step 2: (Optional) Set Up Periodic Reaper
 

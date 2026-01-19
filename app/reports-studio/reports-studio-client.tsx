@@ -66,6 +66,15 @@ type VectorStore = {
   name: string;
 };
 
+type TemplateCardOptions = {
+  showCreatedAt?: boolean;
+  showTopNameEditor?: boolean;
+  includeNameInObjectives?: boolean;
+  showSectionCounts?: boolean;
+  confirmDeleteInEdit?: boolean;
+  autoResizePurpose?: boolean;
+};
+
 export default function ReportsStudioClient() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -179,6 +188,7 @@ export default function ReportsStudioClient() {
   useEffect(() => {
     loadTemplates();
     loadWritingStyles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Restore form state from localStorage when form is opened
@@ -1127,6 +1137,768 @@ export default function ReportsStudioClient() {
   const masterTemplates = filteredTemplates.filter(t => t.isMaster);
   const regularTemplates = filteredTemplates.filter(t => !t.isMaster);
 
+  function renderTemplateCard(template: Template, options: TemplateCardOptions) {
+    const isExpanded = expandedTemplateId === template.id;
+    const isEditing = editingTemplateId === template.id;
+    const showCreatedAt = options.showCreatedAt === true;
+    const showTopNameEditor = options.showTopNameEditor === true;
+    const includeNameInObjectives = options.includeNameInObjectives === true;
+    const showSectionCounts = options.showSectionCounts === true;
+    const confirmDeleteInEdit = options.confirmDeleteInEdit === true;
+    const autoResizePurpose = options.autoResizePurpose === true;
+
+    return (
+      <div key={template.id} className={`saved-template-card ${isExpanded ? "expanded" : ""}`}>
+        {/* COLLAPSED HEADER */}
+        <div
+          className="saved-template-header"
+          onClick={() => !isEditing && toggleTemplateExpansion(template.id)}
+        >
+          <div className="saved-template-info">
+            <h3 className="saved-template-title">
+              <BarChart className="inline-icon" size={18} /> {template.name}
+            </h3>
+            {template.description && (
+              <p className="saved-template-description">{template.description}</p>
+            )}
+            {template.audience && (
+              <div className="saved-template-meta">
+                <span>
+                  <Users className="inline-icon" size={14} /> {template.audience}
+                </span>
+                {showCreatedAt && template.createdAt && (
+                  <span
+                    className="template-timestamp"
+                    title={`Created: ${new Date(template.createdAt).toLocaleString()}`}
+                  >
+                    Created {formatRelativeTime(template.createdAt)}
+                  </span>
+                )}
+              </div>
+            )}
+            <div className="saved-template-meta">
+              <span>
+                <File className="inline-icon" size={14} /> {template.sections?.length || 0} Sections
+              </span>
+              <span>
+                <Plug className="inline-icon" size={14} /> {template.connectors?.length || 0} Sources
+              </span>
+            </div>
+          </div>
+
+          <div className="saved-template-actions">
+            <button
+              className="btn-icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleTemplateExpansion(template.id);
+              }}
+              aria-label={isExpanded ? "Collapse template" : "Expand template"}
+              title={isExpanded ? "Collapse" : "Expand"}
+            >
+              {isExpanded ? "▲" : "▼"}
+            </button>
+            <button
+              className="btn-icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                startEditingTemplate(template.id);
+                if (!isExpanded) setExpandedTemplateId(template.id);
+              }}
+              aria-label="Edit template"
+              title="Edit"
+            >
+              ✏️
+            </button>
+            <button
+              className="btn-icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                cloneTemplate(template.id);
+              }}
+              aria-label="Clone template"
+              title="Clone"
+            >
+              <Clipboard size={16} />
+            </button>
+            <button
+              className="btn-icon-danger"
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteTemplate(template.id);
+              }}
+              aria-label="Delete template"
+              title="Delete"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* EXPANDED CONTENT */}
+        {isExpanded && (
+          <div className="saved-template-expanded">
+            {isEditing && showTopNameEditor && (
+              <div
+                className="form-group-compact"
+                style={{
+                  marginBottom: "1.5rem",
+                  paddingBottom: "1.5rem",
+                  borderBottom: "1px solid var(--border-primary)",
+                }}
+              >
+                <label
+                  className="form-label-compact"
+                  style={{ marginBottom: "0.5rem", fontWeight: 600, fontSize: "1rem" }}
+                >
+                  Template Name *
+                </label>
+                <input
+                  type="text"
+                  value={editFormData.name || ""}
+                  onChange={(e) => {
+                    if (editErrors.name) setEditErrors((prev) => ({ ...prev, name: undefined }));
+                    setEditFormData({ ...editFormData, name: e.target.value });
+                  }}
+                  placeholder="Report Name *"
+                  aria-label="Report name"
+                  aria-invalid={Boolean(editErrors.name)}
+                  aria-describedby={editErrors.name ? "edit-template-name-error" : undefined}
+                />
+                {editErrors.name && (
+                  <div id="edit-template-name-error" className="field-error" role="alert">
+                    {editErrors.name}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 1. OBJECTIVES */}
+            <div className="expanded-section panel-card">
+              <div className="panel-header">
+                <h4 className="expanded-section-title">
+                  1. Objectives {isEditing ? "(Editing)" : "(Read-only)"}
+                </h4>
+                {isEditing && (
+                  <button
+                    className="btn-icon"
+                    type="button"
+                    onClick={() =>
+                      setEditPanelsOpen((prev) => ({
+                        ...prev,
+                        objectives: !prev.objectives,
+                      }))
+                    }
+                    aria-label={editPanelsOpen.objectives ? "Collapse objectives" : "Expand objectives"}
+                    title={editPanelsOpen.objectives ? "Collapse" : "Expand"}
+                  >
+                    {editPanelsOpen.objectives ? "▲" : "▼"}
+                  </button>
+                )}
+              </div>
+              {(!isEditing || editPanelsOpen.objectives) && (
+                <div className="expanded-section-content panel-body">
+                  {isEditing ? (
+                    <>
+                      {includeNameInObjectives && (
+                        <div className="form-group-compact">
+                          <input
+                            type="text"
+                            value={editFormData.name || ""}
+                            onChange={(e) => {
+                              if (editErrors.name) setEditErrors((prev) => ({ ...prev, name: undefined }));
+                              setEditFormData({ ...editFormData, name: e.target.value });
+                            }}
+                            placeholder="Report Name *"
+                            aria-label="Report name"
+                            aria-invalid={Boolean(editErrors.name)}
+                            aria-describedby={editErrors.name ? "edit-template-name-error" : undefined}
+                          />
+                          {editErrors.name && (
+                            <div id="edit-template-name-error" className="field-error" role="alert">
+                              {editErrors.name}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <div className="form-group-compact">
+                        <textarea
+                          value={editFormData.description || ""}
+                          onChange={(e) => {
+                            setEditFormData({ ...editFormData, description: e.target.value });
+                            if (!autoResizePurpose) return;
+                            e.target.style.height = "auto";
+                            e.target.style.height = `${e.target.scrollHeight}px`;
+                          }}
+                          onPaste={(e) => {
+                            if (!autoResizePurpose) return;
+                            setTimeout(() => {
+                              const target = e.target as HTMLTextAreaElement;
+                              target.style.height = "auto";
+                              target.style.height = `${target.scrollHeight}px`;
+                            }, 0);
+                          }}
+                          placeholder="Description"
+                          rows={3}
+                          style={
+                            autoResizePurpose
+                              ? { resize: "vertical", minHeight: "60px", overflow: "hidden" }
+                              : undefined
+                          }
+                          aria-label="Report description"
+                        />
+                      </div>
+                      <div className="form-group-compact">
+                        <div className="two-column-row">
+                          <input
+                            type="text"
+                            value={editFormData.audience || ""}
+                            onChange={(e) => setEditFormData({ ...editFormData, audience: e.target.value })}
+                            placeholder="Audience"
+                            aria-label="Audience"
+                          />
+                          <input
+                            type="text"
+                            value={editFormData.tone || ""}
+                            onChange={(e) => setEditFormData({ ...editFormData, tone: e.target.value })}
+                            placeholder="Tone"
+                            aria-label="Tone"
+                          />
+                        </div>
+                      </div>
+                      <div className="form-group-compact">
+                        <div className="two-column-row">
+                          <input
+                            type="text"
+                            value={editFormData.domain || ""}
+                            onChange={(e) => setEditFormData({ ...editFormData, domain: e.target.value })}
+                            placeholder="Domain"
+                            aria-label="Domain"
+                          />
+                          <input
+                            type="text"
+                            value={editFormData.jurisdiction || ""}
+                            onChange={(e) => setEditFormData({ ...editFormData, jurisdiction: e.target.value })}
+                            placeholder="Jurisdiction"
+                            aria-label="Jurisdiction"
+                          />
+                        </div>
+                      </div>
+                      <div className="form-group-compact">
+                        <label className="checkbox-label-inline-compact">
+                          <input
+                            type="checkbox"
+                            checked={isMaster}
+                            onChange={(e) => setIsMaster(e.target.checked)}
+                          />
+                          Master Template
+                        </label>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="read-only-fields">
+                      <div className="read-only-row">
+                        <strong>Report Name:</strong> {template.name}
+                      </div>
+                      {template.description && (
+                        <div className="read-only-row">
+                          <strong>Description:</strong> {template.description}
+                        </div>
+                      )}
+                      <div className="read-only-row">
+                        {template.audience && (
+                          <span>
+                            <strong>Audience:</strong> {template.audience}
+                          </span>
+                        )}
+                        {template.tone && (
+                          <span>
+                            <strong>Tone:</strong> {template.tone}
+                          </span>
+                        )}
+                      </div>
+                      <div className="read-only-row">
+                        {template.domain && (
+                          <span>
+                            <strong>Domain:</strong> {template.domain}
+                          </span>
+                        )}
+                        {template.jurisdiction && (
+                          <span>
+                            <strong>Jurisdiction:</strong> {template.jurisdiction}
+                          </span>
+                        )}
+                      </div>
+                      {template.formats && template.formats.length > 0 && (
+                        <div className="read-only-row">
+                          <strong>Formats:</strong> {template.formats.map((f) => f.toUpperCase()).join(", ")}
+                        </div>
+                      )}
+                      {template.isMaster && (
+                        <div className="read-only-row">
+                          <strong>⭐ Master Template</strong>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* 2. SOURCES */}
+            <div className="expanded-section panel-card">
+              <div className="panel-header">
+                <h4 className="expanded-section-title">2. Sources</h4>
+                {isEditing && (
+                  <button
+                    className="btn-icon"
+                    type="button"
+                    onClick={() =>
+                      setEditPanelsOpen((prev) => ({
+                        ...prev,
+                        sources: !prev.sources,
+                      }))
+                    }
+                    aria-label={editPanelsOpen.sources ? "Collapse sources" : "Expand sources"}
+                    title={editPanelsOpen.sources ? "Collapse" : "Expand"}
+                  >
+                    {editPanelsOpen.sources ? "▲" : "▼"}
+                  </button>
+                )}
+              </div>
+              {(!isEditing || editPanelsOpen.sources) && (
+                <div className="expanded-section-content panel-body">
+                  {isEditing ? (
+                    <div className="form-section-compact">
+                      <div className="form-group-compact">
+                        <div className="source-types-row">
+                          <span className="source-types-label">Source Types:</span>
+                          <label className="checkbox-label-inline-compact">
+                            <input
+                              type="checkbox"
+                              checked={selectedConnectorTypes.includes("VECTOR")}
+                              onChange={() => handleConnectorTypeToggle("VECTOR")}
+                            />
+                            Vector Stores
+                          </label>
+                          <label className="checkbox-label-inline-compact">
+                            <input
+                              type="checkbox"
+                              checked={selectedConnectorTypes.includes("WEB_SEARCH")}
+                              onChange={() => handleConnectorTypeToggle("WEB_SEARCH")}
+                            />
+                            Web Search
+                          </label>
+                        </div>
+                      </div>
+
+                      {selectedConnectorTypes.includes("VECTOR") && (
+                        <div className="form-group-compact">
+                          <VectorStoreSelector
+                            selectedVectorStores={selectedVectorStores}
+                            onVectorStoreChange={setSelectedVectorStores}
+                            selectedFiles={selectedFiles}
+                            onFileChange={(storeId, fileIds) => {
+                              setSelectedFiles((prev) => ({ ...prev, [storeId]: fileIds }));
+                            }}
+                            maxStores={2}
+                          />
+                        </div>
+                      )}
+
+                      {selectedConnectorTypes.includes("WEB_SEARCH") && (
+                        <div className="form-group-compact">
+                          <p className="info-message">
+                            <Check className="inline-icon" size={14} /> Web search will be enabled for this report
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : template.connectors && template.connectors.length > 0 ? (
+                    <div className="read-only-fields">
+                      {template.connectors.map((conn) => (
+                        <div key={conn.id} className="read-only-row">
+                          <Check className="inline-icon" size={14} /> {conn.type}: {conn.name}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="empty-message">No sources configured</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* 3. SECTIONS */}
+            <div className="expanded-section panel-card">
+              <div className="expanded-section-header panel-header">
+                <h4 className="expanded-section-title">
+                  3. Sections
+                  {showSectionCounts && template.sections && template.sections.length > 0 && !isEditing && (
+                    <span className="section-count-badge">({template.sections.length})</span>
+                  )}
+                  {showSectionCounts && isEditing && editFormData.sections && editFormData.sections.length > 0 && (
+                    <span className="section-count-badge">({editFormData.sections.length})</span>
+                  )}
+                </h4>
+                {isEditing && (
+                  <div className="panel-header-actions">
+                    <button className="btn-secondary" type="button" onClick={addEditSection}>
+                      + Add Section
+                    </button>
+                    <button
+                      className="btn-icon"
+                      type="button"
+                      onClick={() =>
+                        setEditPanelsOpen((prev) => ({
+                          ...prev,
+                          sections: !prev.sections,
+                        }))
+                      }
+                      aria-label={editPanelsOpen.sections ? "Collapse sections" : "Expand sections"}
+                      title={editPanelsOpen.sections ? "Collapse" : "Expand"}
+                    >
+                      {editPanelsOpen.sections ? "▲" : "▼"}
+                    </button>
+                  </div>
+                )}
+              </div>
+              {(!isEditing || editPanelsOpen.sections) && (
+                <div className="expanded-section-content panel-body">
+                  {isEditing ? (
+                    editFormData.sections && editFormData.sections.length > 0 ? (
+                      <div className="sections-list-editable">
+                        {editFormData.sections.map((section, idx) => (
+                          <div key={section.id || idx} className="section-edit-card">
+                            <div className="section-edit-header">
+                              <strong>Section {idx + 1}</strong>
+                              <div className="section-edit-actions">
+                                <button
+                                  className="btn-icon"
+                                  onClick={() => moveEditSection(idx, "up")}
+                                  aria-label="Move section up"
+                                  title="Move Up"
+                                  disabled={idx === 0}
+                                >
+                                  <ChevronUp size={16} />
+                                </button>
+                                <button
+                                  className="btn-icon"
+                                  onClick={() => moveEditSection(idx, "down")}
+                                  aria-label="Move section down"
+                                  title="Move Down"
+                                  disabled={idx === (editFormData.sections?.length || 0) - 1}
+                                >
+                                  <ChevronDown size={16} />
+                                </button>
+                                <button
+                                  className="btn-icon-danger"
+                                  onClick={() =>
+                                    confirmDeleteInEdit ? confirmDeleteSection(idx, true) : deleteEditSection(idx)
+                                  }
+                                  aria-label="Delete section"
+                                  title="Delete Section"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </div>
+                            <div className="section-edit-fields">
+                              <div className="form-group-compact">
+                                <input
+                                  type="text"
+                                  value={section.title || ""}
+                                  onChange={(e) => {
+                                    const key = section.id || `index-${idx}`;
+                                    if (editSectionErrors[key]?.title) {
+                                      setEditSectionErrors((prev) => ({
+                                        ...prev,
+                                        [key]: { ...prev[key], title: undefined },
+                                      }));
+                                    }
+                                    const updatedSections = [...(editFormData.sections || [])];
+                                    updatedSections[idx] = { ...updatedSections[idx], title: e.target.value };
+                                    setEditFormData({ ...editFormData, sections: updatedSections });
+                                  }}
+                                  placeholder="Section Title *"
+                                  aria-label={`Section ${idx + 1} title`}
+                                  aria-invalid={Boolean(editSectionErrors[section.id || `index-${idx}`]?.title)}
+                                  aria-describedby={
+                                    editSectionErrors[section.id || `index-${idx}`]?.title
+                                      ? `edit-section-${section.id || `index-${idx}`}-title-error`
+                                      : undefined
+                                  }
+                                />
+                                {editSectionErrors[section.id || `index-${idx}`]?.title && (
+                                  <div
+                                    id={`edit-section-${section.id || `index-${idx}`}-title-error`}
+                                    className="field-error"
+                                    role="alert"
+                                  >
+                                    {editSectionErrors[section.id || `index-${idx}`]?.title}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="form-group-compact">
+                                <textarea
+                                  value={section.purpose || ""}
+                                  onChange={(e) => {
+                                    const updatedSections = [...(editFormData.sections || [])];
+                                    updatedSections[idx] = { ...updatedSections[idx], purpose: e.target.value };
+                                    setEditFormData({ ...editFormData, sections: updatedSections });
+                                    if (!autoResizePurpose) return;
+                                    e.target.style.height = "auto";
+                                    e.target.style.height = `${e.target.scrollHeight}px`;
+                                  }}
+                                  onPaste={(e) => {
+                                    if (!autoResizePurpose) return;
+                                    setTimeout(() => {
+                                      const target = e.target as HTMLTextAreaElement;
+                                      target.style.height = "auto";
+                                      target.style.height = `${target.scrollHeight}px`;
+                                    }, 0);
+                                  }}
+                                  placeholder="Purpose"
+                                  rows={2}
+                                  style={
+                                    autoResizePurpose
+                                      ? { resize: "vertical", minHeight: "50px", overflow: "hidden" }
+                                      : undefined
+                                  }
+                                  aria-label={`Section ${idx + 1} purpose`}
+                                />
+                              </div>
+                              <div className="form-group-compact">
+                                <label className="form-label-compact">
+                                  Length & Source - min/max words, source
+                                </label>
+                                <div className="form-row-inline">
+                                  <input
+                                    type="number"
+                                    inputMode="numeric"
+                                    min="0"
+                                    value={section.targetLengthMin || ""}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      const numVal = val === "" ? undefined : parseInt(val) || 0;
+                                      const key = section.id || `index-${idx}`;
+                                      const updatedSections = [...(editFormData.sections || [])];
+                                      updatedSections[idx] = { ...updatedSections[idx], targetLengthMin: numVal };
+                                      setEditFormData({ ...editFormData, sections: updatedSections });
+                                      const max = updatedSections[idx].targetLengthMax;
+                                      if (numVal !== undefined && max !== undefined && numVal > max) {
+                                        setEditSectionErrors((prev) => ({
+                                          ...prev,
+                                          [key]: {
+                                            ...prev[key],
+                                            length: "Min words must be less than or equal to max words.",
+                                          },
+                                        }));
+                                      } else if (editSectionErrors[key]?.length) {
+                                        setEditSectionErrors((prev) => ({
+                                          ...prev,
+                                          [key]: { ...prev[key], length: undefined },
+                                        }));
+                                      }
+                                    }}
+                                    placeholder="Min words"
+                                    aria-label={`Section ${idx + 1} minimum word count`}
+                                    aria-describedby={
+                                      editSectionErrors[section.id || `index-${idx}`]?.length
+                                        ? `edit-section-${section.id || `index-${idx}`}-length-error`
+                                        : undefined
+                                    }
+                                  />
+                                  <input
+                                    type="number"
+                                    inputMode="numeric"
+                                    min="0"
+                                    value={section.targetLengthMax || ""}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      const numVal = val === "" ? undefined : parseInt(val) || 0;
+                                      const key = section.id || `index-${idx}`;
+                                      const updatedSections = [...(editFormData.sections || [])];
+                                      updatedSections[idx] = { ...updatedSections[idx], targetLengthMax: numVal };
+                                      setEditFormData({ ...editFormData, sections: updatedSections });
+                                      const min = updatedSections[idx].targetLengthMin;
+                                      if (numVal !== undefined && min !== undefined && min > numVal) {
+                                        setEditSectionErrors((prev) => ({
+                                          ...prev,
+                                          [key]: {
+                                            ...prev[key],
+                                            length: "Min words must be less than or equal to max words.",
+                                          },
+                                        }));
+                                      } else if (editSectionErrors[key]?.length) {
+                                        setEditSectionErrors((prev) => ({
+                                          ...prev,
+                                          [key]: { ...prev[key], length: undefined },
+                                        }));
+                                      }
+                                    }}
+                                    placeholder="Max words"
+                                    aria-label={`Section ${idx + 1} maximum word count`}
+                                    aria-describedby={
+                                      editSectionErrors[section.id || `index-${idx}`]?.length
+                                        ? `edit-section-${section.id || `index-${idx}`}-length-error`
+                                        : undefined
+                                    }
+                                  />
+                                  <select
+                                    value={section.sourceMode || ""}
+                                    onChange={(e) => {
+                                      const newSourceMode = e.target.value as "inherit" | "custom";
+                                      const updatedSections = [...(editFormData.sections || [])];
+                                      updatedSections[idx] = { ...updatedSections[idx], sourceMode: newSourceMode };
+                                      setEditFormData({ ...editFormData, sections: updatedSections });
+                                    }}
+                                    className={!section.sourceMode ? "placeholder-select" : ""}
+                                    aria-label={`Section ${idx + 1} source mode`}
+                                  >
+                                    <option value="" disabled>
+                                      Source
+                                    </option>
+                                    <option value="inherit">Same as Report</option>
+                                    <option value="custom">Custom Source</option>
+                                  </select>
+                                </div>
+                                {editSectionErrors[section.id || `index-${idx}`]?.length && (
+                                  <div
+                                    id={`edit-section-${section.id || `index-${idx}`}-length-error`}
+                                    className="field-error"
+                                    role="alert"
+                                  >
+                                    {editSectionErrors[section.id || `index-${idx}`]?.length}
+                                  </div>
+                                )}
+                              </div>
+                              {section.sourceMode === "custom" && (
+                                <div className="form-group-compact">
+                                  <div className="custom-source-selector-wrapper">
+                                    <h4 className="custom-source-title">Custom Sources for this Section</h4>
+                                    <p className="custom-source-summary">
+                                      Selected: {formatCustomSources(section.customConnectorIds)}
+                                    </p>
+                                    <VectorStoreSelector
+                                      selectedVectorStores={section.customConnectorIds || []}
+                                      onVectorStoreChange={(storeIds) => {
+                                        const updatedSections = [...(editFormData.sections || [])];
+                                        updatedSections[idx] = {
+                                          ...updatedSections[idx],
+                                          customConnectorIds: storeIds,
+                                        };
+                                        setEditFormData({ ...editFormData, sections: updatedSections });
+                                      }}
+                                      selectedFiles={{}}
+                                      onFileChange={() => {}}
+                                      maxStores={2}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+
+                              <div className="form-group-compact">
+                                <label className="form-label-compact">Writing Style</label>
+                                <select
+                                  value={section.writingStyle || ""}
+                                  onChange={(e) => {
+                                    const updatedSections = [...(editFormData.sections || [])];
+                                    updatedSections[idx] = { ...updatedSections[idx], writingStyle: e.target.value };
+                                    setEditFormData({ ...editFormData, sections: updatedSections });
+                                  }}
+                                  className={`writing-style-select ${!section.writingStyle ? "placeholder-select" : ""}`}
+                                  aria-label={`Section ${idx + 1} writing style`}
+                                >
+                                  <option value="" disabled>
+                                    Writing Style
+                                  </option>
+                                  {writingStyles.map((style) => (
+                                    <option key={style.id} value={style.id}>
+                                      {style.name}
+                                    </option>
+                                  ))}
+                                </select>
+                                {section.writingStyle && (
+                                  <div className="writing-style-description">
+                                    {writingStyles.find((s) => s.id === section.writingStyle)?.description}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="empty-message">No sections added</p>
+                    )
+                  ) : template.sections && template.sections.length > 0 ? (
+                    <div className="sections-list-compact">
+                      {template.sections.map((section, idx) => (
+                        <div key={section.id || idx} className="section-item-detailed">
+                          <div className="section-detail-header">
+                            <strong>
+                              <File className="inline-icon" size={14} /> {section.title}
+                            </strong>
+                            <span className="section-meta-compact">
+                              {section.targetLengthMin}-{section.targetLengthMax} words
+                            </span>
+                          </div>
+                          {section.purpose && <div className="section-detail-purpose">{section.purpose}</div>}
+                          <div className="section-detail-meta">
+                            <span>
+                              Source:{" "}
+                              {section.sourceMode === "inherit"
+                                ? "Same as Report"
+                                : section.sourceMode === "custom"
+                                ? "Custom Source"
+                                : "N/A"}
+                            </span>
+                            {section.writingStyle && (
+                              <span>
+                                Writing Style:{" "}
+                                {writingStyles.find((s) => s.id === section.writingStyle)?.name ||
+                                  section.writingStyle}
+                              </span>
+                            )}
+                          </div>
+                          {section.sourceMode === "custom" && (
+                            <div className="section-detail-meta">
+                              <span>Custom Sources: {formatCustomSources(section.customConnectorIds)}</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="empty-message">No sections added</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {isEditing && (
+              <div className="expanded-actions">
+                <button className="btn-secondary" onClick={addEditSection}>
+                  + Add Section
+                </button>
+                <button className="btn-secondary" onClick={cancelEditingTemplate}>
+                  Cancel
+                </button>
+                <button className="btn-secondary" onClick={saveTemplateAs}>
+                  Save As
+                </button>
+                <button className="btn-primary" onClick={saveTemplateEdits}>
+                  Save
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <main className="page-container" role="main" aria-label="Reports Studio">
       {/* ARIA live region for status updates */}
@@ -1856,692 +2628,16 @@ export default function ReportsStudioClient() {
           {!loading && activeTab === "master" && masterTemplates.length > 0 && (
             <div className="templates-section">
               <div className="saved-templates-list">
-                {masterTemplates.map((template) => {
-              const isExpanded = expandedTemplateId === template.id;
-              const isEditing = editingTemplateId === template.id;
-              
-              return (
-                <div key={template.id} className={`saved-template-card ${isExpanded ? 'expanded' : ''}`}>
-                  {/* COLLAPSED HEADER */}
-                  <div 
-                    className="saved-template-header"
-                    onClick={() => !isEditing && toggleTemplateExpansion(template.id)}
-                  >
-                    <div className="saved-template-info">
-                      <h3 className="saved-template-title">
-                        <BarChart className="inline-icon" size={18} /> {template.name}
-                      </h3>
-                      {template.description && (
-                        <p className="saved-template-description">{template.description}</p>
-                      )}
-                      {template.audience && (
-                        <div className="saved-template-meta">
-                          <span><Users className="inline-icon" size={14} /> {template.audience}</span>
-                          {template.createdAt && (
-                            <span className="template-timestamp" title={`Created: ${new Date(template.createdAt).toLocaleString()}`}>
-                              Created {formatRelativeTime(template.createdAt)}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      <div className="saved-template-meta">
-                        <span><File className="inline-icon" size={14} /> {template.sections?.length || 0} Sections</span>
-                        <span><Plug className="inline-icon" size={14} /> {template.connectors?.length || 0} Sources</span>
-                      </div>
-                    </div>
-                    
-                    <div className="saved-template-actions">
-                      <button
-                        className="btn-icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleTemplateExpansion(template.id);
-                        }}
-                        aria-label={isExpanded ? "Collapse template" : "Expand template"}
-                        title={isExpanded ? "Collapse" : "Expand"}
-                      >
-                        {isExpanded ? "▲" : "▼"}
-                      </button>
-                      <button
-                        className="btn-icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          startEditingTemplate(template.id);
-                          if (!isExpanded) setExpandedTemplateId(template.id);
-                        }}
-                        aria-label="Edit template"
-                        title="Edit"
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        className="btn-icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          cloneTemplate(template.id);
-                        }}
-                        aria-label="Clone template"
-                        title="Clone"
-                      >
-                        <Clipboard size={16} />
-                      </button>
-                      <button
-                        className="btn-icon-danger"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteTemplate(template.id);
-                        }}
-                        aria-label="Delete template"
-                        title="Delete"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* EXPANDED CONTENT */}
-                  {isExpanded && (
-                    <div className="saved-template-expanded">
-                      {/* TEMPLATE NAME - Outside the three sections (Edit Mode) */}
-                      {isEditing && (
-                        <div className="form-group-compact" style={{ marginBottom: "1.5rem", paddingBottom: "1.5rem", borderBottom: "1px solid var(--border-primary)" }}>
-                          <label className="form-label-compact" style={{ marginBottom: "0.5rem", fontWeight: 600, fontSize: "1rem" }}>Template Name *</label>
-                          <input
-                            type="text"
-                            value={editFormData.name || ""}
-                            onChange={(e) => {
-                              if (editErrors.name) setEditErrors((prev) => ({ ...prev, name: undefined }));
-                              setEditFormData({...editFormData, name: e.target.value});
-                            }}
-                            placeholder="Report Name *"
-                            aria-label="Report name"
-                            aria-invalid={Boolean(editErrors.name)}
-                            aria-describedby={editErrors.name ? "edit-template-name-error" : undefined}
-                          />
-                          {editErrors.name && (
-                            <div id="edit-template-name-error" className="field-error" role="alert">
-                              {editErrors.name}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* 1. OBJECTIVES */}
-                      <div className="expanded-section panel-card">
-                        <div className="panel-header">
-                          <h4 className="expanded-section-title">1. Objectives {isEditing ? "(Editing)" : "(Read-only)"}</h4>
-                          {isEditing && (
-                            <button
-                              className="btn-icon"
-                              type="button"
-                              onClick={() =>
-                                setEditPanelsOpen((prev) => ({
-                                  ...prev,
-                                  objectives: !prev.objectives,
-                                }))
-                              }
-                              aria-label={editPanelsOpen.objectives ? "Collapse objectives" : "Expand objectives"}
-                              title={editPanelsOpen.objectives ? "Collapse" : "Expand"}
-                            >
-                              {editPanelsOpen.objectives ? "▲" : "▼"}
-                            </button>
-                          )}
-                        </div>
-                        {(!isEditing || editPanelsOpen.objectives) && (
-                          <div className="expanded-section-content panel-body">
-                          {isEditing ? (
-                            <>
-                              <div className="form-group-compact">
-                                <textarea
-                                  value={editFormData.description || ""}
-                                  onChange={(e) => {
-                                    setEditFormData({...editFormData, description: e.target.value});
-                                    // Auto-expand textarea
-                                    e.target.style.height = 'auto';
-                                    e.target.style.height = e.target.scrollHeight + 'px';
-                                  }}
-                                  onPaste={(e) => {
-                                    // Auto-expand on paste
-                                    setTimeout(() => {
-                                      const target = e.target as HTMLTextAreaElement;
-                                      target.style.height = 'auto';
-                                      target.style.height = target.scrollHeight + 'px';
-                                    }, 0);
-                                  }}
-                                  placeholder="Description"
-                                  rows={3}
-                                  style={{ resize: 'vertical', minHeight: '60px', overflow: 'hidden' }}
-                                  aria-label="Report description"
-                                />
-                              </div>
-                              <div className="form-group-compact">
-                                <div className="two-column-row">
-                                  <input
-                                    type="text"
-                                    value={editFormData.audience || ""}
-                                    onChange={(e) => setEditFormData({...editFormData, audience: e.target.value})}
-                                    placeholder="Audience"
-                                    aria-label="Audience"
-                                  />
-                                  <input
-                                    type="text"
-                                    value={editFormData.tone || ""}
-                                    onChange={(e) => setEditFormData({...editFormData, tone: e.target.value})}
-                                    placeholder="Tone"
-                                    aria-label="Tone"
-                                  />
-                                </div>
-                              </div>
-                              <div className="form-group-compact">
-                                <div className="two-column-row">
-                                  <input
-                                    type="text"
-                                    value={editFormData.domain || ""}
-                                    onChange={(e) => setEditFormData({...editFormData, domain: e.target.value})}
-                                    placeholder="Domain"
-                                    aria-label="Domain"
-                                  />
-                                  <input
-                                    type="text"
-                                    value={editFormData.jurisdiction || ""}
-                                    onChange={(e) => setEditFormData({...editFormData, jurisdiction: e.target.value})}
-                                    placeholder="Jurisdiction"
-                                    aria-label="Jurisdiction"
-                                  />
-                                </div>
-                              </div>
-                              <div className="form-group-compact">
-                                <label className="checkbox-label-inline-compact">
-                                  <input
-                                    type="checkbox"
-                                    checked={isMaster}
-                                    onChange={(e) => setIsMaster(e.target.checked)}
-                                  />
-                                  Master Template
-                                </label>
-                              </div>
-                            </>
-                          ) : (
-                            <div className="read-only-fields">
-                              <div className="read-only-row"><strong>Report Name:</strong> {template.name}</div>
-                              {template.description && <div className="read-only-row"><strong>Description:</strong> {template.description}</div>}
-                              <div className="read-only-row">
-                                {template.audience && <span><strong>Audience:</strong> {template.audience}</span>}
-                                {template.tone && <span><strong>Tone:</strong> {template.tone}</span>}
-                              </div>
-                              <div className="read-only-row">
-                                {template.domain && <span><strong>Domain:</strong> {template.domain}</span>}
-                                {template.jurisdiction && <span><strong>Jurisdiction:</strong> {template.jurisdiction}</span>}
-                              </div>
-                              {template.formats && template.formats.length > 0 && (
-                                <div className="read-only-row">
-                                  <strong>Formats:</strong> {template.formats.map(f => f.toUpperCase()).join(", ")}
-                                </div>
-                              )}
-                              {template.isMaster && (
-                                <div className="read-only-row">
-                                  <strong>⭐ Master Template</strong>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* 2. SOURCES */}
-                      <div className="expanded-section panel-card">
-                        <div className="panel-header">
-                          <h4 className="expanded-section-title">2. Sources</h4>
-                          {isEditing && (
-                            <button
-                              className="btn-icon"
-                              type="button"
-                              onClick={() =>
-                                setEditPanelsOpen((prev) => ({
-                                  ...prev,
-                                  sources: !prev.sources,
-                                }))
-                              }
-                              aria-label={editPanelsOpen.sources ? "Collapse sources" : "Expand sources"}
-                              title={editPanelsOpen.sources ? "Collapse" : "Expand"}
-                            >
-                              {editPanelsOpen.sources ? "▲" : "▼"}
-                            </button>
-                          )}
-                        </div>
-                        {(!isEditing || editPanelsOpen.sources) && (
-                          <div className="expanded-section-content panel-body">
-                          {isEditing ? (
-                            // EDIT MODE - Show editable sources
-                            <div className="form-section-compact">
-                              {/* Source Types - Compact Inline */}
-                              <div className="form-group-compact">
-                                <div className="source-types-row">
-                                  <span className="source-types-label">Source Types:</span>
-                                  <label className="checkbox-label-inline-compact">
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedConnectorTypes.includes("VECTOR")}
-                                      onChange={() => handleConnectorTypeToggle("VECTOR")}
-                                    />
-                                    Vector Stores
-                                  </label>
-                                  <label className="checkbox-label-inline-compact">
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedConnectorTypes.includes("WEB_SEARCH")}
-                                      onChange={() => handleConnectorTypeToggle("WEB_SEARCH")}
-                                    />
-                                    Web Search
-                                  </label>
-                                </div>
-                              </div>
-
-                              {/* VECTOR STORES */}
-                              {selectedConnectorTypes.includes("VECTOR") && (
-                                <div className="form-group-compact">
-                                  <VectorStoreSelector
-                                    selectedVectorStores={selectedVectorStores}
-                                    onVectorStoreChange={setSelectedVectorStores}
-                                    selectedFiles={selectedFiles}
-                                    onFileChange={(storeId, fileIds) => {
-                                      setSelectedFiles((prev) => ({ ...prev, [storeId]: fileIds }));
-                                    }}
-                                    maxStores={2}
-                                  />
-                                </div>
-                              )}
-
-                              {/* WEB SEARCH */}
-                              {selectedConnectorTypes.includes("WEB_SEARCH") && (
-                                <div className="form-group-compact">
-                                  <p className="info-message">
-                                    <Check className="inline-icon" size={14} /> Web search will be enabled for this report
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            // READ-ONLY MODE - Show configured sources
-                            template.connectors && template.connectors.length > 0 ? (
-                              <div className="read-only-fields">
-                                {template.connectors.map((conn) => (
-                                  <div key={conn.id} className="read-only-row">
-                                    <Check className="inline-icon" size={14} /> {conn.type}: {conn.name}
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="empty-message">No sources configured</p>
-                            )
-                          )}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* 3. SECTIONS */}
-                      <div className="expanded-section panel-card">
-                        <div className="expanded-section-header panel-header">
-                          <h4 className="expanded-section-title">
-                            3. Sections
-                            {template.sections && template.sections.length > 0 && !isEditing && (
-                              <span className="section-count-badge">({template.sections.length})</span>
-                            )}
-                            {isEditing && editFormData.sections && editFormData.sections.length > 0 && (
-                              <span className="section-count-badge">({editFormData.sections.length})</span>
-                            )}
-                          </h4>
-                          {isEditing && (
-                            <div className="panel-header-actions">
-                              <button className="btn-secondary" type="button" onClick={addEditSection}>
-                                + Add Section
-                              </button>
-                              <button
-                                className="btn-icon"
-                                type="button"
-                                onClick={() =>
-                                  setEditPanelsOpen((prev) => ({
-                                    ...prev,
-                                    sections: !prev.sections,
-                                  }))
-                                }
-                                aria-label={editPanelsOpen.sections ? "Collapse sections" : "Expand sections"}
-                                title={editPanelsOpen.sections ? "Collapse" : "Expand"}
-                              >
-                                {editPanelsOpen.sections ? "▲" : "▼"}
-                              </button>
-                            </div>
-                          )}
-                          {!isEditing && (
-                            <button
-                              className="btn-icon"
-                              type="button"
-                              onClick={() =>
-                                setEditPanelsOpen((prev) => ({
-                                  ...prev,
-                                  sections: !prev.sections,
-                                }))
-                              }
-                              aria-label={editPanelsOpen.sections ? "Collapse sections" : "Expand sections"}
-                              title={editPanelsOpen.sections ? "Collapse" : "Expand"}
-                            >
-                              {editPanelsOpen.sections ? "▲" : "▼"}
-                            </button>
-                          )}
-                        </div>
-                        {(!isEditing || editPanelsOpen.sections) && (
-                          <div className="expanded-section-content panel-body">
-                          {isEditing ? (
-                            // EDIT MODE - Show editable sections
-                            editFormData.sections && editFormData.sections.length > 0 ? (
-                              <div className="sections-list-editable">
-                                {editFormData.sections.map((section, idx) => (
-                                  <div key={section.id || idx} className="section-edit-card">
-                                    <div className="section-edit-header">
-                                      <strong>Section {idx + 1}</strong>
-                                      <div className="section-edit-actions">
-                                        <button
-                                          className="btn-icon"
-                                          onClick={() => moveEditSection(idx, "up")}
-                                          aria-label="Move section up"
-                                          title="Move Up"
-                                          disabled={idx === 0}
-                                        >
-                                          <ChevronUp size={16} />
-                                        </button>
-                                        <button
-                                          className="btn-icon"
-                                          onClick={() => moveEditSection(idx, "down")}
-                                          aria-label="Move section down"
-                                          title="Move Down"
-                                          disabled={idx === (editFormData.sections?.length || 0) - 1}
-                                        >
-                                          <ChevronDown size={16} />
-                                        </button>
-                                        <button
-                                          className="btn-icon-danger"
-                                          onClick={() => confirmDeleteSection(idx, true)}
-                                          aria-label="Delete section"
-                                          title="Delete Section"
-                                        >
-                                          <Trash2 size={16} />
-                                        </button>
-                                      </div>
-                                    </div>
-                                    <div className="section-edit-fields">
-                                      <div className="form-group-compact">
-                                        <input
-                                          type="text"
-                                          value={section.title || ""}
-                                          onChange={(e) => {
-                                            const key = section.id || `index-${idx}`;
-                                            if (editSectionErrors[key]?.title) {
-                                              setEditSectionErrors((prev) => ({
-                                                ...prev,
-                                                [key]: { ...prev[key], title: undefined },
-                                              }));
-                                            }
-                                            const updatedSections = [...(editFormData.sections || [])];
-                                            updatedSections[idx] = {...updatedSections[idx], title: e.target.value};
-                                            setEditFormData({...editFormData, sections: updatedSections});
-                                          }}
-                                          placeholder="Section Title *"
-                                          aria-label={`Section ${idx + 1} title`}
-                                          aria-invalid={Boolean(editSectionErrors[section.id || `index-${idx}`]?.title)}
-                                          aria-describedby={
-                                            editSectionErrors[section.id || `index-${idx}`]?.title
-                                              ? `edit-section-${section.id || `index-${idx}`}-title-error`
-                                              : undefined
-                                          }
-                                        />
-                                        {editSectionErrors[section.id || `index-${idx}`]?.title && (
-                                          <div
-                                            id={`edit-section-${section.id || `index-${idx}`}-title-error`}
-                                            className="field-error"
-                                            role="alert"
-                                          >
-                                            {editSectionErrors[section.id || `index-${idx}`]?.title}
-                                          </div>
-                                        )}
-                                      </div>
-                                      <div className="form-group-compact">
-                                        <textarea
-                                          value={section.purpose || ""}
-                                          onChange={(e) => {
-                                            const updatedSections = [...(editFormData.sections || [])];
-                                            updatedSections[idx] = {...updatedSections[idx], purpose: e.target.value};
-                                            setEditFormData({...editFormData, sections: updatedSections});
-                                            // Auto-expand textarea
-                                            e.target.style.height = 'auto';
-                                            e.target.style.height = e.target.scrollHeight + 'px';
-                                          }}
-                                          onPaste={(e) => {
-                                            // Auto-expand on paste
-                                            setTimeout(() => {
-                                              const target = e.target as HTMLTextAreaElement;
-                                              target.style.height = 'auto';
-                                              target.style.height = target.scrollHeight + 'px';
-                                            }, 0);
-                                          }}
-                                          placeholder="Purpose"
-                                          rows={2}
-                                          style={{ resize: 'vertical', minHeight: '50px', overflow: 'hidden' }}
-                                          aria-label={`Section ${idx + 1} purpose`}
-                                        />
-                                      </div>
-                                      <div className="form-group-compact">
-                                        <label className="form-label-compact">Length & Source - min/max words, source</label>
-                                        <div className="form-row-inline">
-                                          <input
-                                            type="number"
-                                            inputMode="numeric"
-                                            min="0"
-                                            value={section.targetLengthMin || ""}
-                                            onChange={(e) => {
-                                              const val = e.target.value;
-                                              const numVal = val === "" ? undefined : parseInt(val) || 0;
-                                              const key = section.id || `index-${idx}`;
-                                              const updatedSections = [...(editFormData.sections || [])];
-                                              updatedSections[idx] = {...updatedSections[idx], targetLengthMin: numVal};
-                                              setEditFormData({...editFormData, sections: updatedSections});
-                                              // Real-time validation
-                                              const max = updatedSections[idx].targetLengthMax;
-                                              if (numVal !== undefined && max !== undefined && numVal > max) {
-                                                setEditSectionErrors((prev) => ({
-                                                  ...prev,
-                                                  [key]: { ...prev[key], length: "Min words must be less than or equal to max words." },
-                                                }));
-                                              } else if (editSectionErrors[key]?.length) {
-                                                setEditSectionErrors((prev) => ({
-                                                  ...prev,
-                                                  [key]: { ...prev[key], length: undefined },
-                                                }));
-                                              }
-                                            }}
-                                            placeholder="Min words"
-                                            aria-label={`Section ${idx + 1} minimum word count`}
-                                            aria-describedby={
-                                              editSectionErrors[section.id || `index-${idx}`]?.length
-                                                ? `edit-section-${section.id || `index-${idx}`}-length-error`
-                                                : undefined
-                                            }
-                                          />
-                                          <input
-                                            type="number"
-                                            inputMode="numeric"
-                                            min="0"
-                                            value={section.targetLengthMax || ""}
-                                            onChange={(e) => {
-                                              const val = e.target.value;
-                                              const numVal = val === "" ? undefined : parseInt(val) || 0;
-                                              const key = section.id || `index-${idx}`;
-                                              const updatedSections = [...(editFormData.sections || [])];
-                                              updatedSections[idx] = {...updatedSections[idx], targetLengthMax: numVal};
-                                              setEditFormData({...editFormData, sections: updatedSections});
-                                              // Real-time validation
-                                              const min = updatedSections[idx].targetLengthMin;
-                                              if (numVal !== undefined && min !== undefined && min > numVal) {
-                                                setEditSectionErrors((prev) => ({
-                                                  ...prev,
-                                                  [key]: { ...prev[key], length: "Min words must be less than or equal to max words." },
-                                                }));
-                                              } else if (editSectionErrors[key]?.length) {
-                                                setEditSectionErrors((prev) => ({
-                                                  ...prev,
-                                                  [key]: { ...prev[key], length: undefined },
-                                                }));
-                                              }
-                                            }}
-                                            placeholder="Max words"
-                                            aria-label={`Section ${idx + 1} maximum word count`}
-                                            aria-describedby={
-                                              editSectionErrors[section.id || `index-${idx}`]?.length
-                                                ? `edit-section-${section.id || `index-${idx}`}-length-error`
-                                                : undefined
-                                            }
-                                          />
-                                          <select
-                                            value={section.sourceMode || ""}
-                                            onChange={(e) => {
-                                              const newSourceMode = e.target.value as "inherit" | "custom";
-                                              const updatedSections = [...(editFormData.sections || [])];
-                                              updatedSections[idx] = {...updatedSections[idx], sourceMode: newSourceMode};
-                                              setEditFormData({...editFormData, sections: updatedSections});
-                                            }}
-                                            className={!section.sourceMode ? "placeholder-select" : ""}
-                                            aria-label={`Section ${idx + 1} source mode`}
-                                          >
-                                            <option value="" disabled>Source</option>
-                                            <option value="inherit">Same as Report</option>
-                                            <option value="custom">Custom Source</option>
-                                          </select>
-                                        </div>
-                                        {editSectionErrors[section.id || `index-${idx}`]?.length && (
-                                          <div
-                                            id={`edit-section-${section.id || `index-${idx}`}-length-error`}
-                                            className="field-error"
-                                            role="alert"
-                                          >
-                                            {editSectionErrors[section.id || `index-${idx}`]?.length}
-                                          </div>
-                                        )}
-                                      </div>
-                                      {/* Custom Source Details (if custom selected) - Show immediately after source mode */}
-                                      {section.sourceMode === "custom" && (
-                                        <div className="form-group-compact">
-                                          <div className="custom-source-selector-wrapper">
-                                            <h4 className="custom-source-title">Custom Sources for this Section</h4>
-                                            <p className="custom-source-summary">
-                                              Selected: {formatCustomSources(section.customConnectorIds)}
-                                            </p>
-                                            <VectorStoreSelector
-                                              selectedVectorStores={section.customConnectorIds || []}
-                                              onVectorStoreChange={(storeIds) => {
-                                                const updatedSections = [...(editFormData.sections || [])];
-                                                updatedSections[idx] = {...updatedSections[idx], customConnectorIds: storeIds};
-                                                setEditFormData({...editFormData, sections: updatedSections});
-                                              }}
-                                              selectedFiles={{}}
-                                              onFileChange={() => {}}
-                                              maxStores={2}
-                                            />
-                                          </div>
-                                        </div>
-                                      )}
-                                      
-                                      {/* Writing Style Dropdown */}
-                                      <div className="form-group-compact">
-                                        <label className="form-label-compact">Writing Style</label>
-                                        <select
-                                          value={section.writingStyle || ""}
-                                          onChange={(e) => {
-                                            const updatedSections = [...(editFormData.sections || [])];
-                                            updatedSections[idx] = {...updatedSections[idx], writingStyle: e.target.value};
-                                            setEditFormData({...editFormData, sections: updatedSections});
-                                          }}
-                                          className={`writing-style-select ${!section.writingStyle ? "placeholder-select" : ""}`}
-                                          aria-label={`Section ${idx + 1} writing style`}
-                                        >
-                                          <option value="" disabled>Writing Style</option>
-                                          {writingStyles.map((style) => (
-                                            <option key={style.id} value={style.id}>
-                                              {style.name}
-                                            </option>
-                                          ))}
-                                        </select>
-                                        {section.writingStyle && (
-                                          <div className="writing-style-description">
-                                            {writingStyles.find(s => s.id === section.writingStyle)?.description}
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="empty-message">No sections added</p>
-                            )
-                          ) : (
-                            // READ-ONLY MODE - Show section details
-                            template.sections && template.sections.length > 0 ? (
-                              <div className="sections-list-compact">
-                                {template.sections.map((section, idx) => (
-                                  <div key={section.id || idx} className="section-item-detailed">
-                                    <div className="section-detail-header">
-                                      <strong><File className="inline-icon" size={14} /> {section.title}</strong>
-                                      <span className="section-meta-compact">
-                                        {section.targetLengthMin}-{section.targetLengthMax} words
-                                      </span>
-                                    </div>
-                                    {section.purpose && (
-                                      <div className="section-detail-purpose">{section.purpose}</div>
-                                    )}
-                                    <div className="section-detail-meta">
-                                      <span>Source: {section.sourceMode === 'inherit' ? 'Same as Report' : section.sourceMode === 'custom' ? 'Custom Source' : 'N/A'}</span>
-                                      {section.writingStyle && (
-                                        <span>Writing Style: {writingStyles.find(s => s.id === section.writingStyle)?.name || section.writingStyle}</span>
-                                      )}
-                                    </div>
-                                    {section.sourceMode === "custom" && (
-                                      <div className="section-detail-meta">
-                                        <span>Custom Sources: {formatCustomSources(section.customConnectorIds)}</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="empty-message">No sections added</p>
-                            )
-                          )}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* ACTION BUTTONS */}
-                      {isEditing && (
-                        <div className="expanded-actions">
-                          <button className="btn-secondary" onClick={addEditSection}>
-                            + Add Section
-                          </button>
-                          <button className="btn-secondary" onClick={cancelEditingTemplate}>
-                            Cancel
-                          </button>
-                          <button className="btn-secondary" onClick={saveTemplateAs}>
-                            Save As
-                          </button>
-                          <button className="btn-primary" onClick={saveTemplateEdits}>
-                            Save
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                {masterTemplates.map((template) =>
+                  renderTemplateCard(template, {
+                    showCreatedAt: true,
+                    showTopNameEditor: true,
+                    includeNameInObjectives: false,
+                    showSectionCounts: true,
+                    confirmDeleteInEdit: true,
+                    autoResizePurpose: true,
+                  })
+                )}
               </div>
             </div>
           )}
@@ -2556,607 +2652,16 @@ export default function ReportsStudioClient() {
           {!loading && activeTab === "regular" && regularTemplates.length > 0 && (
             <div className="templates-section">
               <div className="saved-templates-list">
-                {regularTemplates.map((template) => {
-                  const isExpanded = expandedTemplateId === template.id;
-                  const isEditing = editingTemplateId === template.id;
-                  
-                  return (
-                    <div key={template.id} className={`saved-template-card ${isExpanded ? 'expanded' : ''}`}>
-                      {/* Same structure as master templates - copy from above */}
-                      <div 
-                        className="saved-template-header"
-                        onClick={() => !isEditing && toggleTemplateExpansion(template.id)}
-                      >
-                        <div className="saved-template-info">
-                          <h3 className="saved-template-title">
-                            <BarChart className="inline-icon" size={18} /> {template.name}
-                          </h3>
-                          {template.description && (
-                            <p className="saved-template-description">{template.description}</p>
-                          )}
-                          {template.audience && (
-                            <div className="saved-template-meta">
-                              <span><Users className="inline-icon" size={14} /> {template.audience}</span>
-                            </div>
-                          )}
-                          <div className="saved-template-meta">
-                            <span><File className="inline-icon" size={14} /> {template.sections?.length || 0} Sections</span>
-                            <span><Plug className="inline-icon" size={14} /> {template.connectors?.length || 0} Sources</span>
-                          </div>
-                        </div>
-                        
-                        <div className="saved-template-actions">
-                          <button
-                            className="btn-icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleTemplateExpansion(template.id);
-                            }}
-                            aria-label={isExpanded ? "Collapse template" : "Expand template"}
-                            title={isExpanded ? "Collapse" : "Expand"}
-                          >
-                            {isExpanded ? "▲" : "▼"}
-                          </button>
-                          <button
-                            className="btn-icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              startEditingTemplate(template.id);
-                              if (!isExpanded) setExpandedTemplateId(template.id);
-                            }}
-                            aria-label="Edit template"
-                            title="Edit"
-                          >
-                            ✏️
-                          </button>
-                          <button
-                            className="btn-icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              cloneTemplate(template.id);
-                            }}
-                            aria-label="Clone template"
-                            title="Clone"
-                          >
-                            <Clipboard size={16} />
-                          </button>
-                          <button
-                            className="btn-icon-danger"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteTemplate(template.id);
-                            }}
-                            aria-label="Delete template"
-                            title="Delete"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </div>
-
-                      {isExpanded && (
-                        <div className="saved-template-expanded">
-                          {/* 1. OBJECTIVES */}
-                          <div className="expanded-section panel-card">
-                            <div className="panel-header">
-                              <h4 className="expanded-section-title">1. Objectives {isEditing ? "(Editing)" : "(Read-only)"}</h4>
-                              {isEditing && (
-                                <button
-                                  className="btn-icon"
-                                  type="button"
-                                  onClick={() =>
-                                    setEditPanelsOpen((prev) => ({
-                                      ...prev,
-                                      objectives: !prev.objectives,
-                                    }))
-                                  }
-                                  aria-label={editPanelsOpen.objectives ? "Collapse objectives" : "Expand objectives"}
-                                  title={editPanelsOpen.objectives ? "Collapse" : "Expand"}
-                                >
-                                  {editPanelsOpen.objectives ? "▲" : "▼"}
-                                </button>
-                              )}
-                            </div>
-                            {(!isEditing || editPanelsOpen.objectives) && (
-                              <div className="expanded-section-content panel-body">
-                              {isEditing ? (
-                                <>
-                                  <div className="form-group-compact">
-                                    <input
-                                      type="text"
-                                      value={editFormData.name || ""}
-                                      onChange={(e) => {
-                                        if (editErrors.name) setEditErrors((prev) => ({ ...prev, name: undefined }));
-                                        setEditFormData({...editFormData, name: e.target.value});
-                                      }}
-                                      placeholder="Report Name *"
-                                      aria-label="Report name"
-                                      aria-invalid={Boolean(editErrors.name)}
-                                      aria-describedby={editErrors.name ? "edit-template-name-error" : undefined}
-                                    />
-                                    {editErrors.name && (
-                                      <div id="edit-template-name-error" className="field-error" role="alert">
-                                        {editErrors.name}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="form-group-compact">
-                                    <textarea
-                                      value={editFormData.description || ""}
-                                      onChange={(e) => setEditFormData({...editFormData, description: e.target.value})}
-                                      placeholder="Description"
-                                      rows={3}
-                                      aria-label="Report description"
-                                    />
-                                  </div>
-                                  <div className="form-group-compact">
-                                    <div className="two-column-row">
-                                      <input
-                                        type="text"
-                                        value={editFormData.audience || ""}
-                                        onChange={(e) => setEditFormData({...editFormData, audience: e.target.value})}
-                                        placeholder="Audience"
-                                        aria-label="Audience"
-                                      />
-                                      <input
-                                        type="text"
-                                        value={editFormData.tone || ""}
-                                        onChange={(e) => setEditFormData({...editFormData, tone: e.target.value})}
-                                        placeholder="Tone"
-                                        aria-label="Tone"
-                                      />
-                                    </div>
-                                  </div>
-                                  <div className="form-group-compact">
-                                    <div className="two-column-row">
-                                      <input
-                                        type="text"
-                                        value={editFormData.domain || ""}
-                                        onChange={(e) => setEditFormData({...editFormData, domain: e.target.value})}
-                                        placeholder="Domain"
-                                        aria-label="Domain"
-                                      />
-                                      <input
-                                        type="text"
-                                        value={editFormData.jurisdiction || ""}
-                                        onChange={(e) => setEditFormData({...editFormData, jurisdiction: e.target.value})}
-                                        placeholder="Jurisdiction"
-                                        aria-label="Jurisdiction"
-                                      />
-                                    </div>
-                                  </div>
-                                  <div className="form-group-compact">
-                                    <label className="checkbox-label-inline-compact">
-                                      <input
-                                        type="checkbox"
-                                        checked={isMaster}
-                                        onChange={(e) => setIsMaster(e.target.checked)}
-                                      />
-                                      Master Template
-                                    </label>
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="read-only-fields">
-                                  <div className="read-only-row"><strong>Report Name:</strong> {template.name}</div>
-                                  {template.description && <div className="read-only-row"><strong>Description:</strong> {template.description}</div>}
-                                  <div className="read-only-row">
-                                    {template.audience && <span><strong>Audience:</strong> {template.audience}</span>}
-                                    {template.tone && <span><strong>Tone:</strong> {template.tone}</span>}
-                                  </div>
-                                  <div className="read-only-row">
-                                    {template.domain && <span><strong>Domain:</strong> {template.domain}</span>}
-                                    {template.jurisdiction && <span><strong>Jurisdiction:</strong> {template.jurisdiction}</span>}
-                                  </div>
-                                  {template.formats && template.formats.length > 0 && (
-                                    <div className="read-only-row">
-                                      <strong>Formats:</strong> {template.formats.map(f => f.toUpperCase()).join(", ")}
-                                    </div>
-                                  )}
-                                  {template.isMaster && (
-                                    <div className="read-only-row">
-                                      <strong>⭐ Master Template</strong>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* 2. SOURCES */}
-                          <div className="expanded-section panel-card">
-                            <div className="panel-header">
-                              <h4 className="expanded-section-title">2. Sources</h4>
-                              {isEditing && (
-                                <button
-                                  className="btn-icon"
-                                  type="button"
-                                  onClick={() =>
-                                    setEditPanelsOpen((prev) => ({
-                                      ...prev,
-                                      sources: !prev.sources,
-                                    }))
-                                  }
-                                  aria-label={editPanelsOpen.sources ? "Collapse sources" : "Expand sources"}
-                                  title={editPanelsOpen.sources ? "Collapse" : "Expand"}
-                                >
-                                  {editPanelsOpen.sources ? "▲" : "▼"}
-                                </button>
-                              )}
-                            </div>
-                            {(!isEditing || editPanelsOpen.sources) && (
-                              <div className="expanded-section-content panel-body">
-                              {isEditing ? (
-                                // EDIT MODE - Show editable sources
-                                <div className="form-section-compact">
-                                  {/* Source Types - Compact Inline */}
-                                  <div className="form-group-compact">
-                                    <div className="source-types-row">
-                                      <span className="source-types-label">Source Types:</span>
-                                      <label className="checkbox-label-inline-compact">
-                                        <input
-                                          type="checkbox"
-                                          checked={selectedConnectorTypes.includes("VECTOR")}
-                                          onChange={() => handleConnectorTypeToggle("VECTOR")}
-                                        />
-                                        Vector Stores
-                                      </label>
-                                      <label className="checkbox-label-inline-compact">
-                                        <input
-                                          type="checkbox"
-                                          checked={selectedConnectorTypes.includes("WEB_SEARCH")}
-                                          onChange={() => handleConnectorTypeToggle("WEB_SEARCH")}
-                                        />
-                                        Web Search
-                                      </label>
-                                    </div>
-                                  </div>
-
-                                  {/* VECTOR STORES */}
-                                  {selectedConnectorTypes.includes("VECTOR") && (
-                                    <div className="form-group-compact">
-                                      <VectorStoreSelector
-                                        selectedVectorStores={selectedVectorStores}
-                                        onVectorStoreChange={setSelectedVectorStores}
-                                        selectedFiles={selectedFiles}
-                                        onFileChange={(storeId, fileIds) => {
-                                          setSelectedFiles((prev) => ({ ...prev, [storeId]: fileIds }));
-                                        }}
-                                        maxStores={2}
-                                      />
-                                    </div>
-                                  )}
-
-                                  {/* WEB SEARCH */}
-                                  {selectedConnectorTypes.includes("WEB_SEARCH") && (
-                                    <div className="form-group-compact">
-                                      <p className="info-message">
-                                        <Check className="inline-icon" size={14} /> Web search will be enabled for this report
-                                      </p>
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                // READ-ONLY MODE - Show configured sources
-                                template.connectors && template.connectors.length > 0 ? (
-                                  <div className="read-only-fields">
-                                    {template.connectors.map((conn) => (
-                                      <div key={conn.id} className="read-only-row">
-                                        <Check className="inline-icon" size={14} /> {conn.type}: {conn.name}
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <p className="empty-message">No sources configured</p>
-                                )
-                              )}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* 3. SECTIONS */}
-                          <div className="expanded-section panel-card">
-                            <div className="expanded-section-header panel-header">
-                              <h4 className="expanded-section-title">3. Sections</h4>
-                              {isEditing && (
-                                <div className="panel-header-actions">
-                                  <button className="btn-secondary" type="button" onClick={addEditSection}>
-                                    + Add Section
-                                  </button>
-                                  <button
-                                    className="btn-icon"
-                                    type="button"
-                                    onClick={() =>
-                                      setEditPanelsOpen((prev) => ({
-                                        ...prev,
-                                        sections: !prev.sections,
-                                      }))
-                                    }
-                                    aria-label={editPanelsOpen.sections ? "Collapse sections" : "Expand sections"}
-                                    title={editPanelsOpen.sections ? "Collapse" : "Expand"}
-                                  >
-                                    {editPanelsOpen.sections ? "▲" : "▼"}
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                            {(!isEditing || editPanelsOpen.sections) && (
-                              <div className="expanded-section-content panel-body">
-                              {isEditing ? (
-                                // EDIT MODE - Show editable sections
-                                editFormData.sections && editFormData.sections.length > 0 ? (
-                                  <div className="sections-list-editable">
-                                    {editFormData.sections.map((section, idx) => (
-                                      <div key={section.id || idx} className="section-edit-card">
-                                        <div className="section-edit-header">
-                                          <strong>Section {idx + 1}</strong>
-                                          <div className="section-edit-actions">
-                                            <button
-                                              className="btn-icon"
-                                              onClick={() => moveEditSection(idx, "up")}
-                                              aria-label="Move section up"
-                                              title="Move Up"
-                                              disabled={idx === 0}
-                                            >
-                                              <ChevronUp size={16} />
-                                            </button>
-                                            <button
-                                              className="btn-icon"
-                                              onClick={() => moveEditSection(idx, "down")}
-                                              aria-label="Move section down"
-                                              title="Move Down"
-                                              disabled={idx === (editFormData.sections?.length || 0) - 1}
-                                            >
-                                              <ChevronDown size={16} />
-                                            </button>
-                                            <button
-                                              className="btn-icon-danger"
-                                              onClick={() => deleteEditSection(idx)}
-                                              aria-label="Delete section"
-                                              title="Delete Section"
-                                            >
-                                              <Trash2 size={16} />
-                                            </button>
-                                          </div>
-                                        </div>
-                                        <div className="section-edit-fields">
-                                          <div className="form-group-compact">
-                                            <input
-                                              type="text"
-                                              value={section.title || ""}
-                                              onChange={(e) => {
-                                                const key = section.id || `index-${idx}`;
-                                                if (editSectionErrors[key]?.title) {
-                                                  setEditSectionErrors((prev) => ({
-                                                    ...prev,
-                                                    [key]: { ...prev[key], title: undefined },
-                                                  }));
-                                                }
-                                                const updatedSections = [...(editFormData.sections || [])];
-                                                updatedSections[idx] = {...updatedSections[idx], title: e.target.value};
-                                                setEditFormData({...editFormData, sections: updatedSections});
-                                              }}
-                                              placeholder="Section Title *"
-                                              aria-label={`Section ${idx + 1} title`}
-                                              aria-invalid={Boolean(editSectionErrors[section.id || `index-${idx}`]?.title)}
-                                              aria-describedby={
-                                                editSectionErrors[section.id || `index-${idx}`]?.title
-                                                  ? `edit-section-${section.id || `index-${idx}`}-title-error`
-                                                  : undefined
-                                              }
-                                            />
-                                            {editSectionErrors[section.id || `index-${idx}`]?.title && (
-                                              <div
-                                                id={`edit-section-${section.id || `index-${idx}`}-title-error`}
-                                                className="field-error"
-                                                role="alert"
-                                              >
-                                                {editSectionErrors[section.id || `index-${idx}`]?.title}
-                                              </div>
-                                            )}
-                                          </div>
-                                          <div className="form-group-compact">
-                                            <textarea
-                                              value={section.purpose || ""}
-                                              onChange={(e) => {
-                                                const updatedSections = [...(editFormData.sections || [])];
-                                                updatedSections[idx] = {...updatedSections[idx], purpose: e.target.value};
-                                                setEditFormData({...editFormData, sections: updatedSections});
-                                              }}
-                                              placeholder="Purpose"
-                                              rows={2}
-                                              aria-label={`Section ${idx + 1} purpose`}
-                                            />
-                                          </div>
-                                          <div className="form-group-compact">
-                                            <label className="form-label-compact">Length & Source - min/max words, source</label>
-                                            <div className="form-row-inline">
-                                              <input
-                                                type="number"
-                                                value={section.targetLengthMin || ""}
-                                                onChange={(e) => {
-                                                  const key = section.id || `index-${idx}`;
-                                                  if (editSectionErrors[key]?.length) {
-                                                    setEditSectionErrors((prev) => ({
-                                                      ...prev,
-                                                      [key]: { ...prev[key], length: undefined },
-                                                    }));
-                                                  }
-                                                  const updatedSections = [...(editFormData.sections || [])];
-                                                  updatedSections[idx] = {...updatedSections[idx], targetLengthMin: parseInt(e.target.value) || 0};
-                                                  setEditFormData({...editFormData, sections: updatedSections});
-                                                }}
-                                                placeholder="Min words"
-                                                aria-label={`Section ${idx + 1} minimum word count`}
-                                                aria-describedby={
-                                                  editSectionErrors[section.id || `index-${idx}`]?.length
-                                                    ? `edit-section-${section.id || `index-${idx}`}-length-error`
-                                                    : undefined
-                                                }
-                                              />
-                                              <input
-                                                type="number"
-                                                value={section.targetLengthMax || ""}
-                                                onChange={(e) => {
-                                                  const key = section.id || `index-${idx}`;
-                                                  if (editSectionErrors[key]?.length) {
-                                                    setEditSectionErrors((prev) => ({
-                                                      ...prev,
-                                                      [key]: { ...prev[key], length: undefined },
-                                                    }));
-                                                  }
-                                                  const updatedSections = [...(editFormData.sections || [])];
-                                                  updatedSections[idx] = {...updatedSections[idx], targetLengthMax: parseInt(e.target.value) || 0};
-                                                  setEditFormData({...editFormData, sections: updatedSections});
-                                                }}
-                                                placeholder="Max words"
-                                                aria-label={`Section ${idx + 1} maximum word count`}
-                                                aria-describedby={
-                                                  editSectionErrors[section.id || `index-${idx}`]?.length
-                                                    ? `edit-section-${section.id || `index-${idx}`}-length-error`
-                                                    : undefined
-                                                }
-                                              />
-                                              <select
-                                                value={section.sourceMode || ""}
-                                                onChange={(e) => {
-                                                  const updatedSections = [...(editFormData.sections || [])];
-                                                  updatedSections[idx] = {...updatedSections[idx], sourceMode: e.target.value as "inherit" | "custom"};
-                                                  setEditFormData({...editFormData, sections: updatedSections});
-                                                }}
-                                                className={!section.sourceMode ? "placeholder-select" : ""}
-                                                aria-label={`Section ${idx + 1} source mode`}
-                                              >
-                                                <option value="" disabled>Source</option>
-                                                <option value="inherit">Same as Report</option>
-                                                <option value="custom">Custom Source</option>
-                                              </select>
-                                            </div>
-                                            {editSectionErrors[section.id || `index-${idx}`]?.length && (
-                                              <div
-                                                id={`edit-section-${section.id || `index-${idx}`}-length-error`}
-                                                className="field-error"
-                                                role="alert"
-                                              >
-                                                {editSectionErrors[section.id || `index-${idx}`]?.length}
-                                              </div>
-                                            )}
-                                          </div>
-                                          {section.sourceMode === "custom" && (
-                                            <div className="form-group-compact">
-                                              <div className="custom-source-selector-wrapper">
-                                                <h4 className="custom-source-title">Custom Sources for this Section</h4>
-                                                <p className="custom-source-summary">
-                                                  Selected: {formatCustomSources(section.customConnectorIds)}
-                                                </p>
-                                                <VectorStoreSelector
-                                                  selectedVectorStores={section.customConnectorIds || []}
-                                                  onVectorStoreChange={(storeIds) => {
-                                                    const updatedSections = [...(editFormData.sections || [])];
-                                                    updatedSections[idx] = {...updatedSections[idx], customConnectorIds: storeIds};
-                                                    setEditFormData({...editFormData, sections: updatedSections});
-                                                  }}
-                                                  selectedFiles={{}}
-                                                  onFileChange={() => {}}
-                                                  maxStores={2}
-                                                />
-                                              </div>
-                                            </div>
-                                          )}
-                                          
-                                          {/* Writing Style Dropdown */}
-                                          <div className="form-group-compact">
-                                            <label className="form-label-compact">Writing Style</label>
-                                            <select
-                                              value={section.writingStyle || ""}
-                                              onChange={(e) => {
-                                                const updatedSections = [...(editFormData.sections || [])];
-                                                updatedSections[idx] = {...updatedSections[idx], writingStyle: e.target.value};
-                                                setEditFormData({...editFormData, sections: updatedSections});
-                                              }}
-                                              className={`writing-style-select ${!section.writingStyle ? "placeholder-select" : ""}`}
-                                              aria-label={`Section ${idx + 1} writing style`}
-                                            >
-                                              <option value="" disabled>Writing Style</option>
-                                              {writingStyles.map((style) => (
-                                                <option key={style.id} value={style.id}>
-                                                  {style.name}
-                                                </option>
-                                              ))}
-                                            </select>
-                                            {section.writingStyle && (
-                                              <div className="writing-style-description">
-                                                {writingStyles.find(s => s.id === section.writingStyle)?.description}
-                                              </div>
-                                            )}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <p className="empty-message">No sections added</p>
-                                )
-                              ) : (
-                                // READ-ONLY MODE - Show section details
-                                template.sections && template.sections.length > 0 ? (
-                                  <div className="sections-list-compact">
-                                    {template.sections.map((section, idx) => (
-                                      <div key={section.id || idx} className="section-item-detailed">
-                                        <div className="section-detail-header">
-                                          <strong><File className="inline-icon" size={14} /> {section.title}</strong>
-                                          <span className="section-meta-compact">
-                                            {section.targetLengthMin}-{section.targetLengthMax} words
-                                          </span>
-                                        </div>
-                                        {section.purpose && (
-                                          <div className="section-detail-purpose">{section.purpose}</div>
-                                        )}
-                                        <div className="section-detail-meta">
-                                          <span>Source: {section.sourceMode === 'inherit' ? 'Same as Report' : section.sourceMode === 'custom' ? 'Custom Source' : 'N/A'}</span>
-                                          {section.writingStyle && (
-                                            <span>Writing Style: {writingStyles.find(s => s.id === section.writingStyle)?.name || section.writingStyle}</span>
-                                          )}
-                                        </div>
-                                        {section.sourceMode === "custom" && (
-                                          <div className="section-detail-meta">
-                                            <span>Custom Sources: {formatCustomSources(section.customConnectorIds)}</span>
-                                          </div>
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <p className="empty-message">No sections added</p>
-                                )
-                              )}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* ACTION BUTTONS */}
-                          {isEditing && (
-                            <div className="expanded-actions">
-                              <button className="btn-secondary" onClick={addEditSection}>
-                                + Add Section
-                              </button>
-                              <button className="btn-secondary" onClick={cancelEditingTemplate}>
-                                Cancel
-                              </button>
-                              <button className="btn-secondary" onClick={saveTemplateAs}>
-                                Save As
-                              </button>
-                              <button className="btn-primary" onClick={saveTemplateEdits}>
-                                Save
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                {regularTemplates.map((template) =>
+                  renderTemplateCard(template, {
+                    showCreatedAt: false,
+                    showTopNameEditor: false,
+                    includeNameInObjectives: true,
+                    showSectionCounts: false,
+                    confirmDeleteInEdit: false,
+                    autoResizePurpose: false,
+                  })
+                )}
               </div>
             </div>
           )}

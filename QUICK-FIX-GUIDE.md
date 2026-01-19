@@ -22,7 +22,7 @@
 # Copy/paste: scripts/add-critical-indexes.sql
 
 -- 2. Fix race conditions
-# Copy/paste: scripts/update-claim-job-function.sql
+# Copy/paste: scripts/fix-claim-next-job-comprehensive-clean.sql
 ```
 
 ### Step 2: Deploy Code (10 minutes)
@@ -90,7 +90,7 @@ npm run build && grep -r "SERVICE_ROLE_KEY" .next/static/
 
 ### Created
 - `scripts/add-critical-indexes.sql` - Performance indexes
-- `scripts/update-claim-job-function.sql` - Atomic job claiming
+- `scripts/fix-claim-next-job-comprehensive-clean.sql` - Atomic job claiming
 - `src/lib/validation.ts` - Input validation schemas
 - `SUPABASE-SECURITY.md` - Security documentation
 - `CRITICAL-FIXES-SUMMARY.md` - Full details
@@ -111,7 +111,7 @@ psql $SUPABASE_DB_URL -c "SELECT 1;"
 
 # Try one migration at a time
 psql $SUPABASE_DB_URL -f scripts/add-critical-indexes.sql
-psql $SUPABASE_DB_URL -f scripts/update-claim-job-function.sql
+psql $SUPABASE_DB_URL -f scripts/fix-claim-next-job-comprehensive-clean.sql
 ```
 
 ### Validation errors after deploy

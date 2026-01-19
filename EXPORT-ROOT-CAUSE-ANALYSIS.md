@@ -85,4 +85,4 @@ Modify `claim_next_job` to alternate between reclaiming expired jobs and process
 
 1. `app/api/report-runs/[runId]/export/route.ts` - Add run status check
 2. `app/api/report-runs/[runId]/export/route.ts` - Set higher priority for export jobs
-3. `scripts/fix-claim-next-job-comprehensive.sql` - Consider priority balancing
+3. `scripts/fix-claim-next-job-comprehensive-clean.sql` - Consider priority balancing

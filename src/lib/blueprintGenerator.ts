@@ -5,6 +5,9 @@
  * across all sections before they are generated.
  */
 
+import { withRetry } from "@/lib/apiRetry";
+import { fetchJson } from "@/lib/httpClient";
+
 const OPENAI_BASE_URL = "https://api.openai.com/v1";
 
 function getApiKey() {
@@ -17,29 +20,6 @@ function getApiKey() {
 
 function getModel() {
   return process.env.OPENAI_WRITE_MODEL || "gpt-4o-mini";
-}
-
-async function fetchWithTimeout(
-  url: string,
-  options: RequestInit,
-  timeoutMs = 60000
-): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    return response;
-  } catch (error: unknown) {
-    clearTimeout(timeout);
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error(`Request to ${url} timed out after ${timeoutMs}ms`);
-    }
-    throw error;
-  }
 }
 
 export type ReportBlueprint = {
@@ -129,39 +109,45 @@ PROVIDE A JSON OBJECT WITH:
 
 OUTPUT ONLY VALID JSON. No markdown, no explanations, just the JSON object.`;
 
-  const res = await fetchWithTimeout(
-    `${OPENAI_BASE_URL}/chat/completions`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${getApiKey()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: getModel(),
-        messages: [
-          {
-            role: "system",
-            content: "You are an expert report planner. You create detailed blueprints that ensure report cohesion and consistency. Always output valid JSON."
+  const data = await withRetry(
+    async () => {
+      const result = await fetchJson<{
+        choices?: Array<{
+          message?: {
+            content?: string;
+          };
+        }>;
+      }>(
+        `${OPENAI_BASE_URL}/chat/completions`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${getApiKey()}`,
+            "Content-Type": "application/json",
           },
-          {
-            role: "user",
-            content: blueprintPrompt
-          }
-        ],
-        temperature: 0.7,
-        response_format: { type: "json_object" }
-      }),
+          body: JSON.stringify({
+            model: getModel(),
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are an expert report planner. You create detailed blueprints that ensure report cohesion and consistency. Always output valid JSON.",
+              },
+              {
+                role: "user",
+                content: blueprintPrompt,
+              },
+            ],
+            temperature: 0.7,
+            response_format: { type: "json_object" },
+          }),
+        },
+        60000
+      );
+      return result;
     },
-    60000
+    { maxRetries: 3 }
   );
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Blueprint generation failed (${res.status}): ${errorText}`);
-  }
-
-  const data = await res.json();
   const content = data.choices?.[0]?.message?.content;
   
   if (!content) {
@@ -216,7 +202,6 @@ PROHIBITIONS:
 ${blueprint.prohibitions.map(p => `- ${p}`).join("\n")}
 `.trim();
 }
-
 
 
 

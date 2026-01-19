@@ -1,3 +1,6 @@
+import { withRetry } from "@/lib/apiRetry";
+import { fetchJson } from "@/lib/httpClient";
+
 const OPENAI_BASE_URL = "https://api.openai.com/v1";
 
 type VerificationResult = {
@@ -56,29 +59,6 @@ function extractOutputText(data: any): string {
   return parts.join("");
 }
 
-async function fetchWithTimeout(
-  url: string,
-  options: RequestInit,
-  timeoutMs = 30000
-): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    return response;
-  } catch (error: unknown) {
-    clearTimeout(timeout);
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error(`Request to ${url} timed out after ${timeoutMs}ms`);
-    }
-    throw error;
-  }
-}
-
 export async function runVerificationPrompt(params: {
   sectionTitle: string;
   evidencePolicy?: string;
@@ -105,28 +85,25 @@ export async function runVerificationPrompt(params: {
     params.draft,
   ].join("\n");
 
-  const res = await fetchWithTimeout(
-    `${OPENAI_BASE_URL}/responses`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${getApiKey()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: getModel(),
-        input: prompt,
-      }),
-    },
-    30000
+  const data = await withRetry(
+    () =>
+      fetchJson(
+        `${OPENAI_BASE_URL}/responses`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${getApiKey()}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: getModel(),
+            input: prompt,
+          }),
+        },
+        30000
+      ),
+    { maxRetries: 2 }
   );
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`OpenAI verifier request failed (${res.status}): ${errorText}`);
-  }
-
-  const data = await res.json();
   const output = extractOutputText(data);
   const parsed = extractJson(output);
   if (!parsed) {

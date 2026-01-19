@@ -5,6 +5,9 @@
  * smooth narrative flow and logical connections.
  */
 
+import { withRetry } from "@/lib/apiRetry";
+import { fetchJson } from "@/lib/httpClient";
+
 const OPENAI_BASE_URL = "https://api.openai.com/v1";
 
 function getApiKey() {
@@ -17,29 +20,6 @@ function getApiKey() {
 
 function getModel() {
   return process.env.OPENAI_WRITE_MODEL || "gpt-4o-mini";
-}
-
-async function fetchWithTimeout(
-  url: string,
-  options: RequestInit,
-  timeoutMs = 30000
-): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    return response;
-  } catch (error: unknown) {
-    clearTimeout(timeout);
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error(`Request to ${url} timed out after ${timeoutMs}ms`);
-    }
-    throw error;
-  }
 }
 
 export type SectionSummary = {
@@ -101,39 +81,43 @@ GUIDELINES:
 
 OUTPUT ONLY THE TRANSITION PARAGRAPH (no labels, no explanations).`;
 
-  const res = await fetchWithTimeout(
-    `${OPENAI_BASE_URL}/chat/completions`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${getApiKey()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: getModel(),
-        messages: [
-          {
-            role: "system",
-            content: "You are an expert report writer specializing in creating smooth transitions between sections. Your transitions are concise, meaningful, and create logical narrative flow."
+  const data = await withRetry(
+    () =>
+      fetchJson<{
+        choices?: Array<{
+          message?: {
+            content?: string;
+          };
+        }>;
+      }>(
+        `${OPENAI_BASE_URL}/chat/completions`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${getApiKey()}`,
+            "Content-Type": "application/json",
           },
-          {
-            role: "user",
-            content: transitionPrompt
-          }
-        ],
-        temperature: 0.7,
-        max_completion_tokens: 200
-      }),
-    },
-    30000
+          body: JSON.stringify({
+            model: getModel(),
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are an expert report writer specializing in creating smooth transitions between sections. Your transitions are concise, meaningful, and create logical narrative flow.",
+              },
+              {
+                role: "user",
+                content: transitionPrompt,
+              },
+            ],
+            temperature: 0.7,
+            max_completion_tokens: 200,
+          }),
+        },
+        30000
+      ),
+    { maxRetries: 2 }
   );
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Transition generation failed (${res.status}): ${errorText}`);
-  }
-
-  const data = await res.json();
   const content = data.choices?.[0]?.message?.content;
   
   if (!content) {
@@ -204,4 +188,3 @@ export function assembleReportWithTransitions(
 
   return report.trim();
 }
-

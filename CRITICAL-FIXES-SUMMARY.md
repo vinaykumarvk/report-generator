@@ -85,7 +85,7 @@ psql $SUPABASE_DB_URL -c "EXPLAIN ANALYZE SELECT * FROM jobs WHERE status = 'PEN
 
 ### Files Created
 - `scripts/fix-race-conditions.sql` - Comprehensive fix with retry logic
-- `scripts/update-claim-job-function.sql` - Specific function update
+- `scripts/fix-claim-next-job-comprehensive-clean.sql` - Specific function update
 
 ### Key Changes
 ```sql
@@ -112,7 +112,7 @@ WHERE id = (
 ### How to Apply
 ```bash
 # Apply via Supabase Dashboard SQL Editor
-# Copy contents of scripts/update-claim-job-function.sql
+# Copy contents of scripts/fix-claim-next-job-comprehensive-clean.sql
 # Run in SQL Editor
 ```
 
@@ -421,7 +421,7 @@ Secrets exposure:       NONE (server-only)   (FIXED ✅)
 ```bash
 # Connect to Supabase
 psql $SUPABASE_DB_URL < scripts/add-critical-indexes.sql
-psql $SUPABASE_DB_URL < scripts/update-claim-job-function.sql
+psql $SUPABASE_DB_URL < scripts/fix-claim-next-job-comprehensive-clean.sql
 ```
 
 ### 2. Deploy Code Changes
@@ -498,7 +498,7 @@ CREATE INDEX CONCURRENTLY idx_jobs_status_created ON jobs(status, created_at);
 \\df claim_next_job
 
 # Recreate if missing
-psql $DB_URL < scripts/update-claim-job-function.sql
+psql $DB_URL < scripts/fix-claim-next-job-comprehensive-clean.sql
 ```
 
 **Validation Issues:**
@@ -526,7 +526,7 @@ grep -r "SUPABASE_SERVICE_ROLE_KEY" .next/  # Should be empty
 
 **Files Created:**
 - 📄 scripts/add-critical-indexes.sql
-- 📄 scripts/update-claim-job-function.sql
+- 📄 scripts/fix-claim-next-job-comprehensive-clean.sql
 - 📄 scripts/fix-race-conditions.sql
 - 📄 scripts/apply-indexes.sh
 - 📄 src/lib/validation.ts
